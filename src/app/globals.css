@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@plugin "daisyui"; /* Required for Tailwind v4 + DaisyUI */
+
+@layer utilities {
+  .flex-center {
+    @apply flex flex-col items-center justify-center;
+  }
+}
+
+@theme inline {
+  /* Colors extracted/matched from your image */
+  --card-blue-lja: #0f4b5a;
+  --panel-blue-lja: #145d77;
+  --accent-yellow-lja: #f6e72a;
+  --bg-dark-lja: #050f16; /* Deep dark blue/black background */
+  --input-bg: #1c2e3a; /* Slightly lighter for inputs */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
