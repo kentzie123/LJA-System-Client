@@ -1,24 +1,79 @@
 @import "tailwindcss";
+@plugin "daisyui";
 
-@plugin "daisyui"; /* Required for Tailwind v4 + DaisyUI */
-
+/* Custom Utility to center things easily */
 @layer utilities {
-  .flex-center {
+  .flex-col-center {
     @apply flex flex-col items-center justify-center;
+  }
+  .flex-row-center {
+    @apply flex items-center justify-center;
+  }
+  .btn {
+    @apply h-fit py-1.5;
   }
 }
 
-@theme inline {
-  /* Colors extracted/matched from your image */
-  --card-blue-lja: #0f4b5a;
-  --panel-blue-lja: #145d77;
-  --accent-yellow-lja: #f6e72a;
-  --bg-dark-lja: #050f16; /* Deep dark blue/black background */
-  --input-bg: #1c2e3a; /* Slightly lighter for inputs */
+/* THEME DEFINITIONS */
+@layer base {
+  /* --- LIGHT THEME (lja-light) --- */
+  [data-theme="lja-light"] {
+    /* Brand Colors */
+    --color-primary: #005fb8; /* The bright "Sign In" button blue */
+    --color-primary-content: #ffffff; /* Text color on primary button */
+
+    --color-secondary: #f6e72a; /* LJA Yellow */
+    --color-secondary-content: #050f16;
+
+    --color-accent: #145d77; /* Panel Blue as accent */
+    --color-accent-content: #ffffff;
+
+    /* Backgrounds (Clean White/Gray) */
+    --color-base-100: #ffffff; /* Main Page BG */
+    --color-base-200: #f3f4f6; /* Sidebar / Cards */
+    --color-base-300: #e5e7eb; /* Borders */
+    --color-base-content: #1f2937; /* Main Text */
+
+    /* Status Colors */
+    --color-info: #005fb8;
+    --color-success: #22c55e;
+    --color-warning: #facc15;
+    --color-error: #ef4444;
+  }
+
+  /* --- DARK THEME (lja-dark) --- */
+  [data-theme="lja-dark"] {
+    /* Brand Colors */
+    --color-primary: #005fb8; /* Keep blue button consistent */
+    --color-primary-content: #ffffff;
+
+    --color-secondary: #f6e72a; /* LJA Yellow */
+    --color-secondary-content: #050f16;
+
+    --color-accent: #145d77;
+    --color-accent-content: #ffffff;
+
+    /* Backgrounds (Your LJA Dark Palette) */
+    --color-base-100: #1e293b; /* Deepest Dark Blue (Main BG) */
+    --color-base-200: #0b1727; /* Sidebar / Cards (Lighter Dark) */
+    --color-base-300: #1c2e3a; /* Inputs / Borders */
+    --color-base-content: #e2e8f0; /* Text Color (Off-white for readability) */
+
+    /* Status Colors */
+    --color-info: #3b82f6;
+    --color-success: #22c55e;
+    --color-warning: #f6e72a;
+    --color-error: #ef4444;
+  }
 }
 
+
+@theme {
+  --text-xs: 12.25px;
+  --text-xxs: 10.5px
+
+}
+/* Global Styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply text-base-content font-sans antialiased;
 }

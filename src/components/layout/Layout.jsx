@@ -12,20 +12,29 @@ import { useAuthStore } from "@/stores/useAuthStore";
 const Layout = ({ children }) => {
   const { authUser } = useAuthStore();
 
-  if (!authUser) {
-    return <main className="min-h-screen w-full">{children}</main>;
-  }
-
   return (
-    <>
-      <aside className="w-64 shrink-0 border-r border-gray-200 dark:border-gray-800 bg-base-100">
-        <Sidebar />
-      </aside>
+    // 1. Wrap EVERYTHING in AuthInitializer so checkAuth() always runs first
+    <AuthInitializer>
+      {/* 2. Now we can safely check authUser because AuthInitializer 
+             blocks rendering until the check is finished */}
 
-      <main className="flex-1">
-        <AuthInitializer>{children}</AuthInitializer>
-      </main>
-    </>
+      {!authUser ? (
+        // STATE A: Not Logged In (Login Page) - No Sidebar
+        <main className="min-h-screen w-full">{children}</main>
+      ) : (
+        // STATE B: Logged In (Dashboard) - With Sidebar
+        // Note: We add a flex container here to replicate the body layout behavior
+        <div className="flex h-screen w-full overflow-hidden">
+          <aside className="w-56 bg-base-100 border-r border-base-300">
+            <Sidebar />
+          </aside>
+
+          <main className="flex-1 overflow-y-auto bg-base-200 p-8">
+            {children}
+          </main>
+        </div>
+      )}
+    </AuthInitializer>
   );
 };
 

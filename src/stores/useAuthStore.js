@@ -32,10 +32,16 @@ export const useAuthStore = create((set, get) => ({
     });
   },
 
+  disconnectSocket: () => {
+    if (get().socket?.connected) get().socket.disconnect();
+  },
+
   checkAuth: async () => {
     try {
       set({ isCheckingAuth: true });
       const authUser = await api.get("/auth/check-auth");
+      console.log(`Check auth: ${authUser.data}`);
+
       set({ authUser: authUser.data });
     } catch (error) {
     } finally {
@@ -59,6 +65,17 @@ export const useAuthStore = create((set, get) => ({
       return false;
     } finally {
       set({ isLoggingIn: false });
+    }
+  },
+
+  logout: async () => {
+    try {
+      await api.post("/auth/logout");
+      get().disconnectSocket();
+      set({ authUser: null });
+      toast.success("Logout successfully");
+    } catch (err) {
+      toast.error(err?.response?.data?.message);
     }
   },
 }));

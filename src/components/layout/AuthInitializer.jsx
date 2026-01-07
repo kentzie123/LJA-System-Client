@@ -11,6 +11,8 @@ export default function AuthInitializer({ children }) {
   const { checkAuth, isCheckingAuth } = useAuthStore();
 
   useEffect(() => {
+    console.log("Checking Auth..");
+
     checkAuth();
   }, [checkAuth]);
 
