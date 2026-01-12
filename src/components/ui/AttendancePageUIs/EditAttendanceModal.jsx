@@ -2,60 +2,59 @@
 
 import { useState, useEffect } from "react";
 import { useAttendanceStore } from "@/stores/useAttendanceStore";
-import {
-  X,
-  Calendar,
-  Clock,
-  User,
-  Activity,
-  CheckCircle, // Icon for Status
-} from "lucide-react";
+import { X, Save, Calendar, Clock, User } from "lucide-react";
 
-const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
-  const { createManualEntry, isAddingAttendance, fetchAllAttendances } =
+const EditAttendanceModal = ({ isOpen, onClose, users, record }) => {
+  const { updateAttendance, isEditingAttendance, fetchAllAttendances } =
     useAttendanceStore();
 
   const [formData, setFormData] = useState({
     userId: "",
-    date: new Date().toISOString().split("T")[0],
-    timeIn: "08:00",
-    timeOut: "17:00",
-    status: "Present",
+    date: "",
+    timeIn: "",
+    timeOut: "",
   });
 
-  // Reset form when modal opens
+  // Populate form when modal opens or record changes
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && record) {
       setFormData({
-        userId: "",
-        date: new Date().toISOString().split("T")[0],
-        timeIn: "08:00",
-        timeOut: "17:00",
-        status: "Present",
+        userId: record.user_id || "",
+        // Ensure date is YYYY-MM-DD
+        date: record.date
+          ? new Date(record.date).toISOString().split("T")[0]
+          : "",
+        // Ensure time is HH:MM (Postgres often returns HH:MM:SS)
+        timeIn: record.time_in ? record.time_in.slice(0, 5) : "",
+        timeOut: record.time_out ? record.time_out.slice(0, 5) : "",
       });
     }
-  }, [isOpen]);
+  }, [isOpen, record]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    createManualEntry(formData);
-    fetchAllAttendances();
+    // 1. Call update with ID and Data
+    await updateAttendance(record.id, formData);
+    // 2. Refresh list
+    await fetchAllAttendances();
+    // 3. Close
     onClose();
   };
 
-  const isAbsent = formData.status === "Absent";
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
         {/* --- HEADER --- */}
         <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div>
-            <div className="text-lg font-bold">Add Manual Record</div>
+            <div className="text-lg font-bold">Edit Attendance</div>
             <p className="text-xs text-base-content/60 mt-0.5">
-              Create a new attendance entry.
+              Update details for{" "}
+              <span className="font-semibold text-base-content">
+                {record?.fullname}
+              </span>
             </p>
           </div>
           <button
@@ -68,7 +67,7 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
 
         {/* --- FORM BODY --- */}
         <div className="py-4 px-6 space-y-1 overflow-y-auto custom-scrollbar">
-          <form id="attendance-form" onSubmit={handleSubmit}>
+          <form id="edit-attendance-form" onSubmit={handleSubmit}>
             {/* 1. Employee Selection */}
             <fieldset className="fieldset">
               <legend className="fieldset-legend text-xs font-semibold">
@@ -94,57 +93,28 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
               </div>
             </fieldset>
 
-            {/* GRID: Date & Status */}
-            <div className="grid grid-cols-2 gap-4 mt-1">
-              {/* 2. Date */}
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">
-                  Date
-                </legend>
-                <div className="relative">
-                  <input
-                    type="date"
-                    required
-                    className="input input-bordered w-full pl-10 text-xs"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
-                  />
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
-                </div>
-              </fieldset>
-
-              {/* 3. Status (Added Selector) */}
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">
-                  Status
-                </legend>
-                <div className="relative">
-                  <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none z-10" />
-                  <select
-                    className="select select-bordered w-full pl-10 text-xs"
-                    value={formData.status}
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
-                    }
-                  >
-                    <option value="Present">Present</option>
-                    <option value="Absent">Absent</option>
-                    <option value="Late">Late</option>
-                    <option value="Half Day">Half Day</option>
-                  </select>
-                </div>
-              </fieldset>
-            </div>
+            {/* 2. Date Selection */}
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend text-xs font-semibold">
+                Date
+              </legend>
+              <div className="relative">
+                <input
+                  type="date"
+                  required
+                  className="input input-bordered w-full pl-10 text-xs"
+                  value={formData.date}
+                  onChange={(e) =>
+                    setFormData({ ...formData, date: e.target.value })
+                  }
+                />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+              </div>
+            </fieldset>
 
             {/* GRID: Time In & Out */}
-            <div
-              className={`grid grid-cols-2 gap-4 mt-1 transition-opacity duration-300 ${
-                isAbsent ? "opacity-50 pointer-events-none" : "opacity-100"
-              }`}
-            >
-              {/* 4. Time In */}
+            <div className="grid grid-cols-2 gap-4 mt-1">
+              {/* 3. Time In */}
               <fieldset className="fieldset">
                 <legend className="fieldset-legend text-xs font-semibold text-success">
                   Time In
@@ -157,13 +127,12 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
                     onChange={(e) =>
                       setFormData({ ...formData, timeIn: e.target.value })
                     }
-                    disabled={isAbsent}
                   />
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-success pointer-events-none" />
                 </div>
               </fieldset>
 
-              {/* 5. Time Out */}
+              {/* 4. Time Out */}
               <fieldset className="fieldset">
                 <legend className="fieldset-legend text-xs font-semibold text-error">
                   Time Out
@@ -176,20 +145,11 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
                     onChange={(e) =>
                       setFormData({ ...formData, timeOut: e.target.value })
                     }
-                    disabled={isAbsent}
                   />
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-error pointer-events-none" />
                 </div>
               </fieldset>
             </div>
-
-            {/* Absent Warning Helper */}
-            {isAbsent && (
-              <div className="mt-2 flex items-center gap-2 text-warning bg-warning/10 p-2 rounded-lg text-xs">
-                <Activity className="size-4" />
-                <span>Time records are ignored for Absent status.</span>
-              </div>
-            )}
 
             {/* --- FOOTER BUTTONS --- */}
             <div className="flex justify-end gap-4 mt-6">
@@ -197,19 +157,22 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
                 type="button"
                 onClick={onClose}
                 className="btn text-xs"
-                disabled={isAddingAttendance}
+                disabled={isEditingAttendance}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary text-xs"
-                disabled={isAddingAttendance}
+                disabled={isEditingAttendance}
               >
-                {isAddingAttendance ? (
-                  <span className="loading loading-spinner loading-xs"></span>
+                {isEditingAttendance ? (
+                  <span className="loading loading-spinner loading-sm"></span>
                 ) : (
-                  "Save Record"
+                  <>
+                    <Save className="size-4 mr-1" />
+                    Update Changes
+                  </>
                 )}
               </button>
             </div>
@@ -220,4 +183,4 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
   );
 };
 
-export default AddNewAttendanceModal;
+export default EditAttendanceModal;

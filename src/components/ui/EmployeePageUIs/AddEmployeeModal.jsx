@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useBranchStore } from "@/stores/useBranchStore";
-import { useRoleStore } from "@/stores/useRoleStore"; // Import Role Store
+import { useRoleStore } from "@/stores/useRoleStore";
 import {
   X,
   User,
@@ -18,7 +18,7 @@ import {
 const AddEmployeeModal = ({ isOpen, onClose }) => {
   const { addUser, isAddingUser } = useUserStore();
   const { branches, fetchBranches, isLoadingBranches } = useBranchStore();
-  const { roles, fetchRoles, isLoadingRoles } = useRoleStore(); // Get roles
+  const { roles, fetchRoles, isLoadingRoles } = useRoleStore();
 
   const [formData, setFormData] = useState({
     fullname: "",
@@ -30,7 +30,9 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
     payrate: "",
   });
 
-  // Fetch data when modal opens
+  // 1. Error State
+  const [errors, setErrors] = useState({});
+
   useEffect(() => {
     if (isOpen) {
       fetchBranches();
@@ -38,10 +40,56 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen, fetchBranches, fetchRoles]);
 
-  if (!isOpen) return null;
+  // Reset form & errors on close/open
+  useEffect(() => {
+    if (!isOpen) {
+      setErrors({});
+    } else {
+        // Optional: Reset form data if you want fresh form every time
+    }
+  }, [isOpen]);
+
+  // 2. Handle Change + Clear Error
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // For role_id convert to int, otherwise string
+    const finalValue = name === "role_id" ? parseInt(value) : value;
+
+    setFormData((prev) => ({ ...prev, [name]: finalValue }));
+
+    // Clear error for field
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // 3. Validation Logic
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.fullname.trim()) newErrors.fullname = "Full Name is required.";
+    if (!formData.email.trim()) newErrors.email = "Email is required.";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Invalid email format.";
+    
+    if (!formData.password) newErrors.password = "Password is required.";
+    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 chars.";
+    
+    if (!formData.branch) newErrors.branch = "Please select a branch.";
+    if (!formData.position.trim()) newErrors.position = "Position is required.";
+    
+    // Payrate validation
+    if (!formData.payrate) newErrors.payrate = "Daily rate is required.";
+    else if (isNaN(formData.payrate) || Number(formData.payrate) < 0) newErrors.payrate = "Invalid amount.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) return; // Stop if invalid
+
     const success = await addUser(formData);
     if (success) {
       setFormData({
@@ -57,14 +105,16 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-base-100 w-full max-w-2xl rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-base-300">
+      <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
+        {/* --- HEADER --- */}
+        <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div>
-            <h2 className="text-xl font-bold">Add New Employee</h2>
-            <p className="text-sm text-base-content/60">
+            <div className="text-lg font-bold">Add New Employee</div>
+            <p className="text-xs text-base-content/60 mt-0.5">
               Create a new user account and assign roles.
             </p>
           </div>
@@ -76,84 +126,84 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Form */}
+        {/* --- FORM BODY --- */}
         <div className="p-6 overflow-y-auto custom-scrollbar">
           <form
             id="add-employee-form"
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 gap-5"
+            noValidate // Disable browser default validation to use custom logic
           >
-            {/* Full Name & Email & Password (Unchanged) */}
-            <div className="form-control md:col-span-2">
-              <label className="label">
-                <span className="label-text font-medium">Full Name</span>
-              </label>
-              <label className="input input-bordered flex items-center gap-2">
-                <User className="size-4 text-base-content/50" />
+            {/* 1. Full Name */}
+            <fieldset className="fieldset w-full md:col-span-2">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Full Name
+              </legend>
+              <div className="relative">
                 <input
                   type="text"
+                  name="fullname" // Add name attribute
                   placeholder="e.g. Juan Dela Cruz"
-                  className="grow"
-                  required
+                  className={`input input-bordered w-full pl-10 text-sm ${errors.fullname ? "input-error" : ""}`}
                   value={formData.fullname}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fullname: e.target.value })
-                  }
+                  onChange={handleChange}
                 />
-              </label>
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Email Address</span>
-              </label>
-              <label className="input input-bordered flex items-center gap-2">
-                <Mail className="size-4 text-base-content/50" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+              </div>
+              {errors.fullname && <span className="text-error text-xs mt-1">{errors.fullname}</span>}
+            </fieldset>
+
+            {/* 2. Email Address */}
+            <fieldset className="fieldset w-full">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Email Address
+              </legend>
+              <div className="relative">
                 <input
                   type="email"
+                  name="email"
                   placeholder="user@lumina.co"
-                  className="grow"
-                  required
+                  className={`input input-bordered w-full pl-10 text-sm ${errors.email ? "input-error" : ""}`}
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={handleChange}
                 />
-              </label>
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Password</span>
-              </label>
-              <label className="input input-bordered flex items-center gap-2">
-                <Lock className="size-4 text-base-content/50" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+              </div>
+              {errors.email && <span className="text-error text-xs mt-1">{errors.email}</span>}
+            </fieldset>
+
+            {/* 3. Password */}
+            <fieldset className="fieldset w-full">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Password
+              </legend>
+              <div className="relative">
                 <input
                   type="password"
+                  name="password"
                   placeholder="••••••••"
-                  className="grow"
-                  required
+                  className={`input input-bordered w-full pl-10 text-sm ${errors.password ? "input-error" : ""}`}
                   value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
+                  onChange={handleChange}
                 />
-              </label>
-            </div>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+              </div>
+              {errors.password && <span className="text-error text-xs mt-1">{errors.password}</span>}
+            </fieldset>
 
-            {/* Branch (Dynamic) */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Branch</span>
-              </label>
+            {/* 4. Branch */}
+            <fieldset className="fieldset w-full">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Branch
+              </legend>
               <div className="relative">
-                <MapPin className="z-1 absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none z-10" />
                 <select
-                  className="select select-bordered w-full pl-10"
+                  name="branch"
+                  className={`select select-bordered w-full pl-10 text-sm ${errors.branch ? "select-error" : ""}`}
                   value={formData.branch}
-                  onChange={(e) =>
-                    setFormData({ ...formData, branch: e.target.value })
-                  }
+                  onChange={handleChange}
                   disabled={isLoadingBranches}
-                  required
                 >
                   <option value="" disabled>
                     Select a branch
@@ -165,24 +215,21 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                   ))}
                 </select>
               </div>
-            </div>
+              {errors.branch && <span className="text-error text-xs mt-1">{errors.branch}</span>}
+            </fieldset>
 
-            {/* Role (Dynamic) */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Role</span>
-              </label>
+            {/* 5. Role */}
+            <fieldset className="fieldset w-full">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Role
+              </legend>
               <div className="relative">
-                <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none z-1" />
+                <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none z-10" />
                 <select
-                  className="select select-bordered w-full pl-10"
+                  name="role_id"
+                  className="select select-bordered w-full pl-10 text-sm"
                   value={formData.role_id}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      role_id: parseInt(e.target.value),
-                    })
-                  }
+                  onChange={handleChange}
                   disabled={isLoadingRoles}
                 >
                   {roles.map((role) => (
@@ -192,48 +239,49 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                   ))}
                 </select>
               </div>
-            </div>
+            </fieldset>
 
-            {/* Position & Payrate (Unchanged) */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Position</span>
-              </label>
-              <label className="input input-bordered flex items-center gap-2">
-                <Briefcase className="size-4 text-base-content/50" />
+            {/* 6. Position */}
+            <fieldset className="fieldset w-full">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Position
+              </legend>
+              <div className="relative">
                 <input
                   type="text"
+                  name="position"
                   placeholder="e.g. Sales Associate"
-                  className="grow"
-                  required
+                  className={`input input-bordered w-full pl-10 text-sm ${errors.position ? "input-error" : ""}`}
                   value={formData.position}
-                  onChange={(e) =>
-                    setFormData({ ...formData, position: e.target.value })
-                  }
+                  onChange={handleChange}
                 />
-              </label>
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Daily Rate</span>
-              </label>
-              <label className="input input-bordered flex items-center gap-2">
-                <PhilippinePeso className="size-4 text-base-content/50" />
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+              </div>
+              {errors.position && <span className="text-error text-xs mt-1">{errors.position}</span>}
+            </fieldset>
+
+            {/* 7. Daily Rate */}
+            <fieldset className="fieldset w-full">
+              <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
+                Daily Rate
+              </legend>
+              <div className="relative">
                 <input
                   type="number"
+                  name="payrate"
                   placeholder="0.00"
-                  className="grow"
-                  required
+                  className={`input input-bordered w-full pl-10 text-sm ${errors.payrate ? "input-error" : ""}`}
                   value={formData.payrate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, payrate: e.target.value })
-                  }
+                  onChange={handleChange}
                 />
-              </label>
-            </div>
+                <PhilippinePeso className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
+              </div>
+              {errors.payrate && <span className="text-error text-xs mt-1">{errors.payrate}</span>}
+            </fieldset>
           </form>
         </div>
 
+        {/* --- FOOTER --- */}
         <div className="p-6 border-t border-base-300 flex justify-end gap-3 bg-base-100 rounded-b-2xl">
           <button
             type="button"

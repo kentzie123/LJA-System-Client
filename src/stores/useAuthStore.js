@@ -54,7 +54,6 @@ export const useAuthStore = create((set, get) => ({
       set({ isLoggingIn: true });
       const authUser = await api.post("/auth/login", data);
       set({ authUser: authUser.data });
-
       get().connectSocket();
 
       toast.success("Logged in successfully");

@@ -1,21 +1,21 @@
-"use client";
-
-import { useUserStore } from "@/stores/useUserStore";
 import { Trash2 } from "lucide-react";
 
-const DeleteEmployeeModal = ({ isOpen, onClose, employee }) => {
-  const { deleteUser, isDeletingUser } = useUserStore();
+const DeleteLeaveModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  leaveRequest, // Changed from 'record' to 'leaveRequest' for clarity
+  isDeleting,
+}) => {
+  if (!isOpen) return null;
 
-  if (!isOpen || !employee) return null;
-
-  const handleDelete = async () => {
-    // 1. Call the store action
-    const success = await deleteUser(employee.id);
-
-    // 2. Close modal only if successful
-    if (success) {
-      onClose();
-    }
+  const formatDate = (dateString) => {
+    if (!dateString) return "...";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   return (
@@ -28,35 +28,44 @@ const DeleteEmployeeModal = ({ isOpen, onClose, employee }) => {
 
         {/* Title */}
         <h3 className="text-xl font-bold text-base-content mb-2">
-          Delete Employee?
+          Delete Request?
         </h3>
 
         {/* Description */}
         <p className="text-sm text-base-content/60 mb-8 leading-relaxed">
-          You are about to remove{" "}
+          You are about to delete the
           <strong className="text-base-content font-semibold">
-            {employee.fullname}
+            {" "}
+            {leaveRequest?.leave_type}{" "}
+          </strong>
+          request for{" "}
+          <strong className="text-base-content font-semibold">
+            {leaveRequest?.fullname || "this employee"}
           </strong>{" "}
-          from the system. This action cannot be undone.
+          starting on{" "}
+          <strong className="text-base-content font-semibold">
+            {formatDate(leaveRequest?.start_date)}
+          </strong>
+          . This cannot be undone.
         </p>
 
         {/* Actions */}
         <div className="w-full space-y-3">
           <button
-            onClick={handleDelete}
-            disabled={isDeletingUser}
+            onClick={onConfirm}
+            disabled={isDeleting}
             className="btn btn-error w-full rounded-xl text-white font-bold hover:brightness-90 border-none"
           >
-            {isDeletingUser ? (
+            {isDeleting ? (
               <span className="loading loading-spinner loading-sm text-white"></span>
             ) : (
-              "Yes, Delete Employee"
+              "Yes, Delete Request"
             )}
           </button>
 
           <button
             onClick={onClose}
-            disabled={isDeletingUser}
+            disabled={isDeleting}
             className="btn bg-base-200 hover:bg-base-300 text-base-content w-full rounded-xl border-none"
           >
             Cancel
@@ -67,4 +76,4 @@ const DeleteEmployeeModal = ({ isOpen, onClose, employee }) => {
   );
 };
 
-export default DeleteEmployeeModal;
+export default DeleteLeaveModal;

@@ -22,7 +22,7 @@ const navItems = [
   { icon: Users, name: "Employee", href: "/employee" },
   { icon: ShieldCheck, name: "Roles & Permissions", href: "/roles" },
   { icon: Clock, name: "Attendance", href: "/attendance" },
-  { icon: Calendar, name: "Leave Requests", href: "/leaves" },
+  { icon: Calendar, name: "Leave Requests", href: "/leave" },
   { icon: Briefcase, name: "Overtime", href: "/overtime" },
   { icon: DollarSign, name: "Payroll & Finance", href: "/payroll" },
 ];
