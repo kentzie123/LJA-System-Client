@@ -81,13 +81,16 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  updateLeaveStatus: async (id, status) => {
+updateLeaveStatus: async (id, status) => {
     set({ isUpdating: true });
     try {
       await api.put(`/leave/${id}/status`, { status });
       toast.success(`Leave ${status} successfully`);
-      get().fetchAllLeaves();
-      get().fetchLeaveBalances(); // Refresh balances after approval
+      
+      // REFRESH DATA
+      get().fetchAllLeaves(); 
+      get().fetchLeaveBalances(); // <--- MAKE SURE THIS LINE IS HERE
+      
     } catch (error) {
       toast.error("Failed to update status");
       console.error(error);

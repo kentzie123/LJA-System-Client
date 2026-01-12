@@ -256,10 +256,10 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
                             onClick={() => handleActionClick(req, "Approved")}
                             disabled={isUpdating}
                             // Dim if already Approved
-                            className={`btn btn-xs btn-success text-white ${
+                            className={`btn btn-xs btn-success text-white tooltip tooltip-left ${
                               req.status === "Approved" ? "opacity-30" : ""
                             }`}
-                            title="Approve"
+                            data-tip="Approve Leave"
                           >
                             <Check size={12} />
                           </button>
@@ -269,10 +269,10 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
                             onClick={() => handleActionClick(req, "Rejected")}
                             disabled={isUpdating}
                             // Dim if already Rejected
-                            className={`btn btn-xs btn-error text-white ${
+                            className={`btn btn-xs btn-error text-white tooltip tooltip-left  ${
                               req.status === "Rejected" ? "opacity-30" : ""
                             }`}
-                            title="Reject"
+                            data-tip="Reject Leave"
                           >
                             <X size={12} />
                           </button>
@@ -287,7 +287,8 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
                       {/* EDIT */}
                       <button
                         onClick={() => handleEditClick(req)}
-                        className={`btn btn-ghost btn-xs btn-square hover:bg-base-200 ${
+                        data-tip="Edit Leave"
+                        className={`btn btn-ghost btn-xs btn-square hover:bg-base-200 tooltip tooltip-left ${
                           !isAdmin && req.status !== "Pending"
                             ? "opacity-20 cursor-not-allowed"
                             : "opacity-40 hover:opacity-100 hover:text-primary"
@@ -298,8 +299,9 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
 
                       {/* DELETE */}
                       <button
+                        data-tip="Delete Leave"
                         onClick={() => handleDeleteClick(req)}
-                        className={`btn btn-ghost btn-xs btn-square hover:bg-base-200 ${
+                        className={`btn btn-ghost btn-xs btn-square hover:bg-base-200 tooltip tooltip-left ${
                           !isAdmin && req.status !== "Pending"
                             ? "opacity-20 cursor-not-allowed"
                             : "opacity-40 hover:opacity-100 hover:text-error"

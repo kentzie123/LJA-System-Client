@@ -255,16 +255,18 @@ const AttendanceTableList = ({
                     </span>
                   </td>
                   <td className="py-4 pr-6">
-                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-center gap-1 transition-opacity">
                       <button
                         onClick={() => onEdit && onEdit(record)}
-                        className="btn btn-ghost btn-square btn-sm"
+                        className="btn btn-ghost btn-square btn-sm hover:text-primary tooltip tooltip-left"
+                        data-tip="Edit Employee"
                       >
                         <Pencil className="size-4" />
                       </button>
                       <button
                         onClick={() => onDelete && onDelete(record.id)}
-                        className="btn btn-ghost btn-square btn-sm hover:text-error"
+                        className="btn btn-ghost btn-square btn-sm hover:text-error tooltip tooltip-left"
+                        data-tip="Delete Employee"
                       >
                         <Trash className="size-4" />
                       </button>
