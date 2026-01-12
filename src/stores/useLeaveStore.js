@@ -5,6 +5,9 @@ import toast from "react-hot-toast";
 export const useLeaveStore = create((set, get) => ({
   leaves: [],
   leaveTypes: [],
+  // 1. Initialize balances state
+  leaveBalances: { vacationRemaining: 0, sickRemaining: 0 },
+
   isFetching: false,
   isCreating: false,
   isUpdating: false,
@@ -26,6 +29,31 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
+  // 2. Fetch Balances Action
+  fetchLeaveBalances: async () => {
+    try {
+      const response = await api.get("/leave/balances");
+      const data = response.data;
+
+      // Map the backend data to the format your grid expects
+      // Assuming backend returns array: [{ leave_name: 'Vacation Leave', allocated_days: 15, used_days: 2 }, ...]
+
+      const vacation = data.find((b) => b.leave_name === "Vacation Leave");
+      const sick = data.find((b) => b.leave_name === "Sick Leave");
+
+      set({
+        leaveBalances: {
+          vacationRemaining: vacation
+            ? vacation.allocated_days - vacation.used_days
+            : 0,
+          sickRemaining: sick ? sick.allocated_days - sick.used_days : 0,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to fetch balances", error);
+    }
+  },
+
   // Fetch types (for the dropdown)
   fetchLeaveTypes: async () => {
     try {
@@ -42,8 +70,9 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.post("/leave/create", formData);
       toast.success("Leave request submitted!");
-      get().fetchAllLeaves(); // Refresh list
-      return true; // Success signal
+      get().fetchAllLeaves();
+      get().fetchLeaveBalances(); // Refresh balances after creating
+      return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit request");
       return false;
@@ -57,7 +86,8 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.put(`/leave/${id}/status`, { status });
       toast.success(`Leave ${status} successfully`);
-      get().fetchAllLeaves(); // Refresh the list to show new status
+      get().fetchAllLeaves();
+      get().fetchLeaveBalances(); // Refresh balances after approval
     } catch (error) {
       toast.error("Failed to update status");
       console.error(error);
@@ -70,7 +100,8 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.delete(`/leave/${id}`);
       toast.success("Request deleted");
-      get().fetchAllLeaves(); // Refresh list
+      get().fetchAllLeaves();
+      get().fetchLeaveBalances(); // Refresh balances after delete
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete");
     }
@@ -87,9 +118,7 @@ export const useLeaveStore = create((set, get) => ({
       toast.error(error.response?.data?.message || "Failed to update");
       return false;
     } finally {
-      set({ isCreating: false, selectedLeave: null }); // Reset edit state
+      set({ isCreating: false, selectedLeave: null });
     }
   },
-
-  
 }));
