@@ -67,7 +67,7 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <TopBar title={"Dashboard"}/>
+      <TopBar/>
       {/* 1st section */}
       <div className="flex justify-between items-center">
         <div>

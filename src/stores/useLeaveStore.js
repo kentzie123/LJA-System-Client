@@ -35,9 +35,6 @@ export const useLeaveStore = create((set, get) => ({
       const response = await api.get("/leave/balances");
       const data = response.data;
 
-      // Map the backend data to the format your grid expects
-      // Assuming backend returns array: [{ leave_name: 'Vacation Leave', allocated_days: 15, used_days: 2 }, ...]
-
       const vacation = data.find((b) => b.leave_name === "Vacation Leave");
       const sick = data.find((b) => b.leave_name === "Sick Leave");
 
@@ -81,16 +78,17 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-updateLeaveStatus: async (id, status) => {
+  // Update Status (Approve/Reject)
+  updateLeaveStatus: async (id, status, rejectionReason = null) => {
     set({ isUpdating: true });
     try {
-      await api.put(`/leave/${id}/status`, { status });
+      // Pass reason in body
+      await api.put(`/leave/${id}/status`, { status, rejectionReason });
       toast.success(`Leave ${status} successfully`);
-      
-      // REFRESH DATA
-      get().fetchAllLeaves(); 
-      get().fetchLeaveBalances(); // <--- MAKE SURE THIS LINE IS HERE
-      
+
+      // REFRESH DATA to show new status and deducted balance
+      get().fetchAllLeaves();
+      get().fetchLeaveBalances();
     } catch (error) {
       toast.error("Failed to update status");
       console.error(error);

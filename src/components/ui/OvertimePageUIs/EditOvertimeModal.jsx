@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { X, Loader2, Clock, Calendar, Layers, FileText } from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 
-const NewOvertimeModal = ({ isOpen, onClose }) => {
+const EditOvertimeModal = ({ isOpen, onClose, request }) => {
   const {
-    createOvertimeRequest,
-    isCreating,
+    updateOvertimeRequest,
+    isCreating, // reusing the loading state
     overtimeTypes,
     fetchOvertimeTypes,
   } = useOvertimeStore();
@@ -18,40 +18,40 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
     reason: "",
   });
 
-  // 1. Error State
   const [errors, setErrors] = useState({});
 
-  // Fetch types on mount
+  // 1. Fetch Types & Populate Data
   useEffect(() => {
-    fetchOvertimeTypes();
-  }, [fetchOvertimeTypes]);
+    if (isOpen && request) {
+      fetchOvertimeTypes();
 
-  // Reset form & errors on open/close
-  useEffect(() => {
-    if (isOpen) {
+      // Format Date for Input (YYYY-MM-DD)
+      const formattedDate = request.ot_date
+        ? new Date(request.ot_date).toISOString().split("T")[0]
+        : "";
+
       setFormData({
-        otTypeId: "",
-        date: "",
-        startTime: "",
-        endTime: "",
-        reason: "",
+        otTypeId: request.ot_type_id || "",
+        date: formattedDate,
+        startTime: request.start_time || "",
+        endTime: request.end_time || "",
+        reason: request.reason || "",
       });
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, request, fetchOvertimeTypes]);
 
-  // 2. Handle Change + Clear Error
+  // 2. Handle Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Clear error for field
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
-  // 3. Validation Logic
+  // 3. Validation
   const validateForm = () => {
     const newErrors = {};
 
@@ -62,7 +62,6 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
     if (!formData.endTime) newErrors.endTime = "End time is required.";
     if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
 
-    // Logical Check
     if (formData.startTime && formData.endTime) {
       if (formData.endTime <= formData.startTime) {
         newErrors.endTime = "End time must be after start time.";
@@ -75,10 +74,10 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    if (!validateForm()) return; // Stop if invalid
-
-    const success = await createOvertimeRequest(formData);
+    // Call Update Action with ID
+    const success = await updateOvertimeRequest(request.id, formData);
     if (success) {
       onClose();
     }
@@ -93,10 +92,10 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div>
             <div className="text-lg font-bold flex items-center gap-2">
-              Apply for Overtime
+              Edit Overtime Request
             </div>
             <p className="text-xs text-base-content/60 mt-0.5">
-              Submit a request for additional work hours.
+              Update details for this request.
             </p>
           </div>
           <button
@@ -110,7 +109,7 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
         {/* --- FORM BODY --- */}
         <div className="p-6 overflow-y-auto custom-scrollbar">
           <form
-            id="add-overtime-form"
+            id="edit-overtime-form"
             onSubmit={handleSubmit}
             className="grid grid-cols-1 gap-5"
             noValidate
@@ -254,17 +253,17 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
           </button>
           <button
             type="submit"
-            form="add-overtime-form"
+            form="edit-overtime-form"
             disabled={isCreating}
             className="btn btn-primary px-8"
           >
             {isCreating ? (
               <>
                 <Loader2 className="size-4 animate-spin mr-1" />
-                Submitting...
+                Updating...
               </>
             ) : (
-              "Submit Request"
+              "Save Changes"
             )}
           </button>
         </div>
@@ -273,4 +272,4 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
   );
 };
 
-export default NewOvertimeModal;
+export default EditOvertimeModal;

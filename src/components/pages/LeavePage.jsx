@@ -8,16 +8,21 @@ import { Plus } from "lucide-react";
 // Components
 import TopBar from "../layout/TopBar";
 import LeaveStatsGrid from "../ui/LeavePageUIs/LeaveStatsGrid";
-import LeaveRequestList from "../ui/LeavePageUIs/LeaveRequestTable";
+import LeaveRequestList from "../ui/LeavePageUIs/LeaveRequestTable"; // Ensure filename matches (Table vs List)
 import NewLeaveModal from "../ui/LeavePageUIs/NewLeaveModal";
 import EditLeaveModal from "../ui/LeavePageUIs/EditLeaveModal";
 import DeleteLeaveModal from "../ui/LeavePageUIs/DeleteLeaveModal";
-import ConfirmLeaveActionModal from "../ui/LeavePageUIs/ConfirmLeaveActionModal"; // 1. Updated Import
+import ConfirmLeaveActionModal from "../ui/LeavePageUIs/ConfirmLeaveActionModal";
+
+// 1. IMPORT NEW MODALS
+import LeaveRejectReasonModal from "../ui/LeavePageUIs/LeaveRejectReasonModal";
+import ViewLeaveRejectReasonModal from "../ui/LeavePageUIs/ViewLeaveRejectReasonModal";
 
 const LeavePage = () => {
   const { authUser } = useAuthStore();
   const {
     fetchAllLeaves,
+    fetchLeaveBalances, // Don't forget to fetch balances!
     leaves,
     isFetching,
     deleteLeaveRequest,
@@ -28,23 +33,32 @@ const LeavePage = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("team");
 
-  // Modal States
+  // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // New: Action Modal State
-  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  // Action Modals
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // For Approve
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); // For Reject Input
+  const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false); // For Viewing Reason
+
+  // Data States
   const [actionData, setActionData] = useState(null); // { id, status, fullname }
+  const [viewReason, setViewReason] = useState(""); // Text to view in ViewModal
 
   // Loading States
   const [isDeleting, setIsDeleting] = useState(false);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   useEffect(() => {
-    if (!authUser) router.push("/login");
-    else fetchAllLeaves();
-  }, [authUser, router, fetchAllLeaves]);
+    if (!authUser) {
+      router.push("/login");
+    } else {
+      fetchAllLeaves();
+      fetchLeaveBalances(); // Ensure balances are loaded
+    }
+  }, [authUser, router, fetchAllLeaves, fetchLeaveBalances]);
 
   const filteredLeaves = leaves.filter((leave) => {
     if (activeTab === "my") return leave.user_id === authUser?.id;
@@ -61,22 +75,49 @@ const LeavePage = () => {
     setIsDeleteModalOpen(false);
   };
 
+  // 1. Handle Action Trigger (from Table)
   const handleActionTrigger = (data) => {
     setActionData(data);
-    setIsActionModalOpen(true);
+
+    // If Status is Rejected -> Open Input Modal
+    if (data.status === "Rejected") {
+      setIsRejectModalOpen(true);
+    }
+    // If Status is Approved -> Open Simple Confirm Modal
+    else {
+      setIsConfirmModalOpen(true);
+    }
   };
 
-  const handleActionConfirm = async () => {
+  // 2. Handle View Reason Trigger
+  const handleViewReason = (reason) => {
+    setViewReason(reason);
+    setIsViewReasonModalOpen(true);
+  };
+
+  // 3. Confirm Approval
+  const handleApproveConfirm = async () => {
     if (!actionData) return;
     setIsProcessingAction(true);
-    await updateLeaveStatus(actionData.id, actionData.status);
+    await updateLeaveStatus(actionData.id, "Approved"); // No reason needed
     setIsProcessingAction(false);
-    setIsActionModalOpen(false);
+    setIsConfirmModalOpen(false);
   };
 
+  // 4. Confirm Rejection (With Reason)
+  const handleRejectConfirm = async (reason) => {
+    if (!actionData) return;
+    setIsProcessingAction(true);
+    // Pass reason to store/backend
+    await updateLeaveStatus(actionData.id, "Rejected", reason);
+    setIsProcessingAction(false);
+    setIsRejectModalOpen(false);
+  };
+
+  if (!authUser) return null;
   return (
     <div className="space-y-6">
-      <TopBar title="Leave Management" />
+      <TopBar />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -102,10 +143,11 @@ const LeavePage = () => {
         isFetching={isFetching}
         onEdit={() => setIsEditModalOpen(true)}
         onDelete={() => setIsDeleteModalOpen(true)}
-        onAction={handleActionTrigger} // Pass trigger to table
+        onAction={handleActionTrigger} // Pass action trigger
+        onViewReason={handleViewReason} // Pass view trigger
       />
 
-      {/* Modals */}
+      {/* --- CRUD MODALS --- */}
       <NewLeaveModal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
@@ -114,7 +156,6 @@ const LeavePage = () => {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
       />
-
       <DeleteLeaveModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -123,13 +164,30 @@ const LeavePage = () => {
         isDeleting={isDeleting}
       />
 
-      {/* 2. Updated Component Usage */}
+      {/* --- ACTION MODALS --- */}
+
+      {/* 1. Approve Confirmation */}
       <ConfirmLeaveActionModal
-        isOpen={isActionModalOpen}
-        onClose={() => setIsActionModalOpen(false)}
-        onConfirm={handleActionConfirm}
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={handleApproveConfirm}
         actionData={actionData}
         isProcessing={isProcessingAction}
+      />
+
+      {/* 2. Reject Reason Input */}
+      <LeaveRejectReasonModal
+        isOpen={isRejectModalOpen}
+        onClose={() => setIsRejectModalOpen(false)}
+        onConfirm={handleRejectConfirm}
+        isProcessing={isProcessingAction}
+      />
+
+      {/* 3. View Reason */}
+      <ViewLeaveRejectReasonModal
+        isOpen={isViewReasonModalOpen}
+        onClose={() => setIsViewReasonModalOpen(false)}
+        reason={viewReason}
       />
     </div>
   );

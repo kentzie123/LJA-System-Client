@@ -4,10 +4,9 @@ import ThemeToggle from "./ThemeToggle";
 // Image Optimizer
 import Image from "next/image";
 
-const TopBar = ({title}) => {
+const TopBar = () => {
   return (
-    <div className="flex justify-between mb-6">
-      <h1 className="font-bold text-xl">{title}</h1>
+    <div className="flex justify-end mb-6">
       <div className="flex items-center gap-4">
         <ThemeToggle />
 

@@ -8,33 +8,35 @@ import {
   Check,
   X,
   Trash2,
+  Info,
 } from "lucide-react";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import toast from "react-hot-toast";
 
-const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
-  const {
-    leaves,
-    fetchAllLeaves,
-    setSelectedLeave, // Needed to pass data to modals
-    isUpdating,
-  } = useLeaveStore();
-
+const LeaveRequestTable = ({ onEdit, onDelete, onAction, onViewReason }) => {
+  const { leaves, fetchAllLeaves, setSelectedLeave, isUpdating } =
+    useLeaveStore();
   const { authUser } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState("team");
   const [filterStatus, setFilterStatus] = useState("All");
 
+  // 1. Month Filter State (Default to current month "YYYY-MM")
+  const getCurrentMonth = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
+  };
+  const [filterDate, setFilterDate] = useState(getCurrentMonth());
+
   useEffect(() => {
     fetchAllLeaves();
   }, [fetchAllLeaves]);
 
-  // --- PERMISSIONS ---
-  // Admin is Role 1 or 3 (Super Admin)
   const isAdmin = authUser?.role_id === 1 || authUser?.role_id === 3;
-
-  // --- LOGIC: COUNT PENDING REQUESTS ---
   const pendingCount = leaves.filter((l) => l.status === "Pending").length;
 
   // --- HELPERS ---
@@ -46,8 +48,7 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
       "bg-orange-500",
       "bg-pink-500",
     ];
-    const index = name.charCodeAt(0) % colors.length;
-    return colors[index];
+    return colors[name.charCodeAt(0) % colors.length];
   };
 
   const formatDate = (dateString) => {
@@ -59,50 +60,48 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
     });
   };
 
-  // --- FILTERS ---
+  // --- FILTER LOGIC ---
   const filteredLeaves = leaves.filter((req) => {
+    // A. Tab Filter
     if (activeTab === "my" && req.user_id !== authUser?.id) return false;
+
+    // B. Status Filter
     if (filterStatus !== "All" && req.status !== filterStatus) return false;
+
+    // C. Month Filter (Matches YYYY-MM)
+    if (filterDate) {
+      const reqDate = new Date(req.start_date);
+      // Format request date to YYYY-MM to compare
+      const reqMonthStr = `${reqDate.getFullYear()}-${String(
+        reqDate.getMonth() + 1
+      ).padStart(2, "0")}`;
+
+      if (reqMonthStr !== filterDate) return false;
+    }
+
     return true;
   });
 
-  // --- HANDLERS ---
-
-  // 1. Action Handler (Approve/Reject)
+  // --- HANDLERS (Same as before) ---
   const handleActionClick = (req, status) => {
-    // Prevent clicking if status is already set to that value
     if (req.status === status) return;
-
-    // Trigger Parent Modal via Prop
-    onAction({
-      id: req.id,
-      status: status,
-      fullname: req.fullname,
-    });
+    onAction({ id: req.id, status: status, fullname: req.fullname });
   };
 
-  // 2. Delete Handler
   const handleDeleteClick = (req) => {
-    // Permission Check
     if (!isAdmin && req.status !== "Pending") {
       toast.error("You can only delete Pending requests.");
       return;
     }
-
-    // Trigger Parent Modal
     setSelectedLeave(req);
     onDelete();
   };
 
-  // 3. Edit Handler
   const handleEditClick = (req) => {
-    // Permission Check
     if (!isAdmin && req.status !== "Pending") {
       toast.error("You can only edit Pending requests.");
       return;
     }
-
-    // Trigger Parent Modal
     setSelectedLeave(req);
     onEdit();
   };
@@ -116,11 +115,11 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
             onClick={() => setActiveTab("my")}
             className={`flex-1 md:flex-none px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
               activeTab === "my"
-                ? "bg-base-300 shadow-sm"
+                ? "bg-primary text-primary-content shadow-sm"
                 : "opacity-60 hover:opacity-100"
             }`}
           >
-            My Requests
+            My Leave
           </button>
           <button
             onClick={() => setActiveTab("team")}
@@ -131,24 +130,44 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
             }`}
           >
             Team Approvals
-            {/* Red Ping Logic: Only show if there are pending requests */}
             {pendingCount > 0 && (
               <span className="absolute -top-1 -right-1 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-error text-[8px] text-white justify-center items-center">
-                  !
+                  {pendingCount}
                 </span>
               </span>
             )}
           </button>
         </div>
 
-        {/* Filters */}
+        {/* --- FILTERS SECTION --- */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+          {/* 1. NATIVE MONTH INPUT (Your Design) */}
+          <div className="relative group bg-base-100 border border-base-300 rounded-lg px-3 py-1 flex items-center gap-2 hover:border-base-content/30 transition-colors">
+            <Calendar size={14} className="opacity-50" />
+            <input
+              type="month"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-base-content/80 w-auto accent-primary"
+            />
+            {/* Optional Clear Button */}
+            {filterDate && (
+              <button
+                onClick={() => setFilterDate("")}
+                className="btn btn-ghost btn-xs btn-circle h-5 w-5 min-h-0"
+              >
+                <X size={10} />
+              </button>
+            )}
+          </div>
+
+          {/* 2. Status Filter */}
           <div className="relative group">
             <select
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="select select-sm pl-9 bg-base-100 border-base-300 w-full md:w-32"
+              className="select select-sm pl-9 bg-base-100 border-base-300 w-full md:w-32 cursor-pointer"
             >
               <option value="All">All Status</option>
               <option value="Pending">Pending</option>
@@ -157,14 +176,14 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
             </select>
             <Filter
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
+              className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none"
             />
           </div>
         </div>
       </div>
 
       {/* --- TABLE --- */}
-      <div className="overflow-x-auto w-full">
+      <div className="overflow-x-auto w-full bg-base-100/30">
         <div className="min-w-[800px]">
           <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-base-200 text-xxs font-bold opacity-50 uppercase tracking-wider">
             <div className="col-span-4">Request Details</div>
@@ -176,12 +195,20 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
 
           <div className="divide-y divide-base-300/30">
             {filteredLeaves.length === 0 ? (
-              <div className="p-8 text-center text-sm opacity-50">
-                No requests found.
+              <div className="p-8 text-center text-sm opacity-50 flex flex-col items-center gap-2">
+                <span>No requests found for this period.</span>
+                <button
+                  onClick={() => {
+                    setFilterDate("");
+                    setFilterStatus("All");
+                  }}
+                  className="btn btn-link btn-xs no-underline hover:no-underline text-primary"
+                >
+                  Clear all filters
+                </button>
               </div>
             ) : (
               filteredLeaves.map((req) => {
-                // LOGIC: Show buttons if Pending OR if User is Admin (Allows Admins to fix mistakes)
                 const showActions = req.status === "Pending" || isAdmin;
 
                 return (
@@ -189,6 +216,8 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
                     key={req.id}
                     className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-base-100/50 transition-colors"
                   >
+                    {/* ... (Rest of the Row Content remains EXACTLY same) ... */}
+
                     {/* 1. Request Details */}
                     <div className="col-span-4 flex items-start gap-3">
                       <div
@@ -207,8 +236,8 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
                             {req.leave_type}
                           </span>
                         </div>
-                        <span className="text-xs opacity-60 mt-0.5 truncate max-w-[150px]">
-                          {req.reason}
+                        <span className="text-xs opacity-60 mt-0.5 truncate italic max-w-[150px]">
+                          "{req.reason}"
                         </span>
                       </div>
                     </div>
@@ -228,22 +257,33 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
 
                     {/* 3. Status Badge */}
                     <div className="col-span-2">
-                      <div
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium w-fit
-                        ${
-                          req.status === "Approved"
-                            ? "border-success/30 bg-success/10 text-success"
-                            : req.status === "Rejected"
-                            ? "border-error/30 bg-error/10 text-error"
-                            : "border-warning/30 bg-warning/10 text-warning"
-                        }`}
-                      >
-                        {req.status === "Approved" ? (
-                          <CheckCircle size={10} />
-                        ) : (
-                          <Clock size={10} />
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium w-fit
+                          ${
+                            req.status === "Approved"
+                              ? "border-success/30 bg-success/10 text-success"
+                              : req.status === "Rejected"
+                              ? "border-error/30 bg-error/10 text-error"
+                              : "border-warning/30 bg-warning/10 text-warning"
+                          }`}
+                        >
+                          {req.status === "Approved" ? (
+                            <CheckCircle size={10} />
+                          ) : (
+                            <Clock size={10} />
+                          )}
+                          {req.status}
+                        </div>
+                        {req.status === "Rejected" && req.rejection_reason && (
+                          <button
+                            onClick={() => onViewReason(req.rejection_reason)}
+                            className="text-base-content/40 hover:text-primary transition-colors tooltip tooltip-right"
+                            data-tip="View Reason"
+                          >
+                            <Info size={14} />
+                          </button>
                         )}
-                        {req.status}
                       </div>
                     </div>
 
@@ -251,28 +291,23 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
                     <div className="col-span-2">
                       {showActions ? (
                         <div className="flex gap-2">
-                          {/* Approve Button */}
                           <button
                             onClick={() => handleActionClick(req, "Approved")}
                             disabled={isUpdating}
-                            // Dim if already Approved
                             className={`btn btn-xs btn-success text-white tooltip tooltip-left ${
                               req.status === "Approved" ? "opacity-30" : ""
                             }`}
-                            data-tip="Approve Leave"
+                            data-tip="Approve"
                           >
                             <Check size={12} />
                           </button>
-
-                          {/* Reject Button */}
                           <button
                             onClick={() => handleActionClick(req, "Rejected")}
                             disabled={isUpdating}
-                            // Dim if already Rejected
-                            className={`btn btn-xs btn-error text-white tooltip tooltip-left  ${
+                            className={`btn btn-xs btn-error text-white tooltip tooltip-left ${
                               req.status === "Rejected" ? "opacity-30" : ""
                             }`}
-                            data-tip="Reject Leave"
+                            data-tip="Reject"
                           >
                             <X size={12} />
                           </button>
@@ -284,31 +319,30 @@ const LeaveRequestTable = ({ onEdit, onDelete, onAction }) => {
 
                     {/* 5. Edit/Delete Actions */}
                     <div className="col-span-1 flex justify-end gap-1">
-                      {/* EDIT */}
-                      <button
-                        onClick={() => handleEditClick(req)}
-                        data-tip="Edit Leave"
-                        className={`btn btn-ghost btn-xs btn-square hover:bg-base-200 tooltip tooltip-left ${
-                          !isAdmin && req.status !== "Pending"
-                            ? "opacity-20 cursor-not-allowed"
-                            : "opacity-40 hover:opacity-100 hover:text-primary"
-                        }`}
-                      >
-                        <Pencil size={14} />
-                      </button>
-
-                      {/* DELETE */}
-                      <button
-                        data-tip="Delete Leave"
-                        onClick={() => handleDeleteClick(req)}
-                        className={`btn btn-ghost btn-xs btn-square hover:bg-base-200 tooltip tooltip-left ${
-                          !isAdmin && req.status !== "Pending"
-                            ? "opacity-20 cursor-not-allowed"
-                            : "opacity-40 hover:opacity-100 hover:text-error"
-                        }`}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {(req.status === "Pending" || isAdmin) && (
+                        <button
+                          onClick={() => onEdit && handleEditClick(req)}
+                          className="btn btn-ghost btn-xs btn-square hover:bg-base-200"
+                          title="Edit"
+                        >
+                          <Pencil
+                            size={14}
+                            className="opacity-40 hover:opacity-100"
+                          />
+                        </button>
+                      )}
+                      {(req.status === "Pending" || isAdmin) && (
+                        <button
+                          onClick={() => onDelete && handleDeleteClick(req)}
+                          className="btn btn-ghost btn-xs btn-square hover:bg-base-200"
+                          title="Delete"
+                        >
+                          <Trash2
+                            size={14}
+                            className="opacity-40 hover:opacity-100 hover:text-error"
+                          />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

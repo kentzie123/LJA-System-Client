@@ -142,7 +142,7 @@ export default function EmployeePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <TopBar title={"Employee"} />
+      <TopBar/>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-2xl font-bold">Employee</div>

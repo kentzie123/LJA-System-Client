@@ -19,6 +19,7 @@
   /* --- LIGHT THEME (lja-light) --- */
   [data-theme="lja-light"] {
     /* Brand Colors */
+    color-scheme: light;
     --color-primary: #005fb8; /* The bright "Sign In" button blue */
     --color-primary-content: #ffffff; /* Text color on primary button */
 
@@ -44,6 +45,7 @@
   /* --- DARK THEME (lja-dark) --- */
   [data-theme="lja-dark"] {
     /* Brand Colors */
+    color-scheme: dark;
     --color-primary: #005fb8; /* Keep blue button consistent */
     --color-primary-content: #ffffff;
 
@@ -67,11 +69,9 @@
   }
 }
 
-
 @theme {
   --text-xs: 12.25px;
-  --text-xxs: 10.5px
-
+  --text-xxs: 10.5px;
 }
 /* Global Styles */
 body {

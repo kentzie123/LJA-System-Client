@@ -96,7 +96,7 @@ const AttendancePage = () => {
 
   return (
     <div className="space-y-6">
-      <TopBar title={"Attendance"} />
+      <TopBar />
 
       <div className="space-y-4">
         {/* Header Controls */}
