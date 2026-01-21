@@ -29,7 +29,7 @@ const Layout = ({ children }) => {
             <Sidebar />
           </aside>
 
-          <main className="flex-1 overflow-y-auto bg-base-200 p-8">
+          <main className="flex-1 overflow-y-auto bg-base-200 p-4">
             {children}
           </main>
         </div>
