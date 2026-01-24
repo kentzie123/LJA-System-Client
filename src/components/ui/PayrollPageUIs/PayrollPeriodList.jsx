@@ -10,6 +10,7 @@ import DeletePayRunModal from "./DeletePayRunModal";
 const PayrollPeriodList = () => {
   const {
     getAllPayrollPeriod,
+    getPayRunDetails,
     payrollPeriods,
     isFetchingPeriods,
     activePayRun,
@@ -75,6 +76,7 @@ const PayrollPeriodList = () => {
               isActive={run.id === activePayRun?.id}
               onClick={() => {
                 setActiveRun(run);
+                getPayRunDetails(run.id);
               }}
               onDelete={openDeletePayrunModal}
             />

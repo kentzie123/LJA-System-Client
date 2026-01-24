@@ -71,7 +71,7 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
             isActive ? "text-primary" : "text-base-content"
           }`}
         >
-          {run.run_name || payDate}
+          {payDate}
         </span>
 
         <span

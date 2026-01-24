@@ -1,52 +1,47 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { usePayrollStore } from "@/stores/usePayrollStore";
-import { Loader2 } from "lucide-react";
 
 const PayrollStatsGrid = () => {
-  const { activeRunRecords, isLoading } = usePayrollStore();
-
-  // 1. Calculate Totals dynamically
-  const stats = useMemo(() => {
-    if (!activeRunRecords) return { overtime: 0, deductions: 0, net: 0 };
-
-    return activeRunRecords.reduce(
-      (acc, record) => {
-        acc.overtime += parseFloat(record.overtime_pay || 0);
-        acc.deductions += parseFloat(record.deductions || 0);
-        acc.net += parseFloat(record.net_pay || 0);
-        return acc;
-      },
-      { overtime: 0, deductions: 0, net: 0 }
-    );
-  }, [activeRunRecords]);
+  // 1. Get the FULL details object (meta, records, totals)
+  const { activeRunDetails, isFetchingDetails } = usePayrollStore();
 
   // Helper to format money (PHP)
   const formatMoney = (amount) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
-    }).format(amount);
+    }).format(amount || 0);
 
-  if (isLoading) {
+  // 2. Loading State (Skeleton)
+  if (isFetchingDetails) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-24 rounded-lg bg-base-100 border border-white/5 animate-pulse" />
+          <div
+            key={i}
+            className="h-24 rounded-lg bg-base-100 border border-white/5 animate-pulse"
+          />
         ))}
       </div>
     );
   }
 
+  // 3. Extract totals safely (Default to 0 if no run is selected)
+  const totals = activeRunDetails?.totals || { 
+    total_overtime: 0, 
+    total_deductions: 0, 
+    total_net_pay: 0 
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      
       {/* CARD 1: OVERTIME COST */}
       <div className="bg-base-100 rounded-lg p-5 border border-white/10 shadow-sm flex flex-col justify-between h-24">
         <div className="text-[10px] font-bold uppercase tracking-widest opacity-50">
           Overtime Cost
         </div>
         <div className="text-2xl font-bold text-base-content tracking-tight">
-          {formatMoney(stats.overtime)}
+          {formatMoney(totals.total_overtime)}
         </div>
       </div>
 
@@ -56,7 +51,7 @@ const PayrollStatsGrid = () => {
           Total Deductions
         </div>
         <div className="text-2xl font-bold text-error tracking-tight">
-          {formatMoney(stats.deductions)}
+          {formatMoney(totals.total_deductions)}
         </div>
       </div>
 
@@ -66,10 +61,9 @@ const PayrollStatsGrid = () => {
           Net Disbursement
         </div>
         <div className="text-2xl font-bold tracking-tight">
-          {formatMoney(stats.net)}
+          {formatMoney(totals.total_net_pay)}
         </div>
       </div>
-
     </div>
   );
 };

@@ -1,7 +1,10 @@
+/* 1. Import the Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap');
+
 @import "tailwindcss";
 @plugin "daisyui";
 
-/* Custom Utility to center things easily */
+/* Custom Utilities */
 @layer utilities {
   .flex-col-center {
     @apply flex flex-col items-center justify-center;
@@ -10,7 +13,12 @@
     @apply flex items-center justify-center;
   }
   .btn {
-    @apply h-fit py-1.5;
+    @apply h-fit py-1.5 font-medium; /* Added font-medium for better button readability */
+  }
+  
+  /* CRITICAL FOR HRIS: Forces numbers to line up vertically in tables/cards */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -18,24 +26,19 @@
 @layer base {
   /* --- LIGHT THEME (lja-light) --- */
   [data-theme="lja-light"] {
-    /* Brand Colors */
     color-scheme: light;
-    --color-primary: #005fb8; /* The bright "Sign In" button blue */
-    --color-primary-content: #ffffff; /* Text color on primary button */
-
-    --color-secondary: #f6e72a; /* LJA Yellow */
+    --color-primary: #005fb8; 
+    --color-primary-content: #ffffff; 
+    --color-secondary: #f6e72a; 
     --color-secondary-content: #050f16;
-
-    --color-accent: #145d77; /* Panel Blue as accent */
+    --color-accent: #145d77; 
     --color-accent-content: #ffffff;
 
-    /* Backgrounds (Clean White/Gray) */
-    --color-base-100: #ffffff; /* Main Page BG */
-    --color-base-200: #f3f4f6; /* Sidebar / Cards */
-    --color-base-300: #e5e7eb; /* Borders */
-    --color-base-content: #1f2937; /* Main Text */
+    --color-base-100: #ffffff; 
+    --color-base-200: #f3f4f6; 
+    --color-base-300: #e5e7eb; 
+    --color-base-content: #1f2937; 
 
-    /* Status Colors */
     --color-info: #005fb8;
     --color-success: #22c55e;
     --color-warning: #facc15;
@@ -44,24 +47,21 @@
 
   /* --- DARK THEME (lja-dark) --- */
   [data-theme="lja-dark"] {
-    /* Brand Colors */
     color-scheme: dark;
-    --color-primary: #005fb8; /* Keep blue button consistent */
+    --color-primary: #005fb8; 
     --color-primary-content: #ffffff;
 
-    --color-secondary: #f6e72a; /* LJA Yellow */
+    --color-secondary: #f6e72a; 
     --color-secondary-content: #050f16;
 
     --color-accent: #145d77;
     --color-accent-content: #ffffff;
 
-    /* Backgrounds (Your LJA Dark Palette) */
-    --color-base-100: #1e293b; /* Deepest Dark Blue (Main BG) */
-    --color-base-200: #0b1727; /* Sidebar / Cards (Lighter Dark) */
-    --color-base-300: #1c2e3a; /* Inputs / Borders */
-    --color-base-content: #e2e8f0; /* Text Color (Off-white for readability) */
+    --color-base-100: #1e293b; 
+    --color-base-200: #0b1727; 
+    --color-base-300: #1c2e3a; 
+    --color-base-content: #e2e8f0; 
 
-    /* Status Colors */
     --color-info: #3b82f6;
     --color-success: #22c55e;
     --color-warning: #f6e72a;
@@ -70,10 +70,20 @@
 }
 
 @theme {
+  /* 2. Apply Inter as the default sans font */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* Your custom text sizes */
   --text-xs: 12.25px;
   --text-xxs: 10.5px;
 }
+
 /* Global Styles */
 body {
   @apply text-base-content font-sans antialiased;
+  
+  /* 3. Global Font Settings for Dashboards */
+  /* "cv05" makes the lowercase 'l' distinct from '1' or 'I' */
+  /* "cv11" creates a more open 'a' and 'g' which is friendlier */
+  font-feature-settings: "cv05", "cv11"; 
 }

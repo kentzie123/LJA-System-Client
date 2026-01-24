@@ -3,6 +3,9 @@
 // UI
 import TopBar from "../layout/TopBar";
 import PayrollHeader from "../ui/PayrollPageUIs/PayrollHeader";
+import PayrollStatsGrid from "../ui/PayrollPageUIs/PayrollStatsGrid";
+import PayrollTable from "../ui/PayrollPageUIs/PayrollTable";
+import PayrollDeductionList from "../ui/PayrollPageUIs/PayrollDeductionList";
 
 // Hooks
 import { useEffect, useState } from "react";
@@ -33,12 +36,19 @@ const PayrollPage = () => {
       <TopBar />
       <PayrollHeader activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <div className="grid grid-cols-4 gap-4">
-        <div className="col-span-1">
-          <PayrollPeriodList />
+      {activeTab === "payoutCycles" && (
+        <div className="grid grid-cols-4 gap-4">
+          <div className="col-span-1">
+            <PayrollPeriodList />
+          </div>
+          <div className="col-span-3">
+            <PayrollStatsGrid />
+            <PayrollTable />
+          </div>
         </div>
-        <div className="col-span-3">asd</div>
-      </div>
+      )}
+
+      {activeTab === "deductionRules" && <PayrollDeductionList />}
     </div>
   );
 };
