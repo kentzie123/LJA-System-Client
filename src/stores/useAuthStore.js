@@ -15,6 +15,10 @@ export const useAuthStore = create((set, get) => ({
   isCheckingAuth: true,
   isLoggingIn: false,
 
+  setAuthUser: (data) => {
+    set({ authUser: data });
+  },
+
   connectSocket: () => {
     const { authUser } = get();
     if (!authUser || get().socket?.connected) return;
@@ -40,6 +44,8 @@ export const useAuthStore = create((set, get) => ({
     try {
       set({ isCheckingAuth: true });
       const authUser = await api.get("/auth/check-auth");
+      console.log(authUser.data);
+
       console.log(`Check auth: ${authUser.data}`);
 
       set({ authUser: authUser.data });

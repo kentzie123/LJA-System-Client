@@ -28,9 +28,9 @@ const PayrollPage = () => {
       router.push("/login");
     } else {
     }
-  }, []);
+  }, [authUser, router]);
 
-  if (!authUser) null;
+  if (!authUser) return null;
   return (
     <div className="space-y-6">
       <TopBar />

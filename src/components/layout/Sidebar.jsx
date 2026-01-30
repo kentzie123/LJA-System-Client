@@ -98,20 +98,6 @@ const Sidebar = () => {
           })}
         </nav>
       </div>
-
-      {/* 3. Footer / Sign Out */}
-      <div className="mt-auto pt-6 border-t border-base-content/15">
-        <button
-          onClick={logout}
-          className="flex items-center gap-3 px-4 py-3 text-error/80 hover:text-error hover:bg-error/10 rounded-xl w-full transition-all duration-200 group"
-        >
-          <LogOut
-            size={20}
-            className="group-hover:-translate-x-1 transition-transform"
-          />
-          <span className="text-sm font-medium">Sign Out</span>
-        </button>
-      </div>
     </div>
   );
 };
