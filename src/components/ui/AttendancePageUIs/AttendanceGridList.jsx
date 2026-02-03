@@ -1,285 +1,359 @@
-import { useState, useMemo } from "react";
+"use client";
+
+import React, { useState, useMemo } from "react";
 import {
-  Check,
   Trash,
+  Clock,
+  Calendar,
+  X,
+  Maximize2,
+  CheckSquare,
+  Square,
   CheckCircle,
   XCircle,
-  Clock,
-  AlertTriangle,
+  Users,
+  Timer,
+  AlertCircle,
 } from "lucide-react";
 
-const AttendanceGridList = ({ attendances, onVerify, onDelete }) => {
-  const [selectedItems, setSelectedItems] = useState(new Set());
+/**
+ * HELPER: Format time to 12-hour format
+ */
+const formatTime = (timeString) => {
+  if (!timeString) return "--:--";
+  return new Date(`1970-01-01T${timeString}`).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
 
-  // --- 1. TIME CHECK LOGIC (New) ---
+/**
+ * HELPER: Status Badge Styles
+ */
+const getStatusStyles = (status) => {
+  switch (status) {
+    case "Verified":
+      return "bg-success text-success-content border-none";
+    case "Rejected":
+      return "bg-error text-error-content border-none";
+    default:
+      return "bg-warning text-warning-content border-none";
+  }
+};
+
+const AttendanceGridList = ({
+  attendances = [],
+  onVerifyDay,
+  onDelete,
+  canManualEntry = false,
+  canVerify = false,
+}) => {
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // --- 1. TIME CHECK LOGIC ---
   const checkTimeFlag = (timeString, type) => {
     if (!timeString) return false;
-
     const [hours, minutes] = timeString.split(":").map(Number);
     const totalMinutes = hours * 60 + minutes;
-
-    // Late: If Clock In > 8:15 AM (495 mins)
-    if (type === "in") {
-      return totalMinutes > 495;
-    }
-
-    // Undertime: If Clock Out < 5:00 PM (1020 mins)
-    if (type === "out") {
-      return totalMinutes < 1020;
-    }
-
+    if (type === "in") return totalMinutes > 495; // 8:15 AM
+    if (type === "out") return totalMinutes < 1020; // 5:00 PM
     return false;
   };
 
-  // --- 2. FLATTEN DATA ---
-  const gridItems = useMemo(() => {
-    const items = [];
-    attendances.forEach((record) => {
-      if (record.time_in) {
-        items.push({
-          uniqueKey: `${record.id}-in`,
-          id: record.id,
-          type: "in",
-          time: record.time_in,
-          photo: record.photo_in,
-          status: record.status_in,
-          fullname: record.fullname,
-          initials: record.initials,
-          email: record.email,
-        });
-      }
-      if (record.time_out) {
-        items.push({
-          uniqueKey: `${record.id}-out`,
-          id: record.id,
-          type: "out",
-          time: record.time_out,
-          photo: record.photo_out,
-          status: record.status_out,
-          fullname: record.fullname,
-          initials: record.initials,
-          email: record.email,
-        });
-      }
-    });
-    return items;
+  // --- 2. SUMMARY STATISTICS ---
+  const stats = useMemo(() => {
+    const total = attendances.length;
+    const late = attendances.filter((a) =>
+      checkTimeFlag(a.time_in, "in"),
+    ).length;
+    const undertime = attendances.filter(
+      (a) => a.time_out && checkTimeFlag(a.time_out, "out"),
+    ).length;
+    const onTime = total - late;
+
+    return { total, late, onTime, undertime };
   }, [attendances]);
 
-  // --- SELECTION LOGIC ---
-  const toggleSelection = (uniqueKey) => {
-    const newSet = new Set(selectedItems);
-    if (newSet.has(uniqueKey)) newSet.delete(uniqueKey);
-    else newSet.add(uniqueKey);
-    setSelectedItems(newSet);
-  };
+  // --- 3. SELECTION LOGIC ---
+  const isAllSelected =
+    attendances.length > 0 && selectedItems.size === attendances.length;
 
-  const toggleSelectPending = () => {
-    const newSet = new Set();
-    const pendingItems = gridItems.filter((i) => i.status === "Pending");
-    const allPendingSelected = pendingItems.every((i) =>
-      selectedItems.has(i.uniqueKey)
-    );
-
-    if (!allPendingSelected) {
-      pendingItems.forEach((i) => newSet.add(i.uniqueKey));
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedItems(new Set());
+    } else {
+      const allIds = attendances.map((r) => r.id);
+      setSelectedItems(new Set(allIds));
     }
+  };
+
+  const toggleSelection = (id) => {
+    if (!canVerify) return;
+    const newSet = new Set(selectedItems);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
     setSelectedItems(newSet);
   };
 
-  // --- BULK ACTIONS ---
-  const handleBulkAction = (actionStatus) => {
-    Array.from(selectedItems).forEach((uniqueKey) => {
-      const [id, type] = uniqueKey.split("-");
-      if (onVerify) {
-        onVerify(parseInt(id), type, actionStatus);
-      }
-    });
+  const handleBulkVerify = async (status) => {
+    if (!onVerifyDay) return;
+    for (const id of selectedItems) {
+      await onVerifyDay(id, status);
+    }
     setSelectedItems(new Set());
   };
 
-  // --- HELPER: Status Color ---
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Verified":
-        return "bg-success text-success-content";
-      case "Rejected":
-        return "bg-error text-error-content";
-      default:
-        return "bg-warning text-warning-content";
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      {/* --- BULK ACTION BAR --- */}
-      <div className="navbar bg-base-200 rounded-xl px-4 min-h-[3rem] border border-base-300 gap-4 transition-all">
-        <div className="flex-1 gap-4 items-center">
-          <button
-            onClick={toggleSelectPending}
-            className="btn btn-sm btn-ghost gap-2 normal-case"
-          >
-            <div
-              className={`checkbox checkbox-sm ${
-                selectedItems.size > 0 ? "checkbox-primary" : ""
-              }`}
-              readOnly
-              checked={
-                selectedItems.size > 0 &&
-                gridItems
-                  .filter((i) => i.status === "Pending")
-                  .every((i) => selectedItems.has(i.uniqueKey))
-              }
-            />
-            Select Pending
-          </button>
+    <div className="space-y-6">
+      {/* --- SECTION 2: BULK ACTION TOOLBAR --- */}
+      {canVerify && attendances.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-2 rounded-xl border border-base-300 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAll}
+              className="btn btn-ghost btn-sm gap-2 hover:bg-base-200"
+            >
+              {isAllSelected ? (
+                <CheckSquare className="size-5 text-primary" />
+              ) : (
+                <Square className="size-5 opacity-50" />
+              )}
+              <span className="font-bold text-sm">
+                {isAllSelected ? "Deselect All" : "Select All Visible"}
+              </span>
+            </button>
+
+            {selectedItems.size > 0 && (
+              <div className="badge badge-primary font-bold px-3 py-3">
+                {selectedItems.size} Selected
+              </div>
+            )}
+          </div>
 
           {selectedItems.size > 0 && (
-            <span className="text-sm font-bold text-primary animate-in fade-in slide-in-from-left-2">
-              {selectedItems.size} selected
-            </span>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => handleBulkVerify("Rejected")}
+                className="btn btn-sm btn-error btn-outline flex-1 sm:flex-none gap-2"
+              >
+                <XCircle className="size-4" /> Reject Selected
+              </button>
+              <button
+                onClick={() => handleBulkVerify("Verified")}
+                className="btn btn-sm btn-primary flex-1 sm:flex-none gap-2"
+              >
+                <CheckCircle className="size-4" /> Verify Selected
+              </button>
+            </div>
           )}
         </div>
+      )}
 
-        {selectedItems.size > 0 && (
-          <div className="flex gap-2 animate-in fade-in slide-in-from-right-2">
-            <button
-              onClick={() => handleBulkAction("Rejected")}
-              className="btn btn-sm btn-outline btn-error gap-2"
-            >
-              <XCircle className="size-4" /> Reject Selected
-            </button>
-            <button
-              onClick={() => handleBulkAction("Verified")}
-              className="btn btn-sm btn-primary gap-2"
-            >
-              <CheckCircle className="size-4" /> Verify Selected
-            </button>
-          </div>
-        )}
-      </div>
+      {/* --- SECTION 3: IMAGE PREVIEW MODAL (LIGHTBOX) --- */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            className="absolute top-5 right-5 btn btn-circle btn-ghost text-white"
+            onClick={() => setPreviewImage(null)}
+          >
+            <X className="size-8" />
+          </button>
+          <img
+            src={previewImage}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transform scale-x-[-1]"
+            alt="Enlarged Proof"
+          />
+        </div>
+      )}
 
-      {/* --- GRID LAYOUT --- */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {gridItems.map((item) => {
-          const isSelected = selectedItems.has(item.uniqueKey);
-
-          // Calculate Flag for this specific card
-          const isFlagged = checkTimeFlag(item.time, item.type);
-          const flagLabel = item.type === "in" ? "LATE" : "UNDERTIME";
+      {/* --- SECTION 4: MAIN GRID LAYOUT --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {attendances.map((record) => {
+          const isSelected = selectedItems.has(record.id);
+          const isLate = checkTimeFlag(record.time_in, "in");
+          const isUndertime = checkTimeFlag(record.time_out, "out");
 
           return (
             <div
-              key={item.uniqueKey}
-              onClick={() => toggleSelection(item.uniqueKey)}
-              className={`
-                group relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer border-2 transition-all duration-200
-                ${
-                  isSelected
-                    ? "border-primary ring-2 ring-primary/30 scale-[0.98]"
-                    : "border-base-300 hover:border-base-content/20"
-                }
-              `}
+              key={record.id}
+              className={`group relative flex flex-col bg-base-100 rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                isSelected
+                  ? "border-primary ring-4 ring-primary/10"
+                  : "border-base-300 hover:border-base-content/20"
+              }`}
             >
-              {/* 1. Background Photo */}
-              {item.photo ? (
-                <img
-                  src={item.photo}
-                  alt="Proof"
-                  className="w-full h-full object-cover transform scale-x-[-1]"
-                />
-              ) : (
-                <div className="w-full h-full bg-neutral flex flex-col items-center justify-center text-neutral-content/30">
-                  <Clock className="size-10 mb-2" />
-                  <span className="text-xs">No Photo</span>
-                </div>
-              )}
-
-              {/* 2. Overlays (Gradient) */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/30 p-3 flex flex-col justify-between">
-                {/* Top Row: Checkbox + Status */}
-                <div className="flex justify-between items-start">
-                  <div
-                    className={`
-                    rounded-full p-1 transition-colors
-                    ${
-                      isSelected
-                        ? "bg-primary text-white"
-                        : "bg-black/40 text-white/50 group-hover:bg-white/20"
-                    }
-                  `}
-                  >
-                    <Check className="size-4" strokeWidth={3} />
-                  </div>
-
-                  <span
-                    className={`badge badge-sm font-bold border-none ${getStatusColor(
-                      item.status
-                    )}`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-
-                {/* Bottom Row: Details */}
-                <div className="space-y-1">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      {/* Label + Late/Undertime Badge */}
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">
-                          CLOCK {item.type.toUpperCase()}
-                        </p>
-
-                        {/* --- NEW BADGE --- */}
-                        {isFlagged && (
-                          <span className="flex items-center gap-1 bg-error text-white px-1.5 py-[1px] rounded-[3px] text-[8px] font-bold uppercase tracking-wide">
-                            <AlertTriangle className="size-2" />
-                            {flagLabel}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-xl font-black text-white tracking-tight">
-                        {new Date(`1970-01-01T${item.time}`).toLocaleTimeString(
-                          [],
-                          { hour: "2-digit", minute: "2-digit", hour12: false }
-                        )}
-                      </p>
+              {/* Header */}
+              <div className="p-4 flex items-center justify-between border-b border-base-200 bg-base-100">
+                <div className="flex items-center gap-3">
+                  <div className="avatar">
+                    <div className="w-10 h-10 rounded-full ring-1 ring-base-300 ring-offset-2">
+                      <img
+                        src={
+                          record.profile_picture ||
+                          "/images/default_profile.jpg"
+                        }
+                        alt={record.fullname}
+                      />
                     </div>
-
-                    {/* Delete Button (Visible on Hover) */}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm leading-none mb-1">
+                      {record.fullname}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs opacity-50 uppercase font-semibold">
+                      <Calendar className="size-3" />
+                      {new Date(record.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {canVerify && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelection(record.id)}
+                      className="checkbox checkbox-primary checkbox-sm rounded-md"
+                    />
+                  )}
+                  {canManualEntry && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(item.id);
-                      }}
-                      className="btn btn-ghost btn-xs btn-circle text-white/40 hover:text-error hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => onDelete(record.id)}
+                      className="btn btn-ghost btn-xs btn-circle text-error opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash className="size-4" />
                     </button>
-                  </div>
+                  )}
+                </div>
+              </div>
 
-                  {/* Employee Mini Profile */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-                    <div className="avatar placeholder">
-                      <div className="bg-primary text-primary-content rounded-full w-6 h-6 text-[10px]">
-                        <span>{item.initials || "U"}</span>
+              {/* Side-by-Side Proofs */}
+              <div className="flex h-56 bg-neutral divide-x divide-base-100/10">
+                {/* Time In Section */}
+                <div
+                  className="flex-1 relative overflow-hidden cursor-zoom-in group/in"
+                  onClick={() =>
+                    record.photo_in && setPreviewImage(record.photo_in)
+                  }
+                >
+                  {record.photo_in ? (
+                    <>
+                      <img
+                        src={record.photo_in}
+                        className="w-full h-full object-cover transform scale-x-[-1] transition-all group-hover/in:brightness-75"
+                        alt="Time In"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/in:opacity-100 transition-opacity z-10">
+                        <Maximize2 className="text-white size-8 drop-shadow-lg" />
                       </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-white/20">
+                      <Clock className="size-8 mb-1" />
                     </div>
-                    <span className="text-xs font-medium text-white truncate">
-                      {item.fullname}
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent p-3 flex flex-col justify-end pointer-events-none z-20">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[9px] font-black text-white/50 tracking-widest uppercase">
+                        Check In
+                      </span>
+                      {isLate && (
+                        <span className="bg-error text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ">
+                          LATE
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xl font-black text-white">
+                      {formatTime(record.time_in)}
                     </span>
                   </div>
                 </div>
+
+                {/* Time Out Section */}
+                <div
+                  className={`flex-1 relative overflow-hidden group/out ${record.photo_out ? "cursor-zoom-in" : ""}`}
+                  onClick={() =>
+                    record.photo_out && setPreviewImage(record.photo_out)
+                  }
+                >
+                  {record.photo_out ? (
+                    <>
+                      <img
+                        src={record.photo_out}
+                        className="w-full h-full object-cover transform scale-x-[-1] transition-all group-hover/out:brightness-75"
+                        alt="Time Out"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/out:opacity-100 transition-opacity z-10">
+                        <Maximize2 className="text-white size-8 drop-shadow-lg" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-base-300 text-base-content/20 italic text-[10px] p-4 text-center">
+                      Shift in progress...
+                    </div>
+                  )}
+
+                  {record.time_out && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent p-3 flex flex-col justify-end pointer-events-none z-20">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[9px] font-black text-white/50 tracking-widest uppercase">
+                          Check Out
+                        </span>
+                        {isUndertime && (
+                          <span className="bg-warning text-warning-content text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                            UNDERTIME
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xl font-black text-white">
+                        {formatTime(record.time_out)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-3 bg-base-100 flex items-center justify-between border-t border-base-200">
+                <div
+                  className={`badge badge-sm py-3 px-3 font-bold ${getStatusStyles(record.status_in)}`}
+                >
+                  {record.status_in.toUpperCase()}
+                </div>
+                {canVerify && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onVerifyDay(record.id, "Rejected")}
+                      className={`btn btn-xs ${record.status_in === "Rejected" ? "btn-error" : "btn-ghost text-error hover:bg-error/10"}`}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => onVerifyDay(record.id, "Verified")}
+                      className={`btn btn-xs px-4 ${record.status_in === "Verified" ? "btn-primary" : "btn-outline btn-primary"}`}
+                    >
+                      Verify
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {gridItems.length === 0 && (
+      {attendances.length === 0 && (
         <div className="text-center py-20 text-base-content/50">
-          No verification records found.
+          No records found.
         </div>
       )}
     </div>

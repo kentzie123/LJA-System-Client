@@ -1,15 +1,14 @@
 "use client";
 
 // UI
-import TopBar from "../layout/TopBar";
 import PayrollHeader from "../ui/PayrollPageUIs/PayrollHeader";
 import PayrollStatsGrid from "../ui/PayrollPageUIs/PayrollStatsGrid";
 import PayrollTable from "../ui/PayrollPageUIs/PayrollTable";
 import PayrollDeductionList from "../ui/PayrollPageUIs/PayrollDeductionList";
+import PayrollPeriodList from "../ui/PayrollPageUIs/PayrollPeriodList";
 
 // Hooks
 import { useEffect, useState } from "react";
-import PayrollPeriodList from "../ui/PayrollPageUIs/PayrollPeriodList";
 
 // Store
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -26,29 +25,42 @@ const PayrollPage = () => {
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
-    } else {
     }
   }, [authUser, router]);
 
   if (!authUser) return null;
+
   return (
     <div className="space-y-6">
-      <TopBar />
+      {/* Header handles its own responsiveness internally */}
       <PayrollHeader activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === "payoutCycles" && (
-        <div className="grid grid-cols-4 gap-4">
-          <div className="col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          {/* LEFT: Period List (Sidebar on Desktop, Top Block on Mobile) */}
+          <div className="lg:col-span-1">
             <PayrollPeriodList />
           </div>
-          <div className="col-span-3">
+
+          {/* RIGHT: Stats & Table (Main Content) */}
+          <div className="lg:col-span-3 space-y-6">
             <PayrollStatsGrid />
-            <PayrollTable />
+            
+            {/* Wrapper to ensure table scrolls on mobile if needed */}
+            <div className="overflow-hidden rounded-xl border border-base-200 shadow-sm bg-base-100">
+               <PayrollTable />
+            </div>
           </div>
         </div>
       )}
 
-      {activeTab === "deductionRules" && <PayrollDeductionList />}
+      {/* DEDUCTIONS TAB */}
+      {activeTab === "deductionRules" && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <PayrollDeductionList />
+        </div>
+      )}
     </div>
   );
 };

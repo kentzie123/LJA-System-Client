@@ -38,13 +38,6 @@ const AttendanceTableList = ({
     });
   };
 
-  const getInitials = (name) =>
-    name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase() || "??";
-
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -93,17 +86,11 @@ const AttendanceTableList = ({
     const [hours, minutes] = timeString.split(":").map(Number);
     const totalMinutes = hours * 60 + minutes;
 
-    // 1. Late: If Clock In > 8:15 AM
-    // 8:15 AM = (8 * 60) + 15 = 495 minutes
-    if (type === "in") {
-      return totalMinutes > 495;
-    }
+    // 1. Late: If Clock In > 8:15 AM (495 mins)
+    if (type === "in") return totalMinutes > 495;
 
-    // 2. Undertime: If Clock Out < 5:00 PM (17:00)
-    // 17:00 = 17 * 60 = 1020 minutes
-    if (type === "out") {
-      return totalMinutes < 1020;
-    }
+    // 2. Undertime: If Clock Out < 5:00 PM (1020 mins)
+    if (type === "out") return totalMinutes < 1020;
 
     return false;
   };
@@ -115,7 +102,6 @@ const AttendanceTableList = ({
     const status = isTimeIn ? record.status_in : record.status_out;
     const photo = isTimeIn ? record.photo_in : record.photo_out;
 
-    // Check for Late or Undertime
     const isFlagged = checkTimeFlag(time, type);
     const flagLabel = type === "in" ? "LATE" : "UNDERTIME";
 
@@ -130,7 +116,6 @@ const AttendanceTableList = ({
           <span className="font-mono font-bold text-xs">
             {formatTime(time)}
           </span>
-          {/* Verification Badge */}
           <span
             className={`badge badge-xs text-[10px] font-bold uppercase tracking-wider ${getVerificationBadge(
               status
@@ -140,7 +125,6 @@ const AttendanceTableList = ({
           </span>
         </div>
 
-        {/* --- NEW: Late / Undertime Badge --- */}
         {isFlagged && (
           <div className="flex items-center gap-1 text-error bg-error/10 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">
             <AlertTriangle className="size-3" />
@@ -217,13 +201,20 @@ const AttendanceTableList = ({
                 >
                   <td className="py-4 pl-6">
                     <div className="flex items-center gap-3">
-                      <div className="avatar placeholder">
-                        <div className="bg-neutral text-neutral-content rounded-full w-9 h-9">
-                          <span className="text-xs font-bold">
-                            {record.initials || getInitials(record.fullname)}
-                          </span>
+                      {/* --- UPDATED AVATAR --- */}
+                      <div className="avatar">
+                        <div className="w-9 h-9 rounded-full border border-base-300">
+                          <img
+                            src={
+                              record.profile_picture ||
+                              "/images/default_profile.jpg"
+                            }
+                            alt={record.fullname}
+                            className="object-cover"
+                          />
                         </div>
                       </div>
+                      
                       <div className="flex flex-col">
                         <span className="font-semibold text-sm text-base-content">
                           {record.fullname}

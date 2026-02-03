@@ -1,7 +1,6 @@
 "use client";
 
 // Layout & Components
-import TopBar from "../layout/TopBar";
 import ProfileHeader from "../ui/ProfilePageUIs/ProfileHeader";
 import EmploymentDetails from "../ui/ProfilePageUIs/EmploymentDetails";
 import PersonalDetailsForm from "../ui/ProfilePageUIs/PersonalDetailsForm";
@@ -29,7 +28,6 @@ const ProfilePage = () => {
 
   return (
     <>
-      <TopBar />
       <div className="space-y-8 animate-in fade-in duration-500">
         {/* Header Section */}
         <ProfileHeader />

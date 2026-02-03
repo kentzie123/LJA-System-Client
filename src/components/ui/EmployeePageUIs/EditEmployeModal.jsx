@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useUserStore } from "@/stores/useUserStore";
-import { useBranchStore } from "@/stores/useBranchStore";
-import { useRoleStore } from "@/stores/useRoleStore";
+import { useRoleStore } from "@/stores/useRoleStore"; // Removed useBranchStore
 import { X } from "lucide-react";
 
 const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
   const { updateUser, isUpdatingUser } = useUserStore();
-  const { branches, fetchBranches, isLoadingBranches } = useBranchStore();
   const { roles, fetchRoles, isLoadingRoles } = useRoleStore();
 
   const [formData, setFormData] = useState({
@@ -16,9 +14,9 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
     email: "",
     password: "",
     role_id: 3,
-    branch: "",
     position: "",
-    payrate: "",
+    daily_rate: "",
+    // Removed branch
   });
 
   // 1. Error State
@@ -26,10 +24,9 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
 
   useEffect(() => {
     if (isOpen) {
-      fetchBranches();
       fetchRoles();
     }
-  }, [isOpen, fetchBranches, fetchRoles]);
+  }, [isOpen, fetchRoles]);
 
   // Load employee data & reset errors
   useEffect(() => {
@@ -39,9 +36,8 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
         email: employee.email || "",
         password: "", // Password starts blank
         role_id: employee.role_id || 3,
-        branch: employee.branch || "",
         position: employee.position || "",
-        payrate: employee.payrate || "",
+        daily_rate: employee.daily_rate || "",
       });
       setErrors({}); // Clear old errors
     }
@@ -64,23 +60,21 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.fullname.trim())
-      newErrors.fullname = "Full Name is required.";
+    if (!formData.fullname.trim()) newErrors.fullname = "Full Name is required.";
+    
     if (!formData.email.trim()) newErrors.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(formData.email))
-      newErrors.email = "Invalid email format.";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Invalid email format.";
 
     // NOTE: Password validation is looser here because it's optional for edits
     if (formData.password && formData.password.length < 6) {
       newErrors.password = "New password must be at least 6 chars.";
     }
 
-    if (!formData.branch) newErrors.branch = "Please select a branch.";
     if (!formData.position.trim()) newErrors.position = "Position is required.";
 
-    if (!formData.payrate) newErrors.payrate = "Daily rate is required.";
-    else if (isNaN(formData.payrate) || Number(formData.payrate) < 0)
-      newErrors.payrate = "Invalid amount.";
+    if (!formData.daily_rate) newErrors.daily_rate = "Daily rate is required.";
+    else if (isNaN(formData.daily_rate) || Number(formData.daily_rate) < 0)
+      newErrors.daily_rate = "Invalid amount.";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -97,8 +91,9 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden scale-in-95 duration-200">
+        
         {/* --- HEADER --- */}
         <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div className="text-lg font-bold">Edit Employee</div>
@@ -113,108 +108,55 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
         {/* --- FORM BODY --- */}
         <div className="py-4 px-6 space-y-1 overflow-y-auto custom-scrollbar">
           <form id="edit-employee-form" onSubmit={handleSubmit} noValidate>
+            
             {/* Full Name */}
             <fieldset className="fieldset">
-              <legend className="fieldset-legend text-xs font-semibold">
-                Full Name
-              </legend>
+              <legend className="fieldset-legend text-xs font-semibold">Full Name</legend>
               <input
                 type="text"
                 name="fullname"
-                className={`input input-bordered w-full text-xs ${
-                  errors.fullname ? "input-error" : ""
-                }`}
+                className={`input input-bordered w-full text-xs ${errors.fullname ? "input-error" : ""}`}
                 placeholder="e.g. Juan Dela Cruz"
                 value={formData.fullname}
                 onChange={handleChange}
               />
-              {errors.fullname && (
-                <span className="text-error text-xs mt-1">
-                  {errors.fullname}
-                </span>
-              )}
+              {errors.fullname && <span className="text-error text-xs mt-1">{errors.fullname}</span>}
             </fieldset>
 
             {/* Email */}
             <fieldset className="fieldset mt-2">
-              <legend className="fieldset-legend text-xs font-semibold">
-                Email Address
-              </legend>
+              <legend className="fieldset-legend text-xs font-semibold">Email Address</legend>
               <input
                 type="email"
                 name="email"
-                className={`input input-bordered w-full text-xs ${
-                  errors.email ? "input-error" : ""
-                }`}
+                className={`input input-bordered w-full text-xs ${errors.email ? "input-error" : ""}`}
                 placeholder="user@lumina.co"
                 value={formData.email}
                 onChange={handleChange}
               />
-              {errors.email && (
-                <span className="text-error text-xs mt-1">{errors.email}</span>
-              )}
+              {errors.email && <span className="text-error text-xs mt-1">{errors.email}</span>}
             </fieldset>
 
             {/* Password */}
             <fieldset className="fieldset mt-2">
               <legend className="fieldset-legend text-xs font-semibold">
-                Password{" "}
-                <span className="text-base-content/40 font-normal ml-1">
-                  (Leave blank to keep current)
-                </span>
+                Password <span className="text-base-content/40 font-normal ml-1">(Leave blank to keep current)</span>
               </legend>
               <input
                 type="password"
                 name="password"
-                className={`input input-bordered w-full text-xs ${
-                  errors.password ? "input-error" : ""
-                }`}
+                className={`input input-bordered w-full text-xs ${errors.password ? "input-error" : ""}`}
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={handleChange}
               />
-              {errors.password && (
-                <span className="text-error text-xs mt-1">
-                  {errors.password}
-                </span>
-              )}
+              {errors.password && <span className="text-error text-xs mt-1">{errors.password}</span>}
             </fieldset>
 
-            {/* Grid: Branch & Role */}
+            {/* Grid: Role & Position */}
             <div className="grid grid-cols-2 gap-4 mt-2">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">
-                  Branch
-                </legend>
-                <select
-                  name="branch"
-                  className={`select select-bordered w-full text-xs ${
-                    errors.branch ? "select-error" : ""
-                  }`}
-                  value={formData.branch}
-                  onChange={handleChange}
-                  disabled={isLoadingBranches}
-                >
-                  <option value="" disabled>
-                    Select Branch
-                  </option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.name}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.branch && (
-                  <span className="text-error text-xs mt-1">
-                    {errors.branch}
-                  </span>
-                )}
-              </fieldset>
-
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">
-                  Role
-                </legend>
+                <legend className="fieldset-legend text-xs font-semibold">Role</legend>
                 <select
                   name="role_id"
                   className="select select-bordered w-full text-xs"
@@ -229,52 +171,39 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
                   ))}
                 </select>
               </fieldset>
-            </div>
 
-            {/* Grid: Position & Payrate */}
-            <div className="grid grid-cols-2 gap-4 mt-2">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">
-                  Position
-                </legend>
+                <legend className="fieldset-legend text-xs font-semibold">Position</legend>
                 <input
                   type="text"
                   name="position"
-                  className={`input input-bordered w-full text-xs ${
-                    errors.position ? "input-error" : ""
-                  }`}
+                  className={`input input-bordered w-full text-xs ${errors.position ? "input-error" : ""}`}
                   placeholder="e.g. Sales"
                   value={formData.position}
                   onChange={handleChange}
                 />
-                {errors.position && (
-                  <span className="text-error text-xs mt-1">
-                    {errors.position}
-                  </span>
-                )}
-              </fieldset>
-
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">
-                  Daily Rate
-                </legend>
-                <input
-                  type="number"
-                  name="payrate"
-                  className={`input input-bordered w-full text-xs ${
-                    errors.payrate ? "input-error" : ""
-                  }`}
-                  placeholder="0.00"
-                  value={formData.payrate}
-                  onChange={handleChange}
-                />
-                {errors.payrate && (
-                  <span className="text-error text-xs mt-1">
-                    {errors.payrate}
-                  </span>
-                )}
+                {errors.position && <span className="text-error text-xs mt-1">{errors.position}</span>}
               </fieldset>
             </div>
+
+            {/* Daily Rate (Full Width) */}
+            <fieldset className="fieldset mt-2">
+              <legend className="fieldset-legend text-xs font-semibold">Daily Rate (PHP)</legend>
+              <input
+                type="number"
+                name="daily_rate"
+                className={`input input-bordered w-full text-xs ${errors.daily_rate ? "input-error" : ""}`}
+                placeholder="0.00"
+                value={formData.daily_rate}
+                onChange={handleChange}
+              />
+              {errors.daily_rate && <span className="text-error text-xs mt-1">{errors.daily_rate}</span>}
+              
+              {/* Hourly Calc Helper */}
+              <div className="text-right text-[10px] text-base-content/50 mt-1">
+                 Hourly: ₱{formData.daily_rate ? (parseFloat(formData.daily_rate) / 8).toFixed(2) : "0.00"}
+              </div>
+            </fieldset>
 
             {/* Actions */}
             <div className="flex justify-end gap-3 mt-6 pb-2">

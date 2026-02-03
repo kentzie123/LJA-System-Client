@@ -18,6 +18,7 @@ export const useUserStore = create((set, get) => ({
     try {
       const response = await api.get("/users/fetch-all");
       set({ users: response.data });
+      
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to fetch users");
@@ -70,7 +71,7 @@ export const useUserStore = create((set, get) => ({
     try {
       const res = await api.put(`/users/update-user/${userId}`, userData);
       toast.success("Employee updated successfully!");
-
+      
       // Update local state immediately
       set((state) => ({
         users: state.users.map((u) => (u.id === userId ? res.data.user : u)),

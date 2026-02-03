@@ -65,7 +65,7 @@ const PayrollDeductionList = () => {
               onClick={() => setIsCreateModalOpen(true)}
               className="btn bg-white text-blue-700 hover:bg-blue-50 border-none w-full font-bold shadow-lg"
             >
-              + ADD STRATEGY
+              + ADD LOAN
             </button>
           </div>
         </div>

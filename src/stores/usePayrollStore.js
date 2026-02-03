@@ -41,7 +41,6 @@ export const usePayrollStore = create((set, get) => ({
     try {
       const res = await api.get(`/payroll/${id}`);
       set({ activeRunDetails: res.data });
-      console.log(res.data);
       
     } catch (error) {
       console.error("Fetch Details Error:", error);

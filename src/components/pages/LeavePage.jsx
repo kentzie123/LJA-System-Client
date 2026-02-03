@@ -6,15 +6,14 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 // Components
-import TopBar from "../layout/TopBar";
 import LeaveStatsGrid from "../ui/LeavePageUIs/LeaveStatsGrid";
-import LeaveRequestList from "../ui/LeavePageUIs/LeaveRequestTable"; // Ensure filename matches (Table vs List)
+import LeaveRequestList from "../ui/LeavePageUIs/LeaveRequestTable"; 
 import NewLeaveModal from "../ui/LeavePageUIs/NewLeaveModal";
 import EditLeaveModal from "../ui/LeavePageUIs/EditLeaveModal";
 import DeleteLeaveModal from "../ui/LeavePageUIs/DeleteLeaveModal";
 import ConfirmLeaveActionModal from "../ui/LeavePageUIs/ConfirmLeaveActionModal";
 
-// 1. IMPORT NEW MODALS
+// Modals
 import LeaveRejectReasonModal from "../ui/LeavePageUIs/LeaveRejectReasonModal";
 import ViewLeaveRejectReasonModal from "../ui/LeavePageUIs/ViewLeaveRejectReasonModal";
 
@@ -22,7 +21,7 @@ const LeavePage = () => {
   const { authUser } = useAuthStore();
   const {
     fetchAllLeaves,
-    fetchLeaveBalances, // Don't forget to fetch balances!
+    fetchLeaveBalances, 
     leaves,
     isFetching,
     deleteLeaveRequest,
@@ -31,7 +30,18 @@ const LeavePage = () => {
   } = useLeaveStore();
 
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("team");
+
+  // --- PERMISSIONS ---
+  const canViewAll = authUser?.role?.perm_leave_view_all === true;
+  const canApprove = authUser?.role?.perm_leave_approve === true;
+
+  // TAB STATE: Managed here so we can filter the data before sending it to the table
+  const [activeTab, setActiveTab] = useState(canViewAll ? "team" : "my");
+
+  // Force reset tab if permission changes
+  useEffect(() => {
+    if (!canViewAll) setActiveTab("my");
+  }, [canViewAll]);
 
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -39,13 +49,13 @@ const LeavePage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Action Modals
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // For Approve
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); // For Reject Input
-  const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false); // For Viewing Reason
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); 
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); 
+  const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false); 
 
   // Data States
-  const [actionData, setActionData] = useState(null); // { id, status, fullname }
-  const [viewReason, setViewReason] = useState(""); // Text to view in ViewModal
+  const [actionData, setActionData] = useState(null); 
+  const [viewReason, setViewReason] = useState(""); 
 
   // Loading States
   const [isDeleting, setIsDeleting] = useState(false);
@@ -56,17 +66,23 @@ const LeavePage = () => {
       router.push("/login");
     } else {
       fetchAllLeaves();
-      fetchLeaveBalances(); // Ensure balances are loaded
+      fetchLeaveBalances(); 
     }
   }, [authUser, router, fetchAllLeaves, fetchLeaveBalances]);
 
+  // --- FILTER LOGIC ---
   const filteredLeaves = leaves.filter((leave) => {
+    // 1. If user CANNOT view all, strict filter to own ID
+    if (!canViewAll) return leave.user_id === authUser?.id;
+
+    // 2. If user CAN view all, filter based on active Tab
     if (activeTab === "my") return leave.user_id === authUser?.id;
-    return true;
+    
+    // "team" shows everything
+    return true; 
   });
 
   // --- HANDLERS ---
-
   const handleDeleteConfirm = async () => {
     if (!selectedLeave) return;
     setIsDeleting(true);
@@ -75,40 +91,31 @@ const LeavePage = () => {
     setIsDeleteModalOpen(false);
   };
 
-  // 1. Handle Action Trigger (from Table)
   const handleActionTrigger = (data) => {
     setActionData(data);
-
-    // If Status is Rejected -> Open Input Modal
     if (data.status === "Rejected") {
       setIsRejectModalOpen(true);
-    }
-    // If Status is Approved -> Open Simple Confirm Modal
-    else {
+    } else {
       setIsConfirmModalOpen(true);
     }
   };
 
-  // 2. Handle View Reason Trigger
   const handleViewReason = (reason) => {
     setViewReason(reason);
     setIsViewReasonModalOpen(true);
   };
 
-  // 3. Confirm Approval
   const handleApproveConfirm = async () => {
     if (!actionData) return;
     setIsProcessingAction(true);
-    await updateLeaveStatus(actionData.id, "Approved"); // No reason needed
+    await updateLeaveStatus(actionData.id, "Approved");
     setIsProcessingAction(false);
     setIsConfirmModalOpen(false);
   };
 
-  // 4. Confirm Rejection (With Reason)
   const handleRejectConfirm = async (reason) => {
     if (!actionData) return;
     setIsProcessingAction(true);
-    // Pass reason to store/backend
     await updateLeaveStatus(actionData.id, "Rejected", reason);
     setIsProcessingAction(false);
     setIsRejectModalOpen(false);
@@ -117,8 +124,6 @@ const LeavePage = () => {
   if (!authUser) return null;
   return (
     <div className="space-y-6">
-      <TopBar />
-
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -135,19 +140,30 @@ const LeavePage = () => {
         </button>
       </div>
 
-      <LeaveStatsGrid leaves={leaves} />
+      {/* --- STATS GRID --- */}
+      {/* 🟢 FIXED: Passed isAdminView so it shows the correct cards */}
+      <LeaveStatsGrid leaves={leaves} isAdminView={canViewAll} />
 
       {/* List / Table */}
       <LeaveRequestList
+        // 🟢 FIXED: Passing activeTab state and setters down
         leaves={filteredLeaves}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        
         isFetching={isFetching}
         onEdit={() => setIsEditModalOpen(true)}
         onDelete={() => setIsDeleteModalOpen(true)}
-        onAction={handleActionTrigger} // Pass action trigger
-        onViewReason={handleViewReason} // Pass view trigger
+        onAction={handleActionTrigger}
+        onViewReason={handleViewReason}
+        
+        // 🟢 FIXED: Passing permissions correctly
+        canApprove={canApprove}
+        canViewAll={canViewAll}
+        authUser={authUser}
       />
 
-      {/* --- CRUD MODALS --- */}
+      {/* --- MODALS --- */}
       <NewLeaveModal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
@@ -164,9 +180,6 @@ const LeavePage = () => {
         isDeleting={isDeleting}
       />
 
-      {/* --- ACTION MODALS --- */}
-
-      {/* 1. Approve Confirmation */}
       <ConfirmLeaveActionModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
@@ -175,7 +188,6 @@ const LeavePage = () => {
         isProcessing={isProcessingAction}
       />
 
-      {/* 2. Reject Reason Input */}
       <LeaveRejectReasonModal
         isOpen={isRejectModalOpen}
         onClose={() => setIsRejectModalOpen(false)}
@@ -183,7 +195,6 @@ const LeavePage = () => {
         isProcessing={isProcessingAction}
       />
 
-      {/* 3. View Reason */}
       <ViewLeaveRejectReasonModal
         isOpen={isViewReasonModalOpen}
         onClose={() => setIsViewReasonModalOpen(false)}

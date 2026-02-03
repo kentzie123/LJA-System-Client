@@ -27,6 +27,7 @@ export const useAttendanceStore = create((set, get) => ({
     try {
       await api.post("/attendances/manual/", formData);
       toast.success("Entry created successfully");
+      await get().fetchAllAttendances();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create entry");
     } finally {
@@ -41,7 +42,7 @@ export const useAttendanceStore = create((set, get) => ({
 
       set((state) => ({
         attendances: state.attendances.map((record) =>
-          record.id === id ? response.data.data : record
+          record.id === id ? response.data.data : record,
         ),
       }));
 
@@ -117,7 +118,7 @@ export const useAttendanceStore = create((set, get) => ({
             ? // Spread the OLD record first, then overwrite with NEW data.
               // This preserves 'fullname', 'email', etc., which the API doesn't return on update.
               { ...record, ...response.data.data }
-            : record
+            : record,
         ),
       }));
 
@@ -125,6 +126,35 @@ export const useAttendanceStore = create((set, get) => ({
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Verification failed");
+    } finally {
+      set({ isEditingAttendance: false });
+    }
+  },
+
+  verifyWorkday: async (id, status) => {
+    set({ isEditingAttendance: true });
+    try {
+      // Calls the new unified endpoint
+      const response = await api.put(`/attendances/verify-day/${id}`, {
+        status,
+      });
+
+      set((state) => ({
+        attendances: state.attendances.map((record) =>
+          record.id === id
+            ? { ...record, ...response.data.data } // Merge old user data with new status
+            : record,
+        ),
+      }));
+
+      toast.success(`Workday ${status} successfully`);
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error.response?.data?.message || "Workday verification failed",
+      );
+      return false;
     } finally {
       set({ isEditingAttendance: false });
     }

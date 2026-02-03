@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 
-import TopBar from "../layout/TopBar";
+// Layout
 import OvertimeStatsGrid from "../ui/OvertimePageUIs/OvertimeStatsGrid";
 import OvertimeTableList from "../ui/OvertimePageUIs/OvertimeTableList";
 
@@ -133,7 +133,6 @@ const OvertimePage = () => {
   
   return (
     <div className="space-y-6">
-      <TopBar title="Overtime Management" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

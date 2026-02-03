@@ -1,12 +1,14 @@
+"use client";
+
 // Theme toggler
 import ThemeToggle from "./ThemeToggle";
 
 // Image Optimizer
 import Image from "next/image";
-import Link from "next/link"; // Assuming you use Next.js routing
+import Link from "next/link";
 
 // Icons
-import { ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, User, Menu } from "lucide-react";
 
 // Store
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -15,16 +17,29 @@ const TopBar = () => {
   const { logout, authUser } = useAuthStore();
 
   return (
-    <div className="flex justify-end mb-6">
+    <div className="navbar bg-base-100/80 backdrop-blur sticky top-0 z-30 border-b border-base-200 px-4 h-16">
+      <div className="flex-none lg:hidden mr-2">
+        <label
+          htmlFor="my-drawer"
+          className="btn btn-square btn-ghost drawer-button"
+        >
+          <Menu size={24} />
+        </label>
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1"></div>
+
+      {/* --- RIGHT: ACTIONS --- */}
       <div className="flex items-center gap-4">
         <ThemeToggle />
 
         {/* Divider */}
-        <div className="h-8 w-[1px] bg-base-content/10"></div>
+        <div className="h-8 w-[1px] bg-base-content/10 hidden sm:block"></div>
 
         {/* --- USER DROPDOWN --- */}
         <div className="dropdown dropdown-end">
-          {/* TRIGGER (The Clickable Area) */}
+          {/* TRIGGER */}
           <div
             tabIndex={0}
             role="button"
@@ -33,10 +48,10 @@ const TopBar = () => {
             {/* Text Info */}
             <div className="text-right hidden sm:block">
               <div className="text-xs font-bold leading-tight text-base-content">
-                Kent Adriane Goc-ong
+                {authUser?.fullname || "User"}
               </div>
               <div className="text-[10px] font-medium opacity-50 tracking-wide uppercase mt-0.5">
-                Website Manager
+                {authUser?.position || "Employee"}
               </div>
             </div>
 
@@ -44,53 +59,48 @@ const TopBar = () => {
             <div className="relative">
               <div className="size-9 relative rounded-full ring-1 ring-base-content/10 overflow-hidden bg-base-200">
                 <Image
-                  src={authUser.profile_picture}
+                  src={
+                    authUser?.profile_picture || "/images/default_profile.jpg"
+                  }
                   alt="Profile"
                   fill
                   className="object-cover"
                   sizes="40px"
                 />
               </div>
-              {/* Floating Chevron Badge */}
               <ChevronDown
-                size={18}
-                className="absolute bg-base-300 text-base-content -bottom-1 -right-1.5 rounded-full border-3 border-base-200"
+                size={14}
+                className="absolute bg-base-100 text-base-content -bottom-1 -right-1 rounded-full shadow-sm border border-base-200 p-0.5"
               />
             </div>
           </div>
 
-          {/* MENU CONTENT */}
+          {/* DROPDOWN MENU */}
           <ul
             tabIndex={0}
-            className="dropdown-content z-[50] menu p-2 shadow-2xl bg-base-100 rounded-2xl w-56 border border-base-200 mt-2 animate-in fade-in slide-in-from-top-2 duration-200"
+            className="dropdown-content z-[50] menu p-2 shadow-2xl bg-base-100 rounded-box w-56 border border-base-200 mt-4 gap-1"
           >
             {/* Mobile Header (Visible only on small screens) */}
-            <li className="menu-title px-4 py-2 sm:hidden block">
+            <li className="menu-title sm:hidden px-4">
               <span className="text-xs font-black opacity-100 text-base-content">
-                Kent Adriane Goc-ong
+                {authUser?.fullname}
               </span>
             </li>
 
-            {/* Menu Items */}
             <li>
-              <Link
-                href="/profile"
-                className="flex gap-3 py-2.5 font-medium text-sm"
-              >
-                <User size={16} className="opacity-70" />
-                My Profile
+              <Link href="/profile" className="flex gap-3">
+                <User size={16} /> My Profile
               </Link>
             </li>
 
-            <div className="divider my-1 opacity-50"></div>
+            <div className="divider my-0"></div>
 
             <li>
               <button
-                className="flex gap-3 py-2.5 font-medium text-sm text-error hover:bg-error/10 hover:text-error active:bg-error/20"
-                onClick={logout} // Hook up your logout logic later
+                onClick={logout}
+                className="text-error hover:bg-error/10 flex gap-3"
               >
-                <LogOut size={16} />
-                Sign Out
+                <LogOut size={16} /> Sign Out
               </button>
             </li>
           </ul>

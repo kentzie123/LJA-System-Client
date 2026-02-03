@@ -1,27 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAttendanceStore } from "@/stores/useAttendanceStore";
-
-// Stores
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUserStore } from "@/stores/useUserStore";
-
-// Routing
 import { useRouter } from "next/navigation";
 
-// Icons
-import { Loader, Plus, Clock } from "lucide-react";
-
-// UI Components
-import TopBar from "../layout/TopBar";
+// Icons & UI
+import {
+  Loader,
+  Plus,
+  Clock,
+  Calendar,
+  X,
+  Users,
+  CheckCircle,
+  Timer,
+  AlertCircle,
+} from "lucide-react";
 import ToggleListGrid from "../ui/Buttons/ToggleListGrid";
 
-// Views
+// Views & Modals
 import AttendanceTableList from "../ui/AttendancePageUIs/AttendanceTableList";
-import AttendanceGridList from "../ui/AttendancePageUIs/AttendanceGridList"; // <--- 1. Import Grid
-
-// Modals
+import AttendanceGridList from "../ui/AttendancePageUIs/AttendanceGridList";
 import AddNewAttendanceModal from "../ui/AttendancePageUIs/AddNewAttendanceModal";
 import DeleteAttendanceModal from "../ui/AttendancePageUIs/DeleteAttendanceModal";
 import EditAttendanceModal from "../ui/AttendancePageUIs/EditAttendanceModal";
@@ -35,16 +36,63 @@ const AttendancePage = () => {
     isFetchingAttendances,
     deleteAttendance,
     isDeletingAttendance,
-    verifyAttendance,
+    verifyWorkday,
   } = useAttendanceStore();
 
   const router = useRouter();
   const { fetchAllUsers, users } = useUserStore();
+  const [view, setView] = useState("grid");
 
-  // State for View Toggle ('list' or 'grid')
-  const [view, setView] = useState("list");
+  // --- PERMISSIONS ---
+  const canManualEntry = authUser?.role?.perm_attendance_manual === true;
+  const canVerify = authUser?.role?.perm_attendance_verify === true;
 
-  // Modal States
+  // Initialize as empty string to show ALL attendance by default
+  const [filterDate, setFilterDate] = useState("");
+
+  useEffect(() => {
+    if (!authUser) router.push("/login");
+    else {
+      fetchAllAttendances();
+      fetchAllUsers();
+    }
+  }, [fetchAllAttendances, fetchAllUsers, authUser, router]);
+
+  const filteredAttendances = useMemo(() => {
+    if (!filterDate) return attendances;
+
+    return attendances.filter((record) => {
+      if (!record.date) return false;
+
+      const recordDateString = record.date.includes("T")
+        ? record.date.split("T")[0]
+        : record.date;
+
+      return recordDateString === filterDate;
+    });
+  }, [attendances, filterDate]);
+
+  const checkTimeFlag = (timeString, type) => {
+    if (!timeString) return false;
+    const [hours, minutes] = timeString.split(":").map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    // Late: After 8:15 AM | Undertime: Before 5:00 PM
+    return type === "in" ? totalMinutes > 495 : totalMinutes < 1020;
+  };
+
+  const stats = useMemo(() => {
+    const total = filteredAttendances.length;
+    const late = filteredAttendances.filter((a) =>
+      checkTimeFlag(a.time_in, "in"),
+    ).length;
+    const undertime = filteredAttendances.filter(
+      (a) => a.time_out && checkTimeFlag(a.time_out, "out"),
+    ).length;
+    const onTime = total - late;
+    return { total, late, onTime, undertime };
+  }, [filteredAttendances]);
+
+  // --- HANDLERS ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
@@ -52,18 +100,8 @@ const AttendancePage = () => {
   const [recordToEdit, setRecordToEdit] = useState(null);
   const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!authUser) {
-      router.push("/login");
-    } else {
-      fetchAllAttendances();
-      fetchAllUsers();
-    }
-  }, [fetchAllAttendances, fetchAllUsers, authUser, router]);
-
   const handleDeleteClick = (id) => {
-    const record = attendances.find((r) => r.id === id);
-    setRecordToDelete(record);
+    setRecordToDelete(attendances.find((r) => r.id === id));
     setIsDeleteModalOpen(true);
   };
 
@@ -71,17 +109,7 @@ const AttendancePage = () => {
     if (recordToDelete) {
       await deleteAttendance(recordToDelete.id);
       setIsDeleteModalOpen(false);
-      setRecordToDelete(null);
     }
-  };
-
-  const handleEditClick = (record) => {
-    setRecordToEdit(record);
-    setIsEditModalOpen(true);
-  };
-
-  const handleVerify = (id, type, status) => {
-    verifyAttendance(id, type, status);
   };
 
   if (isFetchingAttendances) {
@@ -92,63 +120,111 @@ const AttendancePage = () => {
     );
   }
 
-  if (!authUser) return null;
-
   return (
     <div className="space-y-6">
-      <TopBar />
+      {/* --- STATS OVERVIEW --- */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={<Users />}
+          label="Present"
+          value={stats.total}
+          color="primary"
+        />
+        <StatCard
+          icon={<CheckCircle />}
+          label="On Time"
+          value={stats.onTime}
+          color="success"
+        />
+        <StatCard
+          icon={<Timer />}
+          label="Late"
+          value={stats.late}
+          color="error"
+        />
+        <StatCard
+          icon={<AlertCircle />}
+          label="Undertime"
+          value={stats.undertime}
+          color="warning"
+        />
+      </div>
 
       <div className="space-y-4">
-        {/* Header Controls */}
-        <div className="flex justify-between items-center">
+        {/* --- HEADER CONTROLS --- */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="text-2xl font-bold text-base-content">
+            <h1 className="text-2xl font-bold text-base-content tracking-tight">
               Attendance
-            </div>
-            <div className="text-sm opacity-65 text-base-content">
-              Verify employee photos and manage records.
-            </div>
+            </h1>
+            <p className="text-sm opacity-60 text-base-content">
+              {filterDate
+                ? `Viewing records for ${filterDate}`
+                : "Viewing all history"}
+            </p>
           </div>
-          <div className="flex items-stretch gap-2">
-            {/* Clock In Button */}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* DATE PICKER WITH CLEAR OPTION */}
+            <div className="bg-base-100 border border-base-300 rounded-lg px-3 flex items-center h-10 group relative transition-all hover:border-primary/50">
+              <Calendar size={16} className="opacity-50 mr-2" />
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-base-content/80"
+              />
+              {filterDate && (
+                <button
+                  onClick={() => setFilterDate("")}
+                  className="btn btn-ghost btn-xs btn-circle ml-1 hover:bg-base-300"
+                  title="Show All Dates"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
             <button
               onClick={() => setIsClockInModalOpen(true)}
-              className="btn btn-secondary text-secondary-content font-medium px-4 shadow-sm"
+              className="btn btn-secondary btn-sm h-10 px-4"
             >
-              <Clock className="size-4" /> <span>Clock In/Out</span>
+              <Clock size={16} className="mr-2" /> Clock In/Out
             </button>
 
-            {/* Manual Entry Button */}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="btn btn-primary text-primary-content font-medium px-4"
-            >
-              <Plus className="size-4" /> <span>Manual Entry</span>
-            </button>
+            {canManualEntry && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="btn btn-primary btn-sm h-10 px-4"
+              >
+                <Plus size={16} className="mr-2" /> Manual Entry
+              </button>
+            )}
 
-            {/* View Toggle Button */}
             <ToggleListGrid setView={setView} view={view} />
           </div>
         </div>
 
-        {/* --- CONDITIONAL RENDERING FOR VIEWS --- */}
+        {/* --- VIEWS --- */}
         {view === "list" ? (
-          // LIST VIEW (Table)
-          <div className="overflow-x-auto rounded-xl border border-base-300 bg-base-200 shadow-sm">
-            <AttendanceTableList
-              attendances={attendances}
-              isFetchingAttendances={isFetchingAttendances}
-              onDelete={handleDeleteClick}
-              onEdit={handleEditClick}
-              onVerify={handleVerify}
-            />
-          </div>
+          <AttendanceTableList
+            attendances={filteredAttendances}
+            onVerifyDay={verifyWorkday}
+            onDelete={handleDeleteClick}
+            onEdit={(r) => {
+              setRecordToEdit(r);
+              setIsEditModalOpen(true);
+            }}
+            canManualEntry={canManualEntry}
+            canVerify={canVerify}
+          />
         ) : (
-          // GRID VIEW (Cards)
           <AttendanceGridList
-            attendances={attendances}
-            onVerify={handleVerify}
-            onDelete={(id) => handleDeleteClick(id)}
+            attendances={filteredAttendances}
+            onVerifyDay={verifyWorkday}
+            onDelete={handleDeleteClick}
+            canManualEntry={canManualEntry}
+            canVerify={canVerify}
           />
         )}
       </div>
@@ -159,7 +235,6 @@ const AttendancePage = () => {
         onClose={() => setIsModalOpen(false)}
         users={users}
       />
-
       <DeleteAttendanceModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -167,14 +242,12 @@ const AttendancePage = () => {
         record={recordToDelete}
         isDeleting={isDeletingAttendance}
       />
-
       <EditAttendanceModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         users={users}
         record={recordToEdit}
       />
-
       <ClockInModal
         isOpen={isClockInModalOpen}
         onClose={() => setIsClockInModalOpen(false)}
@@ -184,5 +257,17 @@ const AttendancePage = () => {
     </div>
   );
 };
+
+const StatCard = ({ icon, label, value, color }) => (
+  <div className="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+    <div className={`bg-${color}/10 p-3 rounded-xl text-${color}`}>{icon}</div>
+    <div>
+      <p className="text-xs opacity-50 font-bold uppercase tracking-widest">
+        {label}
+      </p>
+      <p className="text-2xl font-black">{value}</p>
+    </div>
+  </div>
+);
 
 export default AttendancePage;
