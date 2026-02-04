@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // Store
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -15,62 +16,75 @@ import NewOvertimeModal from "../ui/OvertimePageUIs/NewOvertimeModal";
 import EditOvertimeModal from "../ui/OvertimePageUIs/EditOvertimeModal";
 import ViewOvertimeRejectReasonModal from "../ui/OvertimePageUIs/ViewOvertimeRejectReasonModal";
 import DeleteOvertimeModal from "../ui/OvertimePageUIs/DeleteOvertimeModal";
-
-// --- IMPORT THE NEW SEPARATE MODALS ---
 import ConfirmOvertimeActionModal from "../ui/OvertimePageUIs/ConfirmOvertimeActionModal";
 import OvertimeRejectReasonModal from "../ui/OvertimePageUIs/OvertimeRejectReasonModal";
-
-import { useRouter } from "next/navigation";
 
 const OvertimePage = () => {
   const { authUser } = useAuthStore();
   const {
     overtimeRequests,
     fetchAllOvertime,
-    updateOvertimeStatus, // Action for API
-    isUpdating, // Loading state from store
+    updateOvertimeStatus,
+    isUpdating,
   } = useOvertimeStore();
 
   const router = useRouter();
 
+  // --- PERMISSIONS ---
+  // 1. Can access the page?
+  const canViewPage = authUser?.role?.perm_overtime_view === true;
+  // 2. Can see everyone's requests? (false = only own)
+  const canViewAll = authUser?.role?.perm_overtime_view_all === true;
+  // 3. Can Approve/Reject?
+  const canApprove = authUser?.role?.perm_overtime_approve === true;
+
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-
-  // Edit
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-
-  // Delete
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState(null);
 
-  // View Reason (For viewing rejected reason)
+  // View Reason
   const [viewReasonState, setViewReasonState] = useState({
     isOpen: false,
     reason: "",
   });
 
-  // --- ACTION STATES (Approve vs Reject) ---
-  // 1. For Approval (Simple Confirm)
+  // Actions
   const [confirmActionState, setConfirmActionState] = useState({
     isOpen: false,
     request: null,
-    status: "", // "Approved"
+    status: "",
   });
-
-  // 2. For Rejection (Reason Input)
   const [rejectReasonState, setRejectReasonState] = useState({
     isOpen: false,
     request: null,
   });
 
+  // --- FETCH & SECURITY ---
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
-    } else {
-      fetchAllOvertime();
+      return;
     }
-  }, [fetchAllOvertime, router, authUser]);
+
+    // Security Redirect
+    if (!canViewPage) {
+      router.push("/not-found");
+      return;
+    }
+
+    fetchAllOvertime();
+  }, [fetchAllOvertime, router, authUser, canViewPage]);
+
+  // --- FILTER LOGIC (Privacy) ---
+  const filteredRequests = overtimeRequests.filter((req) => {
+    // If Admin/HR, show everything
+    if (canViewAll) return true;
+    // Otherwise, strictly show only current user's requests
+    return req.user_id === authUser?.id;
+  });
 
   // --- HANDLERS ---
   const handleEdit = (request) => {
@@ -87,53 +101,40 @@ const OvertimePage = () => {
     setViewReasonState({ isOpen: true, reason });
   };
 
-  // --- MAIN ACTION HANDLER (Triggered from Table) ---
   const handleAction = (request, status) => {
+    // Security Guard: Prevent action if no permission
+    if (!canApprove) return;
+
     if (status === "Approved") {
-      // Open Simple Confirm Modal
-      setConfirmActionState({
-        isOpen: true,
-        request,
-        status: "Approved",
-      });
+      setConfirmActionState({ isOpen: true, request, status: "Approved" });
     } else if (status === "Rejected") {
-      // Open Reason Input Modal
-      setRejectReasonState({
-        isOpen: true,
-        request,
-      });
+      setRejectReasonState({ isOpen: true, request });
     }
   };
 
-  // --- SUBMIT HANDLERS ---
-
-  // 1. Submit Approval
   const handleConfirmAction = async () => {
     const { request, status } = confirmActionState;
     if (!request) return;
-
     const success = await updateOvertimeStatus(request.id, status, null);
     if (success !== false) {
       setConfirmActionState({ isOpen: false, request: null, status: "" });
     }
   };
 
-  // 2. Submit Rejection
   const handleConfirmRejection = async (reason) => {
     const { request } = rejectReasonState;
     if (!request) return;
-
     const success = await updateOvertimeStatus(request.id, "Rejected", reason);
     if (success !== false) {
       setRejectReasonState({ isOpen: false, request: null });
     }
   };
 
-  if (!authUser) return null;
-  
+  // Prevent UI Flash
+  if (!authUser || !canViewPage) return null;
+
   return (
     <div className="space-y-6">
-
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -150,14 +151,18 @@ const OvertimePage = () => {
         </button>
       </div>
 
-      <OvertimeStatsGrid />
+      {/* Stats Grid - Uses Filtered Data */}
+      <OvertimeStatsGrid requests={filteredRequests} />
 
+      {/* Table - Uses Filtered Data & Permissions */}
       <OvertimeTableList
-        requests={overtimeRequests}
+        requests={filteredRequests}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAction={handleAction}
         onViewReason={handleViewReason}
+        canApprove={canApprove} // <--- Pass permission to hide/show buttons
+        authUser={authUser} // <--- Pass user to check ownership
       />
 
       {/* --- MODALS --- */}
@@ -192,9 +197,6 @@ const OvertimePage = () => {
         request={requestToDelete}
       />
 
-      {/* --- NEW SEPARATE MODALS --- */}
-
-      {/* 1. Approval Modal */}
       <ConfirmOvertimeActionModal
         isOpen={confirmActionState.isOpen}
         actionData={confirmActionState}
@@ -205,7 +207,6 @@ const OvertimePage = () => {
         onConfirm={handleConfirmAction}
       />
 
-      {/* 2. Rejection Modal */}
       <OvertimeRejectReasonModal
         isOpen={rejectReasonState.isOpen}
         isProcessing={isUpdating}

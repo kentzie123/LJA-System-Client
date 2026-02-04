@@ -13,6 +13,10 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
   const isGlobal = plan.is_global;
   const isPaused = plan.status === "PAUSED";
   
+  // --- PERMISSION CHECK ---
+  // If no handlers are passed, the user cannot manage this card.
+  const canManage = onToggle || onDelete;
+
   // --- SAFELY PARSE NUMBERS ---
   const totalLimit = parseFloat(plan.total_amount || 0);
   const totalCollected = parseFloat(plan.total_collected || 0);
@@ -53,7 +57,6 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
       {/* Left Border Accent */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${config.color}`}></div>
 
-      {/* Added 'pl-6' to ensure content doesn't touch the left border accent */}
       <div className="card-body p-6 pl-6 h-full flex flex-col justify-between">
         
         {/* --- TOP SECTION --- */}
@@ -64,35 +67,51 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
             {/* LEFT SIDE: Badge, Date, Title */}
             <div className="flex flex-col gap-1.5 w-full pr-2"> 
               
-              {/* Badge & Date Container (Allows wrapping) */}
+              {/* Badge & Date Container */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`badge badge-xs font-bold py-2 border-none h-auto min-h-[1.25rem] whitespace-normal text-left leading-tight ${config.bg} ${config.text} tracking-wider`}>
                   {planLabel}
                 </span>
                 
-                {/* Date - Now creates a new line if badge is too long */}
                 <span className="text-[10px] font-medium opacity-40 flex items-center gap-1 whitespace-nowrap">
                   <CalendarDays size={10} /> {formatDate(plan.created_at)}
                 </span>
               </div>
               
-              {/* Title (Handles long words) */}
+              {/* Title */}
               <h3 className="card-title text-lg font-bold text-base-content leading-tight break-words">
                 {plan.name}
               </h3>
             </div>
 
-            {/* RIGHT SIDE: Menu (Prevent shrinking) */}
-            <div className="dropdown dropdown-end flex-shrink-0 -mr-2">
-              <div tabIndex={0} role="button" className="btn btn-ghost btn-circle btn-sm opacity-40 hover:opacity-100">
-                <MoreVertical size={18} />
+            {/* RIGHT SIDE: Menu (Hidden if no permission) */}
+            {canManage && (
+              <div className="dropdown dropdown-end flex-shrink-0 -mr-2">
+                <div tabIndex={0} role="button" className="btn btn-ghost btn-circle btn-sm opacity-40 hover:opacity-100">
+                  <MoreVertical size={18} />
+                </div>
+                <ul tabIndex={0} className="dropdown-content z-[1] menu p-1 shadow-lg bg-base-100 rounded-xl w-48 border border-base-200 text-sm mt-1">
+                  
+                  {onToggle && (
+                    <li>
+                      <a onClick={onToggle} className="gap-3 py-2 font-medium">
+                        {isPaused ? "Resume" : "Pause"}
+                      </a>
+                    </li>
+                  )}
+                  
+                  {onToggle && onDelete && <div className="divider my-0"></div>}
+                  
+                  {onDelete && (
+                    <li>
+                      <a onClick={onDelete} className="text-error gap-3 py-2 font-medium">
+                        Delete
+                      </a>
+                    </li>
+                  )}
+                </ul>
               </div>
-              <ul tabIndex={0} className="dropdown-content z-[1] menu p-1 shadow-lg bg-base-100 rounded-xl w-48 border border-base-200 text-sm mt-1">
-                <li><a onClick={onToggle} className="gap-3 py-2 font-medium">{isPaused ? "Resume" : "Pause"}</a></li>
-                <div className="divider my-0"></div>
-                <li><a onClick={onDelete} className="text-error gap-3 py-2 font-medium">Delete</a></li>
-              </ul>
-            </div>
+            )}
           </div>
 
           {/* AMOUNT ROW */}

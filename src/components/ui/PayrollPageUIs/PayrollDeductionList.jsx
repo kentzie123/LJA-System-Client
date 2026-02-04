@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useDeductionStore } from "@/stores/useDeductionStore";
 import CreateDeductionModal from "./CreateDeductionModal";
-import DeleteDeductionModal from "./DeleteDeductionModal"; // <--- Import
+import DeleteDeductionModal from "./DeleteDeductionModal"; 
 import DeductionCard from "./DeductionCard"; 
 
-const PayrollDeductionList = () => {
+const PayrollDeductionList = ({ canManage = false }) => { // <--- 1. Accept Permission Prop
   const { 
     deductions, 
     fetchDeductions, 
@@ -17,7 +17,7 @@ const PayrollDeductionList = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   // New State for Deletion
-  const [planToDelete, setPlanToDelete] = useState(null); // Stores the entire plan object
+  const [planToDelete, setPlanToDelete] = useState(null); 
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ const PayrollDeductionList = () => {
     setIsDeleting(true);
     await deleteDeduction(planToDelete.id);
     setIsDeleting(false);
-    setPlanToDelete(null); // Close modal
+    setPlanToDelete(null); 
   };
 
   if (isLoading) {
@@ -61,12 +61,15 @@ const PayrollDeductionList = () => {
               </p>
             </div>
             
-            <button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="btn bg-white text-blue-700 hover:bg-blue-50 border-none w-full font-bold shadow-lg"
-            >
-              + ADD LOAN
-            </button>
+            {/* 2. SECURITY: Only show Add Button if allowed */}
+            {canManage && (
+              <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="btn bg-white text-blue-700 hover:bg-blue-50 border-none w-full font-bold shadow-lg"
+              >
+                + ADD LOAN
+              </button>
+            )}
           </div>
         </div>
 
@@ -75,28 +78,31 @@ const PayrollDeductionList = () => {
           <DeductionCard 
             key={plan.id} 
             plan={plan} 
-            onToggle={() => toggleStatus(plan.id, plan.status)}
-            // Instead of deleting immediately, we set the state to open the modal
-            onDelete={() => setPlanToDelete(plan)} 
+            // 3. SECURITY: Disable actions if not manager
+            onToggle={canManage ? () => toggleStatus(plan.id, plan.status) : undefined}
+            onDelete={canManage ? () => setPlanToDelete(plan) : undefined} 
           />
         ))}
 
       </div>
 
-      {/* CREATE MODAL */}
-      <CreateDeductionModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
-      />
+      {/* MODALS - Only render if allowed */}
+      {canManage && (
+        <>
+          <CreateDeductionModal 
+            isOpen={isCreateModalOpen} 
+            onClose={() => setIsCreateModalOpen(false)} 
+          />
 
-      {/* DELETE MODAL */}
-      <DeleteDeductionModal 
-        isOpen={!!planToDelete} 
-        planName={planToDelete?.name}
-        onClose={() => setPlanToDelete(null)}
-        onConfirm={handleDeleteConfirm}
-        isDeleting={isDeleting}
-      />
+          <DeleteDeductionModal 
+            isOpen={!!planToDelete} 
+            planName={planToDelete?.name}
+            onClose={() => setPlanToDelete(null)}
+            onConfirm={handleDeleteConfirm}
+            isDeleting={isDeleting}
+          />
+        </>
+      )}
     </div>
   );
 };

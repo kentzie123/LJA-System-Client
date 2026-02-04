@@ -28,19 +28,31 @@ export default function EmployeePage() {
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
 
   // --- PERMISSION CHECK ---
-  // Ensure we check the specific database column we created
+  // 1. Check if user can VIEW this page
+  const canView = authUser?.role?.perm_employee_view === true;
+  // 2. Check if user can CREATE employees
   const canCreate = authUser?.role?.perm_employee_create === true;
 
-  // --- Fetch Data on Mount ---
+  // --- Fetch Data / Security Check ---
   useEffect(() => {
+    // 1. Not Logged In? -> Login
     if (!authUser) {
       router.push("/login");
-    } else {
-      fetchAllUsers();
-      fetchRoles();
+      return;
     }
-  }, [authUser, router, fetchAllUsers, fetchRoles]);
 
+    // 2. Logged In but NO PERMISSION? -> 404 Not Found
+    if (!canView) {
+      router.push("/not-found");
+      return;
+    }
+
+    // 3. Has Permission? -> Fetch Data
+    fetchAllUsers();
+    fetchRoles();
+  }, [authUser, router, fetchAllUsers, fetchRoles, canView]);
+
+  // Loading State
   if (isFetchingUsers) {
     return (
       <div className="flex h-96 w-full items-center justify-center">
@@ -49,7 +61,10 @@ export default function EmployeePage() {
     );
   }
 
-  if (!authUser) return null;
+  // SECURITY GUARD:
+  // Prevent the page from rendering anything if user is not logged in OR lacks permission.
+  // This prevents the UI from "flashing" before the redirect happens.
+  if (!authUser || !canView) return null;
 
   return (
     <div className="space-y-6">

@@ -2,11 +2,14 @@ import { create } from "zustand";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
 
-export const useRoleStore = create((set) => ({
+export const useRoleStore = create((set, get) => ({
   roles: [],
   isLoadingRoles: false,
-  isUpdating: false, // NEW: Tracks the "Save Changes" loading state
+  isUpdating: false, 
+  isCreating: false, 
+  isDeleting: false,
 
+  // 1. Fetch Roles
   fetchRoles: async () => {
     set({ isLoadingRoles: true });
     try {
@@ -20,27 +23,72 @@ export const useRoleStore = create((set) => ({
     }
   },
 
-  // NEW FUNCTION: Handles saving permissions
+  // 2. Create Role (NEW)
+  createRole: async (roleName) => {
+    set({ isCreating: true });
+    try {
+      const response = await api.post("/roles", { role_name: roleName });
+
+      // Update local state by appending the new role
+      set((state) => ({
+        roles: [...state.roles, response.data],
+      }));
+
+      toast.success("Role created successfully!");
+      return response.data; // Return data so component can select it
+    } catch (error) {
+      console.error(error);
+      const msg = error.response?.data?.message || "Failed to create role";
+      toast.error(msg);
+      throw error;
+    } finally {
+      set({ isCreating: false });
+    }
+  },
+
+  // 3. Update Role Permissions
   updateRole: async (roleId, permissions) => {
     set({ isUpdating: true });
     try {
-      // 1. Send PUT request to backend
       const response = await api.put(`/roles/${roleId}`, permissions);
 
-      // 2. Optimistically update local state (so UI reflects changes immediately)
+      // Update local state
       set((state) => ({
         roles: state.roles.map((role) =>
-          role.id === Number(roleId) ? response.data.role : role
+          role.id === Number(roleId) ? response.data : role,
         ),
       }));
 
       return response.data;
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.error || "Failed to update permissions");
-      throw error; // Throw error so the component knows not to show "Success" message
+      toast.error(
+        error.response?.data?.message || "Failed to update permissions",
+      );
+      throw error;
     } finally {
       set({ isUpdating: false });
+    }
+  },
+
+  // 4. Delete Role (NEW)
+  deleteRole: async (roleId) => {
+    set({ isDeleting: true });
+    try {
+      await api.delete(`/roles/${roleId}`);
+
+      set((state) => ({
+        roles: state.roles.filter((role) => role.id !== roleId),
+      }));
+
+      toast.success("Role deleted successfully!");
+    } catch (error) {
+      console.error(error);
+      const msg = error.response?.data?.message || "Failed to delete role";
+      toast.error(msg);
+      throw error;
+    } finally {
+      set({ isDeleting: false });
     }
   },
 }));

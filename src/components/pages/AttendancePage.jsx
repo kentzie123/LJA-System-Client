@@ -44,34 +44,58 @@ const AttendancePage = () => {
   const [view, setView] = useState("grid");
 
   // --- PERMISSIONS ---
+  // 1. View Access (Page Level)
+  const canView = authUser?.role?.perm_attendance_view === true;
+  // 2. Actions
   const canManualEntry = authUser?.role?.perm_attendance_manual === true;
   const canVerify = authUser?.role?.perm_attendance_verify === true;
 
   // Initialize as empty string to show ALL attendance by default
   const [filterDate, setFilterDate] = useState("");
 
+  // --- FETCH & SECURITY CHECK ---
   useEffect(() => {
-    if (!authUser) router.push("/login");
-    else {
-      fetchAllAttendances();
-      fetchAllUsers();
+    if (!authUser) {
+      router.push("/login");
+      return;
     }
-  }, [fetchAllAttendances, fetchAllUsers, authUser, router]);
+    
+    // 1. Redirect if no view permission
+    if (!canView) {
+      router.push("/not-found");
+      return;
+    }
 
+    // 2. Fetch Data
+    fetchAllAttendances();
+    fetchAllUsers();
+  }, [fetchAllAttendances, fetchAllUsers, authUser, router, canView]);
+
+  // --- FILTERING LOGIC ---
   const filteredAttendances = useMemo(() => {
-    if (!filterDate) return attendances;
+    let data = attendances;
 
-    return attendances.filter((record) => {
-      if (!record.date) return false;
+    // 1. PRIVACY FILTER:
+    // If user CANNOT verify (regular employee), show ONLY their own records.
+    if (!canVerify) {
+      data = data.filter((record) => record.user_id === authUser.id);
+    }
 
-      const recordDateString = record.date.includes("T")
-        ? record.date.split("T")[0]
-        : record.date;
+    // 2. DATE FILTER:
+    if (filterDate) {
+      data = data.filter((record) => {
+        if (!record.date) return false;
+        const recordDateString = record.date.includes("T")
+          ? record.date.split("T")[0]
+          : record.date;
+        return recordDateString === filterDate;
+      });
+    }
 
-      return recordDateString === filterDate;
-    });
-  }, [attendances, filterDate]);
+    return data;
+  }, [attendances, filterDate, canVerify, authUser]);
 
+  // --- STATS CALCULATION ---
   const checkTimeFlag = (timeString, type) => {
     if (!timeString) return false;
     const [hours, minutes] = timeString.split(":").map(Number);
@@ -83,10 +107,10 @@ const AttendancePage = () => {
   const stats = useMemo(() => {
     const total = filteredAttendances.length;
     const late = filteredAttendances.filter((a) =>
-      checkTimeFlag(a.time_in, "in"),
+      checkTimeFlag(a.time_in, "in")
     ).length;
     const undertime = filteredAttendances.filter(
-      (a) => a.time_out && checkTimeFlag(a.time_out, "out"),
+      (a) => a.time_out && checkTimeFlag(a.time_out, "out")
     ).length;
     const onTime = total - late;
     return { total, late, onTime, undertime };
@@ -120,13 +144,16 @@ const AttendancePage = () => {
     );
   }
 
+  // Prevent UI flash before redirect
+  if (!authUser || !canView) return null;
+
   return (
     <div className="space-y-6">
       {/* --- STATS OVERVIEW --- */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Users />}
-          label="Present"
+          label={canVerify ? "Total Present" : "My Attendance"}
           value={stats.total}
           color="primary"
         />

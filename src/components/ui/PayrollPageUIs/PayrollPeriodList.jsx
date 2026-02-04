@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Landmark, Plus, Loader2 } from "lucide-react";
 import { usePayrollStore } from "@/stores/usePayrollStore";
-import PayrollPeriodCard from "./PayrollPeriodCard"; // <--- Import the card
+import PayrollPeriodCard from "./PayrollPeriodCard";
 
 // Modals
 import CreatePayRunModal from "./CreatePayRunModal";
 import DeletePayRunModal from "./DeletePayRunModal";
 
-const PayrollPeriodList = () => {
+const PayrollPeriodList = ({ canManage = false }) => { // <--- 1. ACCEPT PROP
   const {
     getAllPayrollPeriod,
     getPayRunDetails,
@@ -78,32 +78,40 @@ const PayrollPeriodList = () => {
                 setActiveRun(run);
                 getPayRunDetails(run.id);
               }}
-              onDelete={openDeletePayrunModal}
+              // 2. SECURITY: Only pass the delete handler if they have permission
+              onDelete={canManage ? openDeletePayrunModal : undefined}
             />
           ))}
       </div>
 
-      {/* --- FOOTER --- */}
-      <div className="p-3 bg-base-100">
-        <button
-          onClick={openCreatePayrunModal}
-          className="btn btn-outline border-dashed border-white/20 hover:border-primary hover:bg-primary/5 hover:text-primary w-full gap-2 normal-case font-bold text-xs h-10 min-h-0"
-        >
-          <Plus size={14} />
-          <span>CREATE NEW PAYROLL</span>
-        </button>
-      </div>
+      {/* --- FOOTER (CREATE BUTTON) --- */}
+      {/* 3. SECURITY: Hide completely if cannot manage */}
+      {canManage && (
+        <div className="p-3 bg-base-100">
+          <button
+            onClick={openCreatePayrunModal}
+            className="btn btn-outline border-dashed border-white/20 hover:border-primary hover:bg-primary/5 hover:text-primary w-full gap-2 normal-case font-bold text-xs h-10 min-h-0"
+          >
+            <Plus size={14} />
+            <span>CREATE NEW PAYROLL</span>
+          </button>
+        </div>
+      )}
 
-      {/* Modals */}
-      <CreatePayRunModal
-        isOpen={isCreatePayrunModalOpen}
-        onClose={closeCreatePayrunModal}
-      />
+      {/* Modals - Only render if allowed */}
+      {canManage && (
+        <>
+          <CreatePayRunModal
+            isOpen={isCreatePayrunModalOpen}
+            onClose={closeCreatePayrunModal}
+          />
 
-      <DeletePayRunModal
-        isOpen={isDeletePayrunModalOpen}
-        onClose={closeDeletePayrunModal}
-      />
+          <DeletePayRunModal
+            isOpen={isDeletePayrunModalOpen}
+            onClose={closeDeletePayrunModal}
+          />
+        </>
+      )}
     </div>
   );
 };

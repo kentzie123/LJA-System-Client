@@ -32,7 +32,13 @@ const LeavePage = () => {
   const router = useRouter();
 
   // --- PERMISSIONS ---
-  const canViewAll = authUser?.role?.perm_leave_view_all === true;
+  // 1. Can they see the page at all? (NEW)
+  const canAccessPage = authUser?.role?.perm_leave_view === true;
+
+  // 2. Can they see everyone?
+  const canViewAll = authUser?.role?.perm_leave_view_all === true; 
+  
+  // 3. Can they approve?
   const canApprove = authUser?.role?.perm_leave_approve === true;
 
   // TAB STATE: Managed here so we can filter the data before sending it to the table
@@ -47,8 +53,6 @@ const LeavePage = () => {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  // Action Modals
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); 
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); 
   const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false); 
@@ -56,19 +60,26 @@ const LeavePage = () => {
   // Data States
   const [actionData, setActionData] = useState(null); 
   const [viewReason, setViewReason] = useState(""); 
-
-  // Loading States
   const [isDeleting, setIsDeleting] = useState(false);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
+  // --- FETCH & SECURITY CHECK ---
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
-    } else {
-      fetchAllLeaves();
-      fetchLeaveBalances(); 
+      return;
     }
-  }, [authUser, router, fetchAllLeaves, fetchLeaveBalances]);
+
+    // SECURITY: If they don't have basic view permission, kick them out
+    if (!canAccessPage) {
+      router.push("/not-found");
+      return;
+    }
+
+    // Only fetch if allowed
+    fetchAllLeaves();
+    fetchLeaveBalances(); 
+  }, [authUser, router, canAccessPage, fetchAllLeaves, fetchLeaveBalances]);
 
   // --- FILTER LOGIC ---
   const filteredLeaves = leaves.filter((leave) => {
@@ -121,7 +132,9 @@ const LeavePage = () => {
     setIsRejectModalOpen(false);
   };
 
-  if (!authUser) return null;
+  // Prevent flash: Return null if not logged in OR no permission
+  if (!authUser || !canAccessPage) return null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -141,12 +154,10 @@ const LeavePage = () => {
       </div>
 
       {/* --- STATS GRID --- */}
-      {/* 🟢 FIXED: Passed isAdminView so it shows the correct cards */}
       <LeaveStatsGrid leaves={leaves} isAdminView={canViewAll} />
 
       {/* List / Table */}
       <LeaveRequestList
-        // 🟢 FIXED: Passing activeTab state and setters down
         leaves={filteredLeaves}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -157,7 +168,7 @@ const LeavePage = () => {
         onAction={handleActionTrigger}
         onViewReason={handleViewReason}
         
-        // 🟢 FIXED: Passing permissions correctly
+        // Permissions
         canApprove={canApprove}
         canViewAll={canViewAll}
         authUser={authUser}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useAuthStore } from "@/stores/useAuthStore"; // Import Auth Store
+import { useAuthStore } from "@/stores/useAuthStore";
 
 // Icons
 import {
@@ -22,7 +22,6 @@ const Sidebar = () => {
   const role = authUser?.role;
 
   // --- DRAWER HELPER ---
-  // Closes the mobile drawer when a link is clicked
   const closeDrawer = () => {
     const drawerCheckbox = document.getElementById("my-drawer");
     if (drawerCheckbox) drawerCheckbox.checked = false;
@@ -41,43 +40,43 @@ const Sidebar = () => {
       icon: Users, 
       name: "Employee", 
       href: "/employee",
-      // Only visible if user has 'view' permission for employees
+      // Controlled by 'perm_employee_view'
       isVisible: role?.perm_employee_view === true
     },
     { 
       icon: ShieldCheck, 
       name: "Roles & Permissions", 
       href: "/roles",
-      // Strictly for Admin (1) or Super Admin (3)
-      isVisible: role?.id === 1 || role?.id === 3
+      // Strictly for Admin (1)
+      isVisible: role?.id === 1
     },
     { 
       icon: Clock, 
       name: "Attendance", 
       href: "/attendance",
-      // Only visible if user has 'view' permission for attendance logs
+      // Controlled by 'perm_attendance_view'
       isVisible: role?.perm_attendance_view === true
     },
     { 
       icon: Calendar, 
       name: "Leave Requests", 
       href: "/leave",
-      // Placeholder: Visible to everyone for now (to request leave)
-      isVisible: true 
+      // Controlled by 'perm_leave_view'
+      isVisible: role?.perm_leave_view === true 
     },
     { 
       icon: Briefcase, 
       name: "Overtime", 
       href: "/overtime",
-      // Placeholder: Visible to everyone for now
-      isVisible: true 
+      // Controlled by 'perm_overtime_view'
+      isVisible: role?.perm_overtime_view === true
     },
     { 
       icon: DollarSign, 
       name: "Payroll & Finance", 
       href: "/payroll",
-      // Placeholder: Usually Admin/HR only. Using ID check for now.
-      isVisible: role?.id === 1 || role?.id === 2 || role?.id === 3
+      // Controlled by 'perm_payroll_view'
+      isVisible: role?.perm_payroll_view === true
     },
   ];
 
