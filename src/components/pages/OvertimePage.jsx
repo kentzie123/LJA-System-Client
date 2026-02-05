@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // Store
@@ -13,6 +13,7 @@ import OvertimeTableList from "../ui/OvertimePageUIs/OvertimeTableList";
 
 // Modals
 import NewOvertimeModal from "../ui/OvertimePageUIs/NewOvertimeModal";
+import AdminCreateOvertimeModal from "../ui/OvertimePageUIs/AdminCreateOvertimeModal"; // NEW IMPORT
 import EditOvertimeModal from "../ui/OvertimePageUIs/EditOvertimeModal";
 import ViewOvertimeRejectReasonModal from "../ui/OvertimePageUIs/ViewOvertimeRejectReasonModal";
 import DeleteOvertimeModal from "../ui/OvertimePageUIs/DeleteOvertimeModal";
@@ -37,9 +38,16 @@ const OvertimePage = () => {
   const canViewAll = authUser?.role?.perm_overtime_view_all === true;
   // 3. Can Approve/Reject?
   const canApprove = authUser?.role?.perm_overtime_approve === true;
+  
+  // NEW PERMISSIONS
+  // 4. Can Request Own Overtime?
+  const canCreate = authUser?.role?.perm_overtime_create === true;
+  // 5. Can Assign Overtime to Others?
+  const canManage = authUser?.role?.perm_overtime_manage === true;
 
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false); // NEW STATE
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -80,7 +88,7 @@ const OvertimePage = () => {
 
   // --- FILTER LOGIC (Privacy) ---
   const filteredRequests = overtimeRequests.filter((req) => {
-    // If Admin/HR, show everything
+    // If Admin/HR with view_all permission, show everything
     if (canViewAll) return true;
     // Otherwise, strictly show only current user's requests
     return req.user_id === authUser?.id;
@@ -143,12 +151,28 @@ const OvertimePage = () => {
             Manage and approve employee overtime hours.
           </p>
         </div>
-        <button
-          onClick={() => setIsNewModalOpen(true)}
-          className="btn btn-primary gap-2"
-        >
-          <Plus className="size-4" /> New Overtime Request
-        </button>
+        
+        <div className="flex gap-2">
+          {/* 1. Admin Assign Button */}
+          {canManage && (
+            <button
+              onClick={() => setIsAdminCreateModalOpen(true)}
+              className="btn btn-secondary gap-2"
+            >
+              <UserPlus className="size-4" /> Assign Overtime (Admin)
+            </button>
+          )}
+
+          {/* 2. Standard Request Button */}
+          {canCreate && (
+            <button
+              onClick={() => setIsNewModalOpen(true)}
+              className="btn btn-primary gap-2"
+            >
+              <Plus className="size-4" /> Request Overtime
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid - Uses Filtered Data */}
@@ -166,9 +190,17 @@ const OvertimePage = () => {
       />
 
       {/* --- MODALS --- */}
+      
+      {/* Standard Modal */}
       <NewOvertimeModal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
+      />
+
+      {/* Admin Modal (New) */}
+      <AdminCreateOvertimeModal
+        isOpen={isAdminCreateModalOpen}
+        onClose={() => setIsAdminCreateModalOpen(false)}
       />
 
       <EditOvertimeModal

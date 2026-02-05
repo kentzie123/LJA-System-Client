@@ -1,94 +1,86 @@
-import { useEffect } from "react";
-import { Clock, CheckCircle, XCircle, Hourglass } from "lucide-react";
+import React, { useEffect } from "react";
+import { 
+  Clock, AlertCircle, CheckCircle, XCircle, Users, BarChart3 
+} from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-const OvertimeGridCard = ({ data }) => {
-  let Icon = data.icon;
-
-  return (
-    <div className="card flex-row gap-4 p-4 bg-base-100 shadow-sm border border-base-200">
-      <div
-        className={`${data.bg} p-3 flex items-center justify-center rounded-lg`}
-      >
-        <Icon className={`${data.txtColor} size-6`} />
+const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
+  <div className="stats shadow-sm border border-base-200 bg-base-100 w-full">
+    <div className="stat p-4">
+      <div className={`stat-figure text-${color} bg-${color}/10 p-2 rounded-full`}>
+        <Icon size={24} />
       </div>
-      <div>
-        <div className="tracking-wider uppercase text-xxs font-bold opacity-60">
-          {data.title}
-        </div>
-        <div className="font-bold text-2xl">{data.value}</div>
+      <div className="stat-title text-xs font-medium uppercase tracking-wider opacity-70">
+        {title}
       </div>
+      <div className={`stat-value text-${color} text-2xl`}>{value}</div>
+      {subtext && <div className="stat-desc mt-1">{subtext}</div>}
     </div>
-  );
-};
+  </div>
+);
 
 const OvertimeStatsGrid = () => {
-  const { overtimeRequests, fetchAllOvertime } = useOvertimeStore();
+  const { stats, fetchOvertimeStats } = useOvertimeStore();
+  const { authUser } = useAuthStore();
+  
+  const roleId = authUser?.role?.id;
+  // Admin (1) or Super Admin (3)
+  const isAdmin = roleId === 1 || roleId === 3;
 
-  // Fetch data on mount to ensure stats are fresh
   useEffect(() => {
-    fetchAllOvertime();
-  }, [fetchAllOvertime]);
-
-  // --- CALCULATIONS ---
-  const currentYear = new Date().getFullYear();
-
-  // 1. Status Counts
-  const pendingCount = overtimeRequests.filter(
-    (r) => r.status === "Pending"
-  ).length;
-  const approvedCount = overtimeRequests.filter(
-    (r) => r.status === "Approved"
-  ).length;
-  const rejectedCount = overtimeRequests.filter(
-    (r) => r.status === "Rejected"
-  ).length;
-
-  // 2. Total Hours (YTD) - Sum of 'total_hours' for Approved requests this year
-  const totalHoursYTD = overtimeRequests
-    .filter((r) => {
-      const isApproved = r.status === "Approved";
-      const isCurrentYear = new Date(r.ot_date).getFullYear() === currentYear;
-      return isApproved && isCurrentYear;
-    })
-    .reduce((sum, r) => sum + Number(r.total_hours || 0), 0);
-
-  const cardDatas = [
-    {
-      title: "Pending Requests",
-      icon: Hourglass,
-      value: pendingCount,
-      bg: "bg-warning/10",
-      txtColor: "text-warning",
-    },
-    {
-      title: "Approved Requests",
-      icon: CheckCircle,
-      value: approvedCount,
-      bg: "bg-success/10",
-      txtColor: "text-success",
-    },
-    {
-      title: "Rejected Requests",
-      icon: XCircle,
-      value: rejectedCount,
-      bg: "bg-error/10",
-      txtColor: "text-error",
-    },
-    {
-      title: "Total Overtime (YTD)",
-      icon: Clock,
-      value: `${totalHoursYTD.toFixed(1)} hrs`,
-      bg: "bg-primary/10",
-      txtColor: "text-primary",
-    },
-  ];
+    fetchOvertimeStats();
+  }, [fetchOvertimeStats]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cardDatas.map((data, i) => (
-        <OvertimeGridCard key={i} data={data} />
-      ))}
+      
+      {/* 1. PENDING (Action Items) */}
+      <StatCard 
+        title={isAdmin ? "Pending Reviews" : "My Pending Requests"}
+        value={stats.pendingCount || 0}
+        icon={Clock}
+        color="warning"
+        subtext={isAdmin ? "Requires approval" : "Awaiting approval"}
+      />
+
+      {/* 2. HOURS (Financial Impact) */}
+      <StatCard 
+        title={isAdmin ? "Total OT Hours (Month)" : "My OT Hours (Month)"}
+        value={`${stats.approvedHoursMonth || 0}h`}
+        icon={BarChart3}
+        color="primary"
+        subtext="Approved this month"
+      />
+
+      {/* 3. REJECTIONS (Quality Control) */}
+      <StatCard 
+        title={isAdmin ? "Rejections (Month)" : "My Rejections (Month)"}
+        value={stats.rejectedCount || 0}
+        icon={XCircle}
+        color="error"
+        subtext="Denied requests"
+      />
+
+      {/* 4. DYNAMIC CARD (Engagement vs History) */}
+      {isAdmin ? (
+        <StatCard 
+          title="Active Employees"
+          value={stats.activeRequesters || 0}
+          icon={Users}
+          color="info"
+          subtext="Filed OT this month"
+        />
+      ) : (
+        <StatCard 
+          title="Total Approved (All Time)"
+          value={stats.totalApprovedCount || 0}
+          icon={CheckCircle}
+          color="success"
+          subtext="Lifetime accepted requests"
+        />
+      )}
+
     </div>
   );
 };

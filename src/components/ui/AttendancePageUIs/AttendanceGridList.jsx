@@ -165,7 +165,7 @@ const AttendanceGridList = ({
           </button>
           <img
             src={previewImage}
-            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transform scale-x-[-1]"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
             alt="Enlarged Proof"
           />
         </div>
@@ -248,7 +248,7 @@ const AttendanceGridList = ({
                     <>
                       <img
                         src={record.photo_in}
-                        className="w-full h-full object-cover transform scale-x-[-1] transition-all group-hover/in:brightness-75"
+                        className="w-full h-full object-cover transition-all group-hover/in:brightness-75"
                         alt="Time In"
                       />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/in:opacity-100 transition-opacity z-10">
@@ -289,7 +289,7 @@ const AttendanceGridList = ({
                     <>
                       <img
                         src={record.photo_out}
-                        className="w-full h-full object-cover transform scale-x-[-1] transition-all group-hover/out:brightness-75"
+                        className="w-full h-full object-cover transition-all group-hover/out:brightness-75"
                         alt="Time Out"
                       />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/out:opacity-100 transition-opacity z-10">

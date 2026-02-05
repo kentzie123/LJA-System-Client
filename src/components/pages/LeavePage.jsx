@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, UserPlus } from "lucide-react"; // Added UserPlus icon
 
 // Components
 import LeaveStatsGrid from "../ui/LeavePageUIs/LeaveStatsGrid";
@@ -12,6 +12,7 @@ import NewLeaveModal from "../ui/LeavePageUIs/NewLeaveModal";
 import EditLeaveModal from "../ui/LeavePageUIs/EditLeaveModal";
 import DeleteLeaveModal from "../ui/LeavePageUIs/DeleteLeaveModal";
 import ConfirmLeaveActionModal from "../ui/LeavePageUIs/ConfirmLeaveActionModal";
+import AdminCreateLeaveModal from "../ui/LeavePageUIs/AdminCreateLeaveModal"; // NEW IMPORT
 
 // Modals
 import LeaveRejectReasonModal from "../ui/LeavePageUIs/LeaveRejectReasonModal";
@@ -32,16 +33,15 @@ const LeavePage = () => {
   const router = useRouter();
 
   // --- PERMISSIONS ---
-  // 1. Can they see the page at all? (NEW)
   const canAccessPage = authUser?.role?.perm_leave_view === true;
-
-  // 2. Can they see everyone?
   const canViewAll = authUser?.role?.perm_leave_view_all === true; 
-  
-  // 3. Can they approve?
   const canApprove = authUser?.role?.perm_leave_approve === true;
+  
+  // NEW PERMISSIONS
+  const canCreate = authUser?.role?.perm_leave_create === true;
+  const canManage = authUser?.role?.perm_leave_manage === true;
 
-  // TAB STATE: Managed here so we can filter the data before sending it to the table
+  // TAB STATE
   const [activeTab, setActiveTab] = useState(canViewAll ? "team" : "my");
 
   // Force reset tab if permission changes
@@ -51,6 +51,7 @@ const LeavePage = () => {
 
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false); // NEW STATE
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); 
@@ -70,26 +71,19 @@ const LeavePage = () => {
       return;
     }
 
-    // SECURITY: If they don't have basic view permission, kick them out
     if (!canAccessPage) {
       router.push("/not-found");
       return;
     }
 
-    // Only fetch if allowed
     fetchAllLeaves();
     fetchLeaveBalances(); 
   }, [authUser, router, canAccessPage, fetchAllLeaves, fetchLeaveBalances]);
 
   // --- FILTER LOGIC ---
   const filteredLeaves = leaves.filter((leave) => {
-    // 1. If user CANNOT view all, strict filter to own ID
     if (!canViewAll) return leave.user_id === authUser?.id;
-
-    // 2. If user CAN view all, filter based on active Tab
     if (activeTab === "my") return leave.user_id === authUser?.id;
-    
-    // "team" shows everything
     return true; 
   });
 
@@ -132,7 +126,6 @@ const LeavePage = () => {
     setIsRejectModalOpen(false);
   };
 
-  // Prevent flash: Return null if not logged in OR no permission
   if (!authUser || !canAccessPage) return null;
 
   return (
@@ -145,12 +138,28 @@ const LeavePage = () => {
             Track and manage employee time off requests.
           </p>
         </div>
-        <button
-          onClick={() => setIsNewModalOpen(true)}
-          className="btn btn-primary gap-2"
-        >
-          <Plus className="size-4" /> New Leave Request
-        </button>
+        
+        <div className="flex gap-2">
+          {/* 1. ADMIN CREATE BUTTON (Only if canManage) */}
+          {canManage && (
+            <button
+              onClick={() => setIsAdminCreateModalOpen(true)}
+              className="btn btn-secondary gap-2"
+            >
+              <UserPlus className="size-4" /> Assign Leave (Admin)
+            </button>
+          )}
+
+          {/* 2. STANDARD REQUEST BUTTON (Only if canCreate) */}
+          {canCreate && (
+            <button
+              onClick={() => setIsNewModalOpen(true)}
+              className="btn btn-primary gap-2"
+            >
+              <Plus className="size-4" /> Request Leave
+            </button>
+          )}
+        </div>
       </div>
 
       {/* --- STATS GRID --- */}
@@ -175,10 +184,19 @@ const LeavePage = () => {
       />
 
       {/* --- MODALS --- */}
+      
+      {/* Standard Modal */}
       <NewLeaveModal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
       />
+
+      {/* Admin Modal (New) */}
+      <AdminCreateLeaveModal
+        isOpen={isAdminCreateModalOpen}
+        onClose={() => setIsAdminCreateModalOpen(false)}
+      />
+
       <EditLeaveModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}

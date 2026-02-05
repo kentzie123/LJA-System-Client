@@ -17,6 +17,7 @@ import {
   CheckCircle,
   Timer,
   AlertCircle,
+  LogOut, 
 } from "lucide-react";
 import ToggleListGrid from "../ui/Buttons/ToggleListGrid";
 
@@ -27,6 +28,7 @@ import AddNewAttendanceModal from "../ui/AttendancePageUIs/AddNewAttendanceModal
 import DeleteAttendanceModal from "../ui/AttendancePageUIs/DeleteAttendanceModal";
 import EditAttendanceModal from "../ui/AttendancePageUIs/EditAttendanceModal";
 import ClockInModal from "../ui/AttendancePageUIs/ClockInModal";
+import ClockOutModal from "../ui/AttendancePageUIs/ClockOutModal"; 
 
 const AttendancePage = () => {
   const { authUser } = useAuthStore();
@@ -37,6 +39,8 @@ const AttendancePage = () => {
     deleteAttendance,
     isDeletingAttendance,
     verifyWorkday,
+    checkTodayStatus,
+    todayStatus,
   } = useAttendanceStore();
 
   const router = useRouter();
@@ -44,14 +48,15 @@ const AttendancePage = () => {
   const [view, setView] = useState("grid");
 
   // --- PERMISSIONS ---
-  // 1. View Access (Page Level)
   const canView = authUser?.role?.perm_attendance_view === true;
-  // 2. Actions
   const canManualEntry = authUser?.role?.perm_attendance_manual === true;
   const canVerify = authUser?.role?.perm_attendance_verify === true;
 
-  // Initialize as empty string to show ALL attendance by default
-  const [filterDate, setFilterDate] = useState("");
+  // --- FIX 1: DEFAULT TO TODAY'S DATE (LOCAL TIME) ---
+  const [filterDate, setFilterDate] = useState(() => {
+    // This ensures we get the LOCAL date (e.g. "2026-02-05") not UTC
+    return new Date().toLocaleDateString('en-CA'); 
+  });
 
   // --- FETCH & SECURITY CHECK ---
   useEffect(() => {
@@ -60,34 +65,39 @@ const AttendancePage = () => {
       return;
     }
     
-    // 1. Redirect if no view permission
     if (!canView) {
       router.push("/not-found");
       return;
     }
 
-    // 2. Fetch Data
     fetchAllAttendances();
     fetchAllUsers();
-  }, [fetchAllAttendances, fetchAllUsers, authUser, router, canView]);
+    checkTodayStatus(); 
+  }, [fetchAllAttendances, fetchAllUsers, checkTodayStatus, authUser, router, canView]);
 
   // --- FILTERING LOGIC ---
   const filteredAttendances = useMemo(() => {
+    if (!authUser) return [];
+
     let data = attendances;
 
-    // 1. PRIVACY FILTER:
-    // If user CANNOT verify (regular employee), show ONLY their own records.
     if (!canVerify) {
       data = data.filter((record) => record.user_id === authUser.id);
     }
 
-    // 2. DATE FILTER:
+    // --- FIX 2: TIMEZONE AWARE FILTERING ---
     if (filterDate) {
       data = data.filter((record) => {
         if (!record.date) return false;
-        const recordDateString = record.date.includes("T")
-          ? record.date.split("T")[0]
-          : record.date;
+        
+        // Convert DB string (UTC) to a Javascript Date Object
+        const recordDateObj = new Date(record.date);
+        
+        // Convert that Object to a Local Date String (YYYY-MM-DD)
+        // 'en-CA' is a shortcut code that forces YYYY-MM-DD format
+        const recordDateString = recordDateObj.toLocaleDateString('en-CA');
+        
+        // Compare "2026-02-05" (Local DB) with "2026-02-05" (Filter)
         return recordDateString === filterDate;
       });
     }
@@ -100,7 +110,6 @@ const AttendancePage = () => {
     if (!timeString) return false;
     const [hours, minutes] = timeString.split(":").map(Number);
     const totalMinutes = hours * 60 + minutes;
-    // Late: After 8:15 AM | Undertime: Before 5:00 PM
     return type === "in" ? totalMinutes > 495 : totalMinutes < 1020;
   };
 
@@ -123,6 +132,7 @@ const AttendancePage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState(null);
   const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
+  const [isClockOutModalOpen, setIsClockOutModalOpen] = useState(false);
 
   const handleDeleteClick = (id) => {
     setRecordToDelete(attendances.find((r) => r.id === id));
@@ -144,8 +154,8 @@ const AttendancePage = () => {
     );
   }
 
-  // Prevent UI flash before redirect
-  if (!authUser || !canView) return null;
+  if (!authUser) return null;
+  if (!canView) return null;
 
   return (
     <div className="space-y-6">
@@ -192,7 +202,7 @@ const AttendancePage = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* DATE PICKER WITH CLEAR OPTION */}
+            {/* DATE PICKER */}
             <div className="bg-base-100 border border-base-300 rounded-lg px-3 flex items-center h-10 group relative transition-all hover:border-primary/50">
               <Calendar size={16} className="opacity-50 mr-2" />
               <input
@@ -212,12 +222,30 @@ const AttendancePage = () => {
               )}
             </div>
 
-            <button
-              onClick={() => setIsClockInModalOpen(true)}
-              className="btn btn-secondary btn-sm h-10 px-4"
-            >
-              <Clock size={16} className="mr-2" /> Clock In/Out
-            </button>
+            {/* --- DYNAMIC CLOCK IN/OUT BUTTONS --- */}
+            {todayStatus.status === "idle" && (
+              <button
+                onClick={() => setIsClockInModalOpen(true)}
+                className="btn btn-secondary btn-sm h-10 px-4"
+              >
+                <Clock size={16} className="mr-2" /> Clock In
+              </button>
+            )}
+
+            {todayStatus.status === "clocked_in" && (
+              <button
+                onClick={() => setIsClockOutModalOpen(true)}
+                className="btn btn-error text-white btn-sm h-10 px-4"
+              >
+                <LogOut size={16} className="mr-2" /> Clock Out
+              </button>
+            )}
+
+            {todayStatus.status === "completed" && (
+              <button disabled className="btn btn-success btn-outline btn-sm h-10 px-4 opacity-50 cursor-not-allowed">
+                <CheckCircle size={16} className="mr-2" /> Completed
+              </button>
+            )}
 
             {canManualEntry && (
               <button
@@ -275,11 +303,17 @@ const AttendancePage = () => {
         users={users}
         record={recordToEdit}
       />
+      
       <ClockInModal
         isOpen={isClockInModalOpen}
         onClose={() => setIsClockInModalOpen(false)}
         users={users}
-        onSuccess={fetchAllAttendances}
+        onSuccess={fetchAllAttendances} 
+      />
+
+      <ClockOutModal
+        isOpen={isClockOutModalOpen}
+        onClose={() => setIsClockOutModalOpen(false)}
       />
     </div>
   );

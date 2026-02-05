@@ -2,6 +2,9 @@ import { create } from "zustand";
 import api from "@/lib/axios"; // Your axios instance
 import toast from "react-hot-toast";
 
+// Store
+import { useAuthStore } from "./useAuthStore";
+
 export const useUserStore = create((set, get) => ({
   users: [],
 
@@ -14,11 +17,12 @@ export const useUserStore = create((set, get) => ({
 
   // 1. FETCH ALL
   fetchAllUsers: async () => {
+    const { authUser } = useAuthStore.getState();
+    if (!authUser.perm_employee_view) return;
     set({ isFetchingUsers: true });
     try {
       const response = await api.get("/users/fetch-all");
       set({ users: response.data });
-      
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to fetch users");
@@ -71,7 +75,7 @@ export const useUserStore = create((set, get) => ({
     try {
       const res = await api.put(`/users/update-user/${userId}`, userData);
       toast.success("Employee updated successfully!");
-      
+
       // Update local state immediately
       set((state) => ({
         users: state.users.map((u) => (u.id === userId ? res.data.user : u)),

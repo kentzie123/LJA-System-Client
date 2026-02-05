@@ -4,17 +4,32 @@ import toast from "react-hot-toast";
 
 export const useAttendanceStore = create((set, get) => ({
   attendances: [],
+
+  // 1. NEW STATE: Track the user's current status (idle, clocked_in, completed)
+  todayStatus: { status: "idle" },
+
   isFetchingAttendances: false,
   isAddingAttendance: false,
   isEditingAttendance: false,
   isDeletingAttendance: false,
   isClocking: false,
 
+  // 2. NEW FUNCTION: Check status from backend
+  checkTodayStatus: async () => {
+    try {
+      const response = await api.get("/attendances/status/current");
+      set({ todayStatus: response.data });
+    } catch (error) {
+      console.error("Failed to fetch status:", error);
+    }
+  },
+
   fetchAllAttendances: async () => {
     set({ isFetchingAttendances: true });
     try {
       const response = await api.get("/attendances/");
       set({ attendances: response.data });
+      console.log(response.data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -77,15 +92,23 @@ export const useAttendanceStore = create((set, get) => ({
 
   clockIn: async (photo, location) => {
     set({ isClocking: true });
+    console.log("true");
+
     try {
       await api.post("/attendances/clock-in", { photo, location });
       toast.success("Clock In Successful!");
+
+      // 3. REFRESH STATUS & LIST AFTER SUCCESS
+      await get().checkTodayStatus();
+      await get().fetchAllAttendances();
+
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Clock In Failed");
       return false;
     } finally {
       set({ isClocking: false });
+      console.log("false");
     }
   },
 
@@ -94,6 +117,11 @@ export const useAttendanceStore = create((set, get) => ({
     try {
       await api.post("/attendances/clock-out", { photo, location }); // Send location
       toast.success("Clock Out Successful!");
+
+      // 4. REFRESH STATUS & LIST AFTER SUCCESS
+      await get().checkTodayStatus();
+      await get().fetchAllAttendances();
+
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Clock Out Failed");

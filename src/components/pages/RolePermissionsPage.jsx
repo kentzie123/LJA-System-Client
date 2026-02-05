@@ -34,7 +34,6 @@ const RolePermissionsPage = () => {
       router.push("/login");
       return;
     }
-    // UPDATED CHECK:
     if (!canViewRoles) { 
       router.push("/not-found");
     } else {
@@ -57,29 +56,37 @@ const RolePermissionsPage = () => {
     const role = roles.find(r => r.id === Number(selectedRoleId));
     if (role) {
       setFormData({
-        // ... existing mappings ...
+        // Employee
         perm_employee_view: role.perm_employee_view || false,
         perm_employee_create: role.perm_employee_create || false,
         perm_employee_edit: role.perm_employee_edit || false,
         perm_employee_delete: role.perm_employee_delete || false,
 
+        // Attendance
         perm_attendance_view: role.perm_attendance_view || false,
         perm_attendance_verify: role.perm_attendance_verify || false,
         perm_attendance_manual: role.perm_attendance_manual || false,
         perm_attendance_export: role.perm_attendance_export || false,
 
+        // Leave
         perm_leave_view: role.perm_leave_view || false,
         perm_leave_view_all: role.perm_leave_view_all || false,
         perm_leave_approve: role.perm_leave_approve || false,
+        perm_leave_create: role.perm_leave_create || false, 
+        perm_leave_manage: role.perm_leave_manage || false, 
 
+        // Overtime (UPDATED)
         perm_overtime_view: role.perm_overtime_view || false,
         perm_overtime_view_all: role.perm_overtime_view_all || false,
         perm_overtime_approve: role.perm_overtime_approve || false,
+        perm_overtime_create: role.perm_overtime_create || false, // NEW
+        perm_overtime_manage: role.perm_overtime_manage || false, // NEW
 
+        // Payroll
         perm_payroll_view: role.perm_payroll_view || false,
         perm_payroll_manage: role.perm_payroll_manage || false,
 
-        // NEW: Role Management
+        // Role Management
         perm_role_view: role.perm_role_view || false,
         perm_role_manage: role.perm_role_manage || false,
       });
@@ -87,7 +94,7 @@ const RolePermissionsPage = () => {
     }
   }, [selectedRoleId, roles]);
 
-  // --- HANDLERS (Same as before) ---
+  // --- HANDLERS ---
   const handleToggle = (key) => {
     setFormData(prev => ({ ...prev, [key]: !prev[key] }));
     setHasChanges(true);
@@ -156,19 +163,14 @@ const RolePermissionsPage = () => {
         roles={roles} 
         selectedRoleId={selectedRoleId} 
         onChange={setSelectedRoleId}
-        
-        // Only allow Create/Delete if they have manage permission
         onCreate={canManageRoles ? handleCreateRole : undefined}
         isCreating={isCreating}
-
         onDelete={canManageRoles ? handleDeleteRole : undefined}
         isDeleting={isDeleting}
       />
 
       {/* 2. Permissions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* ... Existing Cards ... */}
         
         {/* EMPLOYEE */}
         <PermissionCard title="Employee Management" icon={Users}>
@@ -189,13 +191,17 @@ const RolePermissionsPage = () => {
         {/* LEAVE */}
         <PermissionCard title="Leave Management" icon={Calendar}>
           <PermissionCheckbox label="Access Leave Page" checked={formData.perm_leave_view} onChange={() => handleToggle("perm_leave_view")} />
+          <PermissionCheckbox label="Request Own Leave" checked={formData.perm_leave_create} onChange={() => handleToggle("perm_leave_create")} />
+          <PermissionCheckbox label="Assign Leave to Others" checked={formData.perm_leave_manage} onChange={() => handleToggle("perm_leave_manage")} />
           <PermissionCheckbox label="View All Leaves (Admin)" checked={formData.perm_leave_view_all} onChange={() => handleToggle("perm_leave_view_all")} />
           <PermissionCheckbox label="Approve/Reject Requests" checked={formData.perm_leave_approve} onChange={() => handleToggle("perm_leave_approve")} />
         </PermissionCard>
 
-        {/* OVERTIME */}
+        {/* OVERTIME - UPDATED */}
         <PermissionCard title="Overtime Management" icon={Briefcase}>
           <PermissionCheckbox label="Access Overtime Page" checked={formData.perm_overtime_view} onChange={() => handleToggle("perm_overtime_view")} />
+          <PermissionCheckbox label="Request Own Overtime" checked={formData.perm_overtime_create} onChange={() => handleToggle("perm_overtime_create")} />
+          <PermissionCheckbox label="Assign Overtime (Admin)" checked={formData.perm_overtime_manage} onChange={() => handleToggle("perm_overtime_manage")} />
           <PermissionCheckbox label="View All (Admin)" checked={formData.perm_overtime_view_all} onChange={() => handleToggle("perm_overtime_view_all")} />
           <PermissionCheckbox label="Approve/Reject Requests" checked={formData.perm_overtime_approve} onChange={() => handleToggle("perm_overtime_approve")} />
         </PermissionCard>
@@ -206,7 +212,7 @@ const RolePermissionsPage = () => {
            <PermissionCheckbox label="Process & Manage" checked={formData.perm_payroll_manage} onChange={() => handleToggle("perm_payroll_manage")} />
         </PermissionCard>
 
-        {/* NEW: ROLE MANAGEMENT */}
+        {/* ROLE MANAGEMENT */}
         <PermissionCard title="System Roles (Danger Zone)" icon={Shield}>
            <PermissionCheckbox label="Access Roles Page" checked={formData.perm_role_view} onChange={() => handleToggle("perm_role_view")} />
            <PermissionCheckbox label="Create/Edit/Delete Roles" checked={formData.perm_role_manage} onChange={() => handleToggle("perm_role_manage")} />

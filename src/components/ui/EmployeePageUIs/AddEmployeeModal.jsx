@@ -13,7 +13,7 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
     fullname: "",
     email: "",
     password: "",
-    role_id: 3, 
+    role_id: 2,
     position: "",
     daily_rate: "",
     // Removed branch
@@ -21,23 +21,6 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
 
   // Error State
   const [errors, setErrors] = useState({});
-
-  // Fetch dependencies when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchRoles();
-      // Reset form on open
-      setFormData({
-        fullname: "",
-        email: "",
-        password: "",
-        role_id: 3,
-        position: "",
-        daily_rate: "",
-      });
-      setErrors({});
-    }
-  }, [isOpen, fetchRoles]);
 
   // Handle Change
   const handleChange = (e) => {
@@ -55,13 +38,16 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.fullname.trim()) newErrors.fullname = "Full Name is required.";
-    
+    if (!formData.fullname.trim())
+      newErrors.fullname = "Full Name is required.";
+
     if (!formData.email.trim()) newErrors.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Invalid email format.";
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      newErrors.email = "Invalid email format.";
 
     if (!formData.password) newErrors.password = "Password is required.";
-    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 chars.";
+    else if (formData.password.length < 6)
+      newErrors.password = "Password must be at least 6 chars.";
 
     if (!formData.position.trim()) newErrors.position = "Position is required.";
 
@@ -86,7 +72,6 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden scale-in-95 duration-200">
-        
         {/* --- HEADER --- */}
         <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div className="text-lg font-bold">Add New Employee</div>
@@ -101,10 +86,11 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
         {/* --- FORM BODY --- */}
         <div className="py-4 px-6 space-y-1 overflow-y-auto custom-scrollbar">
           <form onSubmit={handleSubmit} noValidate>
-            
             {/* Full Name */}
             <fieldset className="fieldset">
-              <legend className="fieldset-legend text-xs font-semibold">Full Name</legend>
+              <legend className="fieldset-legend text-xs font-semibold">
+                Full Name
+              </legend>
               <input
                 type="text"
                 name="fullname"
@@ -113,12 +99,18 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                 value={formData.fullname}
                 onChange={handleChange}
               />
-              {errors.fullname && <span className="text-error text-xs mt-1">{errors.fullname}</span>}
+              {errors.fullname && (
+                <span className="text-error text-xs mt-1">
+                  {errors.fullname}
+                </span>
+              )}
             </fieldset>
 
             {/* Email */}
             <fieldset className="fieldset mt-2">
-              <legend className="fieldset-legend text-xs font-semibold">Email Address</legend>
+              <legend className="fieldset-legend text-xs font-semibold">
+                Email Address
+              </legend>
               <input
                 type="email"
                 name="email"
@@ -127,12 +119,16 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                 value={formData.email}
                 onChange={handleChange}
               />
-              {errors.email && <span className="text-error text-xs mt-1">{errors.email}</span>}
+              {errors.email && (
+                <span className="text-error text-xs mt-1">{errors.email}</span>
+              )}
             </fieldset>
 
             {/* Password */}
             <fieldset className="fieldset mt-2">
-              <legend className="fieldset-legend text-xs font-semibold">Password</legend>
+              <legend className="fieldset-legend text-xs font-semibold">
+                Password
+              </legend>
               <input
                 type="password"
                 name="password"
@@ -141,13 +137,19 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                 value={formData.password}
                 onChange={handleChange}
               />
-              {errors.password && <span className="text-error text-xs mt-1">{errors.password}</span>}
+              {errors.password && (
+                <span className="text-error text-xs mt-1">
+                  {errors.password}
+                </span>
+              )}
             </fieldset>
 
             {/* Grid: Role & Position */}
             <div className="grid grid-cols-2 gap-4 mt-2">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">Role</legend>
+                <legend className="fieldset-legend text-xs font-semibold">
+                  Role
+                </legend>
                 <select
                   name="role_id"
                   className="select select-bordered w-full text-xs"
@@ -164,7 +166,9 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
               </fieldset>
 
               <fieldset className="fieldset">
-                <legend className="fieldset-legend text-xs font-semibold">Position</legend>
+                <legend className="fieldset-legend text-xs font-semibold">
+                  Position
+                </legend>
                 <input
                   type="text"
                   name="position"
@@ -173,13 +177,19 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                   value={formData.position}
                   onChange={handleChange}
                 />
-                {errors.position && <span className="text-error text-xs mt-1">{errors.position}</span>}
+                {errors.position && (
+                  <span className="text-error text-xs mt-1">
+                    {errors.position}
+                  </span>
+                )}
               </fieldset>
             </div>
 
             {/* Daily Rate (Full Width) */}
             <fieldset className="fieldset mt-2">
-              <legend className="fieldset-legend text-xs font-semibold">Daily Rate (PHP)</legend>
+              <legend className="fieldset-legend text-xs font-semibold">
+                Daily Rate (PHP)
+              </legend>
               <input
                 type="number"
                 name="daily_rate"
@@ -188,11 +198,18 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                 value={formData.daily_rate}
                 onChange={handleChange}
               />
-              {errors.daily_rate && <span className="text-error text-xs mt-1">{errors.daily_rate}</span>}
-              
+              {errors.daily_rate && (
+                <span className="text-error text-xs mt-1">
+                  {errors.daily_rate}
+                </span>
+              )}
+
               {/* Hourly Calc Helper */}
               <div className="text-right text-[10px] text-base-content/50 mt-1">
-                 Hourly: ₱{formData.daily_rate ? (parseFloat(formData.daily_rate) / 8).toFixed(2) : "0.00"}
+                Hourly: ₱
+                {formData.daily_rate
+                  ? (parseFloat(formData.daily_rate) / 8).toFixed(2)
+                  : "0.00"}
               </div>
             </fieldset>
 

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Landmark, Plus, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Landmark, Plus, Loader2, Filter } from "lucide-react"; // <--- Added Filter Icon
 import { usePayrollStore } from "@/stores/usePayrollStore";
 import PayrollPeriodCard from "./PayrollPeriodCard";
 
@@ -7,7 +7,7 @@ import PayrollPeriodCard from "./PayrollPeriodCard";
 import CreatePayRunModal from "./CreatePayRunModal";
 import DeletePayRunModal from "./DeletePayRunModal";
 
-const PayrollPeriodList = ({ canManage = false }) => { // <--- 1. ACCEPT PROP
+const PayrollPeriodList = ({ canManage = false }) => {
   const {
     getAllPayrollPeriod,
     getPayRunDetails,
@@ -19,33 +19,59 @@ const PayrollPeriodList = ({ canManage = false }) => { // <--- 1. ACCEPT PROP
 
   const [isCreatePayrunModalOpen, setIsCreatePayrunModalOpen] = useState(false);
   const [isDeletePayrunModalOpen, setIsDeletePayrunModalOpen] = useState(false);
+  
+  // --- 1. YEAR FILTER STATE ---
+  // Default to current year
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     getAllPayrollPeriod();
   }, [getAllPayrollPeriod]);
 
-  const openCreatePayrunModal = () => {
-    setIsCreatePayrunModalOpen(true);
-  };
+  // --- 2. CALCULATE UNIQUE YEARS ---
+  const uniqueYears = useMemo(() => {
+    if (!payrollPeriods.length) return [new Date().getFullYear()];
+    
+    // Extract years from pay_date
+    const years = payrollPeriods.map(p => new Date(p.pay_date).getFullYear());
+    // Remove duplicates and sort descending (newest first)
+    return [...new Set(years)].sort((a, b) => b - a);
+  }, [payrollPeriods]);
 
-  const closeCreatePayrunModal = () => {
-    setIsCreatePayrunModalOpen(false);
-  };
+  // --- 3. FILTER DATA ---
+  const filteredPeriods = useMemo(() => {
+    return payrollPeriods.filter(
+      (p) => new Date(p.pay_date).getFullYear() === parseInt(selectedYear)
+    );
+  }, [payrollPeriods, selectedYear]);
 
-  const openDeletePayrunModal = () => {
-    setIsDeletePayrunModalOpen(true);
-  };
-
-  const closeDeletePayrunModal = () => {
-    setIsDeletePayrunModalOpen(false);
-  };
+  // --- HANDLERS ---
+  const openCreatePayrunModal = () => setIsCreatePayrunModalOpen(true);
+  const closeCreatePayrunModal = () => setIsCreatePayrunModalOpen(false);
+  const openDeletePayrunModal = () => setIsDeletePayrunModalOpen(true);
+  const closeDeletePayrunModal = () => setIsDeletePayrunModalOpen(false);
 
   return (
     <div className="bg-base-100 rounded-xl border border-white/10 flex flex-col h-[600px] shadow-sm overflow-hidden">
+      
       {/* --- HEADER --- */}
       <div className="p-4 border-b border-white/5 flex justify-between items-center bg-base-200/50">
         <div className="text-[10px] font-bold uppercase tracking-widest opacity-60">
           Payroll Periods
+        </div>
+
+        {/* --- 4. YEAR SELECTOR --- */}
+        <div className="relative">
+          <Filter className="z-1 absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 opacity-50 pointer-events-none" />
+          <select 
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="select select-xs pl-7 bg-base-100 border-base-300 focus:border-primary focus:outline-none rounded-lg font-medium"
+          >
+            {uniqueYears.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -60,16 +86,16 @@ const PayrollPeriodList = ({ canManage = false }) => { // <--- 1. ACCEPT PROP
         )}
 
         {/* Empty State */}
-        {!isFetchingPeriods && payrollPeriods.length === 0 && (
+        {!isFetchingPeriods && filteredPeriods.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 opacity-30">
             <Landmark size={32} strokeWidth={1.5} />
-            <div className="text-xs font-medium">No cycles found.</div>
+            <div className="text-xs font-medium">No cycles found for {selectedYear}.</div>
           </div>
         )}
 
-        {/* Data List */}
+        {/* Data List (Using filteredPeriods) */}
         {!isFetchingPeriods &&
-          payrollPeriods.map((run) => (
+          filteredPeriods.map((run) => (
             <PayrollPeriodCard
               key={run.id}
               run={run}
@@ -78,14 +104,12 @@ const PayrollPeriodList = ({ canManage = false }) => { // <--- 1. ACCEPT PROP
                 setActiveRun(run);
                 getPayRunDetails(run.id);
               }}
-              // 2. SECURITY: Only pass the delete handler if they have permission
               onDelete={canManage ? openDeletePayrunModal : undefined}
             />
           ))}
       </div>
 
       {/* --- FOOTER (CREATE BUTTON) --- */}
-      {/* 3. SECURITY: Hide completely if cannot manage */}
       {canManage && (
         <div className="p-3 bg-base-100">
           <button
@@ -98,14 +122,13 @@ const PayrollPeriodList = ({ canManage = false }) => { // <--- 1. ACCEPT PROP
         </div>
       )}
 
-      {/* Modals - Only render if allowed */}
+      {/* Modals */}
       {canManage && (
         <>
           <CreatePayRunModal
             isOpen={isCreatePayrunModalOpen}
             onClose={closeCreatePayrunModal}
           />
-
           <DeletePayRunModal
             isOpen={isDeletePayrunModalOpen}
             onClose={closeDeletePayrunModal}

@@ -72,22 +72,22 @@ const OvertimeTableList = ({
         
         {/* TABS (Only show if user has Approval permissions) */}
         {canApprove ? (
-          <div className="bg-base-100/50 p-1 rounded-lg flex items-center w-full md:w-auto">
+          <div className="bg-base-300 p-1 rounded-lg flex items-center w-full md:w-auto">
             <button
               onClick={() => setActiveTab("my")}
-              className={`flex-1 md:flex-none px-6 py-2 text-sm font-medium rounded-md transition-all ${
+              className={`flex-1 md:flex-none px-6 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
                 activeTab === "my"
-                  ? "bg-base-300 shadow-sm text-base-content"
+                  ? "bg-base-100 shadow-sm text-base-content"
                   : "text-base-content/60 hover:text-base-content hover:bg-base-300/50"
               }`}
             >
-              My Claims
+              My Overtime
             </button>
             <button
               onClick={() => setActiveTab("team")}
-              className={`flex-1 md:flex-none relative px-6 py-2 text-sm font-medium rounded-md transition-all ${
+              className={`flex-1 md:flex-none relative px-6 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
                 activeTab === "team"
-                  ? "bg-base-300 shadow-sm text-base-content"
+                  ? "bg-base-100 shadow-sm text-base-content"
                   : "text-base-content/60 hover:text-base-content hover:bg-base-300/50"
               }`}
             >
@@ -101,7 +101,7 @@ const OvertimeTableList = ({
           </div>
         ) : (
           // If Regular Employee, just show a Title
-          <div className="font-bold text-base-content/70 px-2">My History</div>
+          <div className="font-bold text-base-content/70 px-2">My Overtime History</div>
         )}
 
         {/* FILTERS */}

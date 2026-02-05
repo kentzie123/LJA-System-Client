@@ -47,8 +47,8 @@ const Sidebar = () => {
       icon: ShieldCheck, 
       name: "Roles & Permissions", 
       href: "/roles",
-      // Strictly for Admin (1)
-      isVisible: role?.id === 1
+      // UPDATED: Visible for Admin (1) OR Super Admin (3)
+      isVisible: role?.id === 1 || role?.id === 3
     },
     { 
       icon: Clock, 
