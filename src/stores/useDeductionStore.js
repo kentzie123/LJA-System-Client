@@ -14,7 +14,7 @@ export const useDeductionStore = create((set, get) => ({
   fetchDeductions: async () => {
     set({ isLoading: true });
     try {
-      const res = await api.get("/deductions/all");
+      const res = await api.get("/deductions/");
       set({ deductions: res.data });
     } catch (error) {
       console.error("Fetch Deductions Error:", error);
@@ -24,17 +24,16 @@ export const useDeductionStore = create((set, get) => ({
     }
   },
 
+  // 2. CREATE PLAN
   createDeduction: async (payload) => {
     set({ isSubmitting: true });
     try {
-      // 1. Send data to backend
-      const res = await api.post("/deductions/create", payload);
-
+      await api.post("/deductions/create", payload);
+      
+      // Refresh list to get the full subscriber data/counts calculated by server
       await get().fetchDeductions();
 
-      // 4. Stop loading
       set({ isSubmitting: false });
-
       toast.success("Deduction plan created!");
       return true;
     } catch (error) {
@@ -57,9 +56,12 @@ export const useDeductionStore = create((set, get) => ({
     }));
 
     try {
-      await api.patch(`/deductions/${id}`, { status: newStatus });
+      // FIX: Added "/status" to match the backend route
+      await api.patch(`/deductions/${id}/status`);
+      
       toast.success(`Plan ${newStatus === "ACTIVE" ? "Resumed" : "Paused"}`);
     } catch (error) {
+      console.error("Toggle Status Error:", error);
       // Revert if failed
       set((state) => ({
         deductions: state.deductions.map((d) =>
@@ -74,15 +76,20 @@ export const useDeductionStore = create((set, get) => ({
   updateSubscribers: async (planId, userIds) => {
     set({ isSubmitting: true });
     try {
-      const res = await api.post(`/deductions/${planId}/subscribers`, {
+      // FIX: Changed to PUT to match backend route (router.put)
+      const res = await api.put(`/deductions/${planId}/subscribers`, {
         user_ids: userIds,
       });
 
+      // Update the local count immediately
       set((state) => ({
         deductions: state.deductions.map((d) =>
           d.id === planId ? { ...d, subscriber_count: res.data.count } : d,
         ),
       }));
+
+      // Optional: Refetch to get the actual list of names if needed for the UI
+      await get().fetchDeductions();
 
       toast.success("Subscribers updated successfully!");
       return true;

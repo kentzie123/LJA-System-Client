@@ -35,7 +35,7 @@ const LoginPage = () => {
     const isLoginSuccess = await login(data);
 
     if (isLoginSuccess) {
-      router.push("/");
+      router.push("/attendance");
     }
   };
 

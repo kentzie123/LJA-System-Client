@@ -3,23 +3,23 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 import { useRouter } from "next/navigation";
-import { Plus, UserPlus } from "lucide-react"; // Added UserPlus icon
+import { Plus, UserPlus } from "lucide-react"; 
 
 // Components
 import LeaveStatsGrid from "../ui/LeavePageUIs/LeaveStatsGrid";
-import LeaveRequestList from "../ui/LeavePageUIs/LeaveRequestTable"; 
+import LeaveRequestTable from "../ui/LeavePageUIs/LeaveRequestTable"; 
 import NewLeaveModal from "../ui/LeavePageUIs/NewLeaveModal";
 import EditLeaveModal from "../ui/LeavePageUIs/EditLeaveModal";
 import DeleteLeaveModal from "../ui/LeavePageUIs/DeleteLeaveModal";
 import ConfirmLeaveActionModal from "../ui/LeavePageUIs/ConfirmLeaveActionModal";
-import AdminCreateLeaveModal from "../ui/LeavePageUIs/AdminCreateLeaveModal"; // NEW IMPORT
+import AdminCreateLeaveModal from "../ui/LeavePageUIs/AdminCreateLeaveModal"; 
 
 // Modals
 import LeaveRejectReasonModal from "../ui/LeavePageUIs/LeaveRejectReasonModal";
 import ViewLeaveRejectReasonModal from "../ui/LeavePageUIs/ViewLeaveRejectReasonModal";
 
 const LeavePage = () => {
-  const { authUser } = useAuthStore();
+  const { authUser, socket } = useAuthStore(); // Get socket from Auth Store
   const {
     fetchAllLeaves,
     fetchLeaveBalances, 
@@ -28,6 +28,9 @@ const LeavePage = () => {
     deleteLeaveRequest,
     updateLeaveStatus,
     selectedLeave,
+    // --- SOCKET ACTIONS ---
+    subscribeToLeaveUpdates,
+    unsubscribeFromLeaveUpdates
   } = useLeaveStore();
 
   const router = useRouter();
@@ -44,21 +47,19 @@ const LeavePage = () => {
   // TAB STATE
   const [activeTab, setActiveTab] = useState(canViewAll ? "team" : "my");
 
-  // Force reset tab if permission changes
   useEffect(() => {
     if (!canViewAll) setActiveTab("my");
   }, [canViewAll]);
 
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false); // NEW STATE
+  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false); 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); 
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); 
   const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false); 
 
-  // Data States
   const [actionData, setActionData] = useState(null); 
   const [viewReason, setViewReason] = useState(""); 
   const [isDeleting, setIsDeleting] = useState(false);
@@ -79,6 +80,19 @@ const LeavePage = () => {
     fetchAllLeaves();
     fetchLeaveBalances(); 
   }, [authUser, router, canAccessPage, fetchAllLeaves, fetchLeaveBalances]);
+
+  // --- REAL-TIME LISTENER SETUP ---
+  useEffect(() => {
+    // Only subscribe if the socket is actually connected
+    if (socket?.connected) {
+      subscribeToLeaveUpdates();
+    }
+
+    // Cleanup: Unsubscribe when user leaves this page
+    return () => {
+      unsubscribeFromLeaveUpdates();
+    };
+  }, [socket, subscribeToLeaveUpdates, unsubscribeFromLeaveUpdates]);
 
   // --- FILTER LOGIC ---
   const filteredLeaves = leaves.filter((leave) => {
@@ -140,7 +154,7 @@ const LeavePage = () => {
         </div>
         
         <div className="flex gap-2">
-          {/* 1. ADMIN CREATE BUTTON (Only if canManage) */}
+          {/* 1. ADMIN CREATE BUTTON */}
           {canManage && (
             <button
               onClick={() => setIsAdminCreateModalOpen(true)}
@@ -150,7 +164,7 @@ const LeavePage = () => {
             </button>
           )}
 
-          {/* 2. STANDARD REQUEST BUTTON (Only if canCreate) */}
+          {/* 2. STANDARD REQUEST BUTTON */}
           {canCreate && (
             <button
               onClick={() => setIsNewModalOpen(true)}
@@ -162,11 +176,10 @@ const LeavePage = () => {
         </div>
       </div>
 
-      {/* --- STATS GRID --- */}
       <LeaveStatsGrid leaves={leaves} isAdminView={canViewAll} />
 
       {/* List / Table */}
-      <LeaveRequestList
+      <LeaveRequestTable
         leaves={filteredLeaves}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -180,18 +193,16 @@ const LeavePage = () => {
         // Permissions
         canApprove={canApprove}
         canViewAll={canViewAll}
+        canCreate={canCreate}
         authUser={authUser}
       />
 
       {/* --- MODALS --- */}
-      
-      {/* Standard Modal */}
       <NewLeaveModal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
       />
 
-      {/* Admin Modal (New) */}
       <AdminCreateLeaveModal
         isOpen={isAdminCreateModalOpen}
         onClose={() => setIsAdminCreateModalOpen(false)}

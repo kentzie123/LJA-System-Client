@@ -9,11 +9,14 @@ export const useRoleStore = create((set, get) => ({
   isCreating: false, 
   isDeleting: false,
 
-  // 1. Fetch Roles
-  fetchRoles: async () => {
+  // 1. Fetch Roles (Updated for Super Admin support)
+  fetchRoles: async (isSuperAdmin = false) => {
     set({ isLoadingRoles: true });
     try {
-      const response = await api.get("/roles");
+      // Determine endpoint based on privilege
+      const endpoint = isSuperAdmin ? "/roles/system" : "/roles";
+      
+      const response = await api.get(endpoint);
       set({ roles: response.data });
     } catch (error) {
       console.error(error);
@@ -23,7 +26,7 @@ export const useRoleStore = create((set, get) => ({
     }
   },
 
-  // 2. Create Role (NEW)
+  // 2. Create Role
   createRole: async (roleName) => {
     set({ isCreating: true });
     try {
@@ -71,7 +74,7 @@ export const useRoleStore = create((set, get) => ({
     }
   },
 
-  // 4. Delete Role (NEW)
+  // 4. Delete Role
   deleteRole: async (roleId) => {
     set({ isDeleting: true });
     try {

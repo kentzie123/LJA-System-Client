@@ -13,7 +13,7 @@ import OvertimeTableList from "../ui/OvertimePageUIs/OvertimeTableList";
 
 // Modals
 import NewOvertimeModal from "../ui/OvertimePageUIs/NewOvertimeModal";
-import AdminCreateOvertimeModal from "../ui/OvertimePageUIs/AdminCreateOvertimeModal"; // NEW IMPORT
+import AdminCreateOvertimeModal from "../ui/OvertimePageUIs/AdminCreateOvertimeModal";
 import EditOvertimeModal from "../ui/OvertimePageUIs/EditOvertimeModal";
 import ViewOvertimeRejectReasonModal from "../ui/OvertimePageUIs/ViewOvertimeRejectReasonModal";
 import DeleteOvertimeModal from "../ui/OvertimePageUIs/DeleteOvertimeModal";
@@ -21,33 +21,32 @@ import ConfirmOvertimeActionModal from "../ui/OvertimePageUIs/ConfirmOvertimeAct
 import OvertimeRejectReasonModal from "../ui/OvertimePageUIs/OvertimeRejectReasonModal";
 
 const OvertimePage = () => {
-  const { authUser } = useAuthStore();
+  const { authUser, socket } = useAuthStore(); // Get socket from Auth
   const {
     overtimeRequests,
     fetchAllOvertime,
+    fetchOvertimeStats, // Import stats fetcher
     updateOvertimeStatus,
     isUpdating,
+    // --- SOCKET ACTIONS ---
+    subscribeToOvertimeUpdates,
+    unsubscribeFromOvertimeUpdates,
   } = useOvertimeStore();
 
   const router = useRouter();
 
   // --- PERMISSIONS ---
-  // 1. Can access the page?
   const canViewPage = authUser?.role?.perm_overtime_view === true;
-  // 2. Can see everyone's requests? (false = only own)
   const canViewAll = authUser?.role?.perm_overtime_view_all === true;
-  // 3. Can Approve/Reject?
   const canApprove = authUser?.role?.perm_overtime_approve === true;
-  
+
   // NEW PERMISSIONS
-  // 4. Can Request Own Overtime?
   const canCreate = authUser?.role?.perm_overtime_create === true;
-  // 5. Can Assign Overtime to Others?
   const canManage = authUser?.role?.perm_overtime_manage === true;
 
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false); // NEW STATE
+  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -76,15 +75,27 @@ const OvertimePage = () => {
       router.push("/login");
       return;
     }
-
-    // Security Redirect
     if (!canViewPage) {
       router.push("/not-found");
       return;
     }
-
+    // Fetch initial data
     fetchAllOvertime();
-  }, [fetchAllOvertime, router, authUser, canViewPage]);
+    fetchOvertimeStats();
+  }, [fetchAllOvertime, fetchOvertimeStats, router, authUser, canViewPage]);
+
+  // --- REAL-TIME LISTENER SETUP ---
+  useEffect(() => {
+    // Only subscribe if the socket is actually connected
+    if (socket?.connected) {
+      subscribeToOvertimeUpdates();
+    }
+
+    // Cleanup: Unsubscribe when user leaves this page
+    return () => {
+      unsubscribeFromOvertimeUpdates();
+    };
+  }, [socket, subscribeToOvertimeUpdates, unsubscribeFromOvertimeUpdates]);
 
   // --- FILTER LOGIC (Privacy) ---
   const filteredRequests = overtimeRequests.filter((req) => {
@@ -110,9 +121,7 @@ const OvertimePage = () => {
   };
 
   const handleAction = (request, status) => {
-    // Security Guard: Prevent action if no permission
     if (!canApprove) return;
-
     if (status === "Approved") {
       setConfirmActionState({ isOpen: true, request, status: "Approved" });
     } else if (status === "Rejected") {
@@ -138,7 +147,6 @@ const OvertimePage = () => {
     }
   };
 
-  // Prevent UI Flash
   if (!authUser || !canViewPage) return null;
 
   return (
@@ -151,7 +159,7 @@ const OvertimePage = () => {
             Manage and approve employee overtime hours.
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           {/* 1. Admin Assign Button */}
           {canManage && (
@@ -175,29 +183,27 @@ const OvertimePage = () => {
         </div>
       </div>
 
-      {/* Stats Grid - Uses Filtered Data */}
+      {/* Stats Grid */}
       <OvertimeStatsGrid requests={filteredRequests} />
 
-      {/* Table - Uses Filtered Data & Permissions */}
+      {/* Table */}
       <OvertimeTableList
         requests={filteredRequests}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAction={handleAction}
         onViewReason={handleViewReason}
-        canApprove={canApprove} // <--- Pass permission to hide/show buttons
-        authUser={authUser} // <--- Pass user to check ownership
+        canApprove={canApprove}
+        canCreate={canCreate}
+        authUser={authUser}
       />
 
       {/* --- MODALS --- */}
-      
-      {/* Standard Modal */}
       <NewOvertimeModal
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
       />
 
-      {/* Admin Modal (New) */}
       <AdminCreateOvertimeModal
         isOpen={isAdminCreateModalOpen}
         onClose={() => setIsAdminCreateModalOpen(false)}

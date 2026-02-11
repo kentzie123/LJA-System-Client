@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calendar,
   Filter,
@@ -10,6 +10,7 @@ import {
   Trash2,
   Info,
   Briefcase,
+  Ban,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -17,7 +18,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import {
   formatDate,
   formatTime,
-  getAvatarColor,
   getTypeColor,
   getCurrentMonth,
 } from "@/utils/formatUtils";
@@ -28,12 +28,17 @@ const OvertimeTableList = ({
   onDelete,
   onAction,
   onViewReason,
-  canApprove = false, // <--- NEW PROP from Parent
+  canApprove = false,
+  canCreate = false,
 }) => {
   const { authUser } = useAuthStore();
-  
-  // Default to "team" if approver, otherwise "my"
-  const [activeTab, setActiveTab] = useState(canApprove ? "team" : "my");
+
+  // Tab Logic:
+  const [activeTab, setActiveTab] = useState(() => {
+    if (canApprove) return "team";
+    return "my";
+  });
+
   const [filterStatus, setFilterStatus] = useState("All");
 
   // Use utility for default date (YYYY-MM)
@@ -43,14 +48,22 @@ const OvertimeTableList = ({
   const currentUserId = authUser?.id;
   const pendingCount = requests.filter((r) => r.status === "Pending").length;
 
+  // --- EFFECT: Permission Enforcer ---
+  useEffect(() => {
+    if (!canApprove) {
+      setActiveTab("my");
+    } else if (canApprove && !canCreate) {
+      setActiveTab("team");
+    }
+  }, [canApprove, canCreate]);
+
   // --- FILTERING LOGIC ---
   const filteredRequests = requests.filter((req) => {
     // 1. Tab Filter
-    // If "My Claims", strictly show only own ID
-    if (activeTab === "my" && req.user_id !== currentUserId) return false;
-    // If "Team" (and user is regular employee), the parent component already filtered the list, 
-    // but this check handles the UI toggle logic.
-
+    if (activeTab === "my") {
+      if (!canCreate) return false;
+      if (req.user_id !== currentUserId) return false;
+    }
     // 2. Status Filter
     if (filterStatus !== "All" && req.status !== filterStatus) return false;
 
@@ -65,49 +78,71 @@ const OvertimeTableList = ({
     return true;
   });
 
+  // --- RENDER: RESTRICTED ACCESS ---
+  if (!canApprove && !canCreate) {
+    return (
+      <div className="w-full h-64 bg-base-200 rounded-2xl shadow-xl border border-base-300 flex flex-col items-center justify-center text-base-content/50 gap-2">
+        <Ban size={48} className="opacity-20" />
+        <span className="font-semibold">Access Restricted</span>
+        <span className="text-xs">
+          You do not have permission to view or request overtime.
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-base-200 rounded-2xl shadow-xl overflow-hidden border border-base-300 flex flex-col">
       {/* --- TOP BAR --- */}
       <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-base-300/50 shrink-0">
-        
-        {/* TABS (Only show if user has Approval permissions) */}
+        {/* TABS */}
         {canApprove ? (
           <div className="bg-base-300 p-1 rounded-lg flex items-center w-full md:w-auto">
-            <button
-              onClick={() => setActiveTab("my")}
-              className={`flex-1 md:flex-none px-6 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
-                activeTab === "my"
-                  ? "bg-base-100 shadow-sm text-base-content"
-                  : "text-base-content/60 hover:text-base-content hover:bg-base-300/50"
-              }`}
-            >
-              My Overtime
-            </button>
+            {canCreate && (
+              <button
+                onClick={() => setActiveTab("my")}
+                className={`flex-1 md:flex-none px-6 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
+                  activeTab === "my"
+                    ? "bg-base-100 shadow-sm text-base-content"
+                    : "text-base-content/60 hover:text-base-content hover:bg-base-300/50"
+                }`}
+              >
+                My Overtime
+              </button>
+            )}
+
             <button
               onClick={() => setActiveTab("team")}
-              className={`flex-1 md:flex-none relative px-6 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
+              // Added 'pr-8' to prevent text overlap with the badge
+              className={`flex-1 md:flex-none relative px-6 pr-8 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
                 activeTab === "team"
                   ? "bg-base-100 shadow-sm text-base-content"
                   : "text-base-content/60 hover:text-base-content hover:bg-base-300/50"
               }`}
             >
               Team Approvals
+              
+              {/* --- UPDATED BADGE WITH ANIMATION --- */}
               {pendingCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[9px] font-bold text-white shadow-sm">
-                  {pendingCount}
-                </span>
+                <div className="absolute top-1 right-1 z-10 flex h-4 w-4 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-error opacity-75"></span>
+                  <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-white shadow-sm">
+                    {pendingCount}
+                  </span>
+                </div>
               )}
             </button>
           </div>
         ) : (
-          // If Regular Employee, just show a Title
-          <div className="font-bold text-base-content/70 px-2">My Overtime History</div>
+          <div className="font-bold text-base-content/70 px-2">
+            My Overtime History
+          </div>
         )}
 
         {/* FILTERS */}
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+        <div className="grid grid-cols-1 md:flex items-center gap-3 w-full md:w-auto justify-end">
           {/* Status Select */}
-          <div className="relative group w-1/2 md:w-auto">
+          <div className="relative group w-full md:w-auto">
             <Filter
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none z-10"
@@ -124,18 +159,32 @@ const OvertimeTableList = ({
           </div>
 
           {/* Month Picker */}
-          <div className="relative group bg-base-100 border border-base-300 rounded-lg px-3 py-1 flex items-center gap-2 hover:border-base-content/30 transition-colors h-8 w-1/2 md:w-auto">
-            <Calendar size={14} className="opacity-50" />
+          <div className="relative group bg-base-100 border border-base-300 rounded-lg px-3 py-1 flex items-center gap-2 hover:border-base-content/30 transition-colors h-8 w-full md:w-auto">
+            <Calendar
+              size={14}
+              className="opacity-50 shrink-0 pointer-events-none"
+            />
             <input
               type="month"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
+              // Fix: Open picker anywhere on click
+              onClick={(e) => {
+                try {
+                  e.target.showPicker();
+                } catch (error) {
+                  // Fallback for older browsers that don't support showPicker
+                }
+              }}
               className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-base-content/80 w-full md:w-auto accent-primary border-none p-0 h-full"
             />
             {filterDate && (
               <button
-                onClick={() => setFilterDate("")}
-                className="btn btn-ghost btn-xs btn-circle h-5 w-5 min-h-0 opacity-50 hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent reopening picker when clearing
+                  setFilterDate("");
+                }}
+                className="btn btn-ghost btn-xs btn-circle h-5 w-5 min-h-0 opacity-50 hover:opacity-100 shrink-0"
               >
                 <X size={10} />
               </button>
@@ -147,17 +196,15 @@ const OvertimeTableList = ({
       {/* --- RESPONSIVE TABLE WRAPPER --- */}
       <div className="flex-1 overflow-x-auto bg-base-100/30 relative">
         <div className="min-w-[1000px] h-full flex flex-col">
-          
-          {/* HEADER (Sticky) */}
+          {/* HEADER */}
           <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-base-200/90 backdrop-blur text-xxs font-bold opacity-50 uppercase tracking-wider border-b border-base-300/30 sticky top-0 z-10">
             <div className="col-span-4">Request Details</div>
             <div className="col-span-3">Type & Hours</div>
             <div className="col-span-2">Status</div>
-            {/* Toggle Approval Column */}
             {canApprove ? (
               <div className="col-span-2">Approval</div>
             ) : (
-              <div className="col-span-2"></div> 
+              <div className="col-span-2"></div>
             )}
             <div className="col-span-1 text-right">Actions</div>
           </div>
@@ -190,13 +237,17 @@ const OvertimeTableList = ({
                   >
                     {/* 1. Request Details */}
                     <div className="col-span-4 flex items-start gap-3">
-                      <div
-                        className={`h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0 ${getAvatarColor(
-                          req.fullname
-                        )}`}
-                      >
-                        {req.initials}
+                      {/* --- PROFILE PICTURE --- */}
+                      <div className="h-10 w-10 rounded-full overflow-hidden shrink-0 shadow-sm border border-base-300">
+                        <img
+                          src={
+                            req.profile_picture || "/images/default_profile.jpg"
+                          }
+                          alt={req.fullname}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
+
                       <div className="flex flex-col min-w-0">
                         <span className="font-semibold text-sm truncate">
                           {req.fullname}
@@ -224,7 +275,8 @@ const OvertimeTableList = ({
 
                       <div className="flex items-center gap-1.5 font-medium text-base-content/80">
                         <Clock size={14} className="text-primary" />
-                        {formatTime(req.start_time)} - {formatTime(req.end_time)}
+                        {formatTime(req.start_time)} -{" "}
+                        {formatTime(req.end_time)}
                       </div>
                       <span className="text-[11px] font-bold opacity-50 mt-1">
                         {req.total_hours} hrs total
@@ -267,11 +319,12 @@ const OvertimeTableList = ({
 
                     {/* 4. Approval Buttons (CONDITIONAL) */}
                     <div className="col-span-2">
-                      {/* Show buttons only if user has permission AND request is Pending */}
                       {canApprove ? (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => onAction && onAction(req, "Approved")}
+                            onClick={() =>
+                              onAction && onAction(req, "Approved")
+                            }
                             className={`btn btn-xs btn-success text-white ${
                               req.status === "Approved" &&
                               "opacity-30 pointer-events-none"
@@ -281,7 +334,9 @@ const OvertimeTableList = ({
                             <Check size={12} />
                           </button>
                           <button
-                            onClick={() => onAction && onAction(req, "Rejected")}
+                            onClick={() =>
+                              onAction && onAction(req, "Rejected")
+                            }
                             className={`btn btn-xs btn-error text-white ${
                               req.status === "Rejected" &&
                               "opacity-30 pointer-events-none"
@@ -292,15 +347,12 @@ const OvertimeTableList = ({
                           </button>
                         </div>
                       ) : (
-                        // Placeholder if not approver
                         <span className="text-xs opacity-0">-</span>
                       )}
                     </div>
 
                     {/* 5. Actions (Edit/Delete) */}
                     <div className="col-span-1 flex justify-end gap-1">
-                      
-                      {/* EDIT: Owner Only, Pending Only */}
                       {isOwner && isPending && (
                         <button
                           onClick={() => onEdit && onEdit(req)}

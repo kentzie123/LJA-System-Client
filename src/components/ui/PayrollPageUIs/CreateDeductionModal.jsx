@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Search, Users, Globe, AlertCircle } from "lucide-react";
+import { X, Search, Users, Globe, AlertCircle, Wallet } from "lucide-react";
 import { useDeductionStore } from "@/stores/useDeductionStore";
 import { useUserStore } from "@/stores/useUserStore";
 
@@ -89,21 +89,24 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-base-100 rounded-xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-base-300 max-h-[85vh]">
+        
         {/* HEADER */}
-        <div className="p-4 border-b border-base-200 flex justify-between items-center bg-base-200/50 shrink-0">
-          <div>
-            <h2 className="text-lg font-bold">Create Deduction Plan</h2>
-            <p className="text-xs opacity-60">
-              Add a new fee, contribution, or loan.
-            </p>
+        <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300 flex-shrink-0">
+          <div className="text-lg font-bold flex items-center gap-2 text-primary">
+            <Wallet size={20} /> Create Deduction Plan
           </div>
-          <button onClick={onClose} className="btn btn-sm btn-ghost btn-circle">
+          <button 
+            onClick={onClose} 
+            disabled={isSubmitting} 
+            className="btn btn-ghost btn-sm btn-square text-base-content/50 hover:text-error"
+          >
             <X size={18} />
           </button>
         </div>
 
         {/* BODY - This area will now scroll */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          
           {/* BASICS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-control md:col-span-2">
@@ -113,8 +116,8 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
               <input
                 type="text"
                 name="name"
-                placeholder="e.g. SSS Contribution, Uniform Fee, Emergency Loan"
-                className="input input-bordered w-full"
+                placeholder="e.g. SSS Contribution, Uniform Fee"
+                className="input input-bordered w-full focus:input-primary focus:border-primary"
                 value={formData.name}
                 onChange={handleChange}
                 autoFocus
@@ -127,7 +130,7 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
               </label>
               <select
                 name="deduction_type"
-                className="select select-bordered w-full"
+                className="select select-bordered w-full focus:select-primary focus:border-primary"
                 value={formData.deduction_type}
                 onChange={handleChange}
               >
@@ -147,7 +150,7 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
                 name="amount"
                 placeholder="0.00"
                 step="0.01"
-                className="input input-bordered w-full font-mono"
+                className="input input-bordered w-full font-mono focus:input-primary focus:border-primary"
                 value={formData.amount}
                 onChange={handleChange}
               />
@@ -159,13 +162,13 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className={`p-2 rounded-lg ${formData.is_global ? "bg-primary/20 text-primary" : "bg-base-300 text-base-content/50"}`}
+                  className={`p-2 rounded-lg transition-colors ${
+                    formData.is_global 
+                    ? "bg-primary/20 text-primary" 
+                    : "bg-base-300 text-base-content/50"
+                  }`}
                 >
-                  {formData.is_global ? (
-                    <Globe size={20} />
-                  ) : (
-                    <Users size={20} />
-                  )}
+                  {formData.is_global ? <Globe size={20} /> : <Users size={20} />}
                 </div>
                 <div>
                   <div className="font-bold text-sm">Target Audience</div>
@@ -188,11 +191,11 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
             {!formData.is_global && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
                 <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 opacity-40" />
+                  <Search className="z-1 absolute left-3 top-1/2 -translate-y-1/2 size-4 opacity-40" />
                   <input
                     type="text"
                     placeholder="Search employee name..."
-                    className="input input-sm input-bordered w-full pl-9"
+                    className="input input-sm input-bordered w-full pl-9 focus:input-primary"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -200,31 +203,29 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
 
                 <div className="h-48 overflow-y-auto border border-base-300 rounded-lg bg-base-100 p-1 custom-scrollbar">
                   {filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => (
-                      <label
-                        key={user.id}
-                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-base-200 transition-colors ${formData.selected_users.includes(user.id) ? "bg-primary/5 border border-primary/20" : ""}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="avatar placeholder">
-                            <div className="bg-neutral-focus text-neutral-content rounded-full w-8">
-                              <span className="text-xs">
-                                {user.fullname.charAt(0)}
-                              </span>
-                            </div>
+                    filteredUsers.map((user) => {
+                      const isSelected = formData.selected_users.includes(user.id);
+                      return (
+                        <label
+                          key={user.id}
+                          className={`flex items-center justify-between p-3 rounded-md cursor-pointer hover:bg-base-200 transition-all ${
+                            isSelected ? "bg-primary/10 border border-primary/20" : "border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`text-sm font-medium ${isSelected ? "text-primary" : ""}`}>
+                              {user.fullname}
+                            </span>
                           </div>
-                          <span className="text-sm font-medium">
-                            {user.fullname}
-                          </span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="checkbox checkbox-xs checkbox-primary"
-                          checked={formData.selected_users.includes(user.id)}
-                          onChange={() => toggleUser(user.id)}
-                        />
-                      </label>
-                    ))
+                          <input
+                            type="checkbox"
+                            className="checkbox checkbox-xs checkbox-primary"
+                            checked={isSelected}
+                            onChange={() => toggleUser(user.id)}
+                          />
+                        </label>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-8 opacity-50 text-xs flex flex-col items-center">
                       <AlertCircle size={24} className="mb-2 opacity-50" />
@@ -261,7 +262,7 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
                     type="number"
                     name="total_loan_amount"
                     placeholder="e.g. 5000.00"
-                    className="input input-bordered w-full"
+                    className="input input-bordered w-full focus:input-primary focus:border-primary"
                     value={formData.total_loan_amount}
                     onChange={handleChange}
                   />
@@ -276,7 +277,7 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
                     type="number"
                     name="downpayment"
                     placeholder="e.g. 1000.00"
-                    className="input input-bordered w-full"
+                    className="input input-bordered w-full focus:input-primary focus:border-primary"
                     value={formData.downpayment}
                     onChange={handleChange}
                     disabled={!formData.total_loan_amount}
@@ -325,11 +326,13 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
           </button>
           <button
             onClick={handleSubmit}
-            className="btn btn-primary px-8"
+            className="btn btn-primary px-8 min-w-[120px]"
             disabled={isSubmitting || !formData.name || !formData.amount}
           >
             {isSubmitting ? (
-              <span className="loading loading-spinner loading-xs"></span>
+              <>
+                 <span className="loading loading-spinner loading-xs mr-2"></span> Saving...
+              </>
             ) : (
               "Create Plan"
             )}

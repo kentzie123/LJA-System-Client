@@ -17,7 +17,7 @@ import {
   CheckCircle,
   Timer,
   AlertCircle,
-  LogOut, 
+  LogOut,
 } from "lucide-react";
 import ToggleListGrid from "../ui/Buttons/ToggleListGrid";
 
@@ -28,10 +28,11 @@ import AddNewAttendanceModal from "../ui/AttendancePageUIs/AddNewAttendanceModal
 import DeleteAttendanceModal from "../ui/AttendancePageUIs/DeleteAttendanceModal";
 import EditAttendanceModal from "../ui/AttendancePageUIs/EditAttendanceModal";
 import ClockInModal from "../ui/AttendancePageUIs/ClockInModal";
-import ClockOutModal from "../ui/AttendancePageUIs/ClockOutModal"; 
+import ClockOutModal from "../ui/AttendancePageUIs/ClockOutModal";
 
 const AttendancePage = () => {
-  const { authUser } = useAuthStore();
+  const { authUser, socket } = useAuthStore(); // Get socket from Auth Store
+  
   const {
     fetchAllAttendances,
     attendances,
@@ -41,6 +42,9 @@ const AttendancePage = () => {
     verifyWorkday,
     checkTodayStatus,
     todayStatus,
+    // --- SOCKET ACTIONS ---
+    subscribeToAttendanceUpdates,
+    unsubscribeFromAttendanceUpdates,
   } = useAttendanceStore();
 
   const router = useRouter();
@@ -52,19 +56,17 @@ const AttendancePage = () => {
   const canManualEntry = authUser?.role?.perm_attendance_manual === true;
   const canVerify = authUser?.role?.perm_attendance_verify === true;
 
-  // --- FIX 1: DEFAULT TO TODAY'S DATE (LOCAL TIME) ---
+  // --- DEFAULT DATE (LOCAL) ---
   const [filterDate, setFilterDate] = useState(() => {
-    // This ensures we get the LOCAL date (e.g. "2026-02-05") not UTC
-    return new Date().toLocaleDateString('en-CA'); 
+    return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD local
   });
 
-  // --- FETCH & SECURITY CHECK ---
+  // --- INITIAL DATA LOAD & SECURITY ---
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
       return;
     }
-    
     if (!canView) {
       router.push("/not-found");
       return;
@@ -72,8 +74,28 @@ const AttendancePage = () => {
 
     fetchAllAttendances();
     fetchAllUsers();
-    checkTodayStatus(); 
-  }, [fetchAllAttendances, fetchAllUsers, checkTodayStatus, authUser, router, canView]);
+    checkTodayStatus();
+  }, [
+    fetchAllAttendances,
+    fetchAllUsers,
+    checkTodayStatus,
+    authUser,
+    router,
+    canView,
+  ]);
+
+  // --- REAL-TIME LISTENER SETUP ---
+  useEffect(() => {
+    // Only subscribe if socket is connected (Admin/Super Admin only)
+    if (socket?.connected) {
+      subscribeToAttendanceUpdates();
+    }
+
+    // Cleanup: Unsubscribe when user leaves this page
+    return () => {
+      unsubscribeFromAttendanceUpdates();
+    };
+  }, [socket, subscribeToAttendanceUpdates, unsubscribeFromAttendanceUpdates]);
 
   // --- FILTERING LOGIC ---
   const filteredAttendances = useMemo(() => {
@@ -81,23 +103,19 @@ const AttendancePage = () => {
 
     let data = attendances;
 
+    // If standard user, only show their own records
     if (!canVerify) {
       data = data.filter((record) => record.user_id === authUser.id);
     }
 
-    // --- FIX 2: TIMEZONE AWARE FILTERING ---
+    // Timezone Aware Date Filter
     if (filterDate) {
       data = data.filter((record) => {
         if (!record.date) return false;
-        
-        // Convert DB string (UTC) to a Javascript Date Object
-        const recordDateObj = new Date(record.date);
-        
-        // Convert that Object to a Local Date String (YYYY-MM-DD)
-        // 'en-CA' is a shortcut code that forces YYYY-MM-DD format
-        const recordDateString = recordDateObj.toLocaleDateString('en-CA');
-        
-        // Compare "2026-02-05" (Local DB) with "2026-02-05" (Filter)
+        // Convert DB UTC string -> Local JS Date -> Local String YYYY-MM-DD
+        const recordDateString = new Date(record.date).toLocaleDateString(
+          "en-CA"
+        );
         return recordDateString === filterDate;
       });
     }
@@ -125,7 +143,7 @@ const AttendancePage = () => {
     return { total, late, onTime, undertime };
   }, [filteredAttendances]);
 
-  // --- HANDLERS ---
+  // --- MODAL STATES ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
@@ -146,6 +164,7 @@ const AttendancePage = () => {
     }
   };
 
+  // --- RENDER ---
   if (isFetchingAttendances) {
     return (
       <div className="flex h-96 w-full items-center justify-center">
@@ -154,12 +173,11 @@ const AttendancePage = () => {
     );
   }
 
-  if (!authUser) return null;
-  if (!canView) return null;
+  if (!authUser || !canView) return null;
 
   return (
     <div className="space-y-6">
-      {/* --- STATS OVERVIEW --- */}
+      {/* STATS OVERVIEW */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Users />}
@@ -188,7 +206,7 @@ const AttendancePage = () => {
       </div>
 
       <div className="space-y-4">
-        {/* --- HEADER CONTROLS --- */}
+        {/* HEADER CONTROLS */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-base-content tracking-tight">
@@ -222,7 +240,7 @@ const AttendancePage = () => {
               )}
             </div>
 
-            {/* --- DYNAMIC CLOCK IN/OUT BUTTONS --- */}
+            {/* DYNAMIC CLOCK IN/OUT BUTTONS */}
             {todayStatus.status === "idle" && (
               <button
                 onClick={() => setIsClockInModalOpen(true)}
@@ -242,7 +260,10 @@ const AttendancePage = () => {
             )}
 
             {todayStatus.status === "completed" && (
-              <button disabled className="btn btn-success btn-outline btn-sm h-10 px-4 opacity-50 cursor-not-allowed">
+              <button
+                disabled
+                className="btn btn-success btn-outline btn-sm h-10 px-4 opacity-50 cursor-not-allowed"
+              >
                 <CheckCircle size={16} className="mr-2" /> Completed
               </button>
             )}
@@ -260,7 +281,7 @@ const AttendancePage = () => {
           </div>
         </div>
 
-        {/* --- VIEWS --- */}
+        {/* DATA VIEWS */}
         {view === "list" ? (
           <AttendanceTableList
             attendances={filteredAttendances}
@@ -303,12 +324,12 @@ const AttendancePage = () => {
         users={users}
         record={recordToEdit}
       />
-      
+
       <ClockInModal
         isOpen={isClockInModalOpen}
         onClose={() => setIsClockInModalOpen(false)}
         users={users}
-        onSuccess={fetchAllAttendances} 
+        onSuccess={fetchAllAttendances}
       />
 
       <ClockOutModal

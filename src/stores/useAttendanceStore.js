@@ -1,20 +1,17 @@
 import { create } from "zustand";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
+import { useAuthStore } from "./useAuthStore";
 
 export const useAttendanceStore = create((set, get) => ({
   attendances: [],
-
-  // 1. NEW STATE: Track the user's current status (idle, clocked_in, completed)
   todayStatus: { status: "idle" },
-
   isFetchingAttendances: false,
   isAddingAttendance: false,
   isEditingAttendance: false,
   isDeletingAttendance: false,
   isClocking: false,
 
-  // 2. NEW FUNCTION: Check status from backend
   checkTodayStatus: async () => {
     try {
       const response = await api.get("/attendances/status/current");
@@ -29,7 +26,6 @@ export const useAttendanceStore = create((set, get) => ({
     try {
       const response = await api.get("/attendances/");
       set({ attendances: response.data });
-      console.log(response.data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -42,7 +38,7 @@ export const useAttendanceStore = create((set, get) => ({
     try {
       await api.post("/attendances/manual/", formData);
       toast.success("Entry created successfully");
-      await get().fetchAllAttendances();
+      await get().fetchAllAttendances(); 
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create entry");
     } finally {
@@ -54,17 +50,14 @@ export const useAttendanceStore = create((set, get) => ({
     set({ isEditingAttendance: true });
     try {
       const response = await api.put(`/attendances/${id}`, formData);
-
       set((state) => ({
         attendances: state.attendances.map((record) =>
-          record.id === id ? response.data.data : record,
+          record.id === id ? { ...record, ...response.data.data } : record,
         ),
       }));
-
       toast.success("Record updated successfully");
       return true;
     } catch (error) {
-      console.error(error);
       toast.error(error.response?.data?.message || "Failed to update record");
       return false;
     } finally {
@@ -76,14 +69,11 @@ export const useAttendanceStore = create((set, get) => ({
     set({ isDeletingAttendance: true });
     try {
       await api.delete(`/attendances/${id}`);
-
       set((state) => ({
         attendances: state.attendances.filter((record) => record.id !== id),
       }));
-
       toast.success("Record deleted successfully");
     } catch (error) {
-      console.error(error);
       toast.error(error.response?.data?.message || "Failed to delete record");
     } finally {
       set({ isDeletingAttendance: false });
@@ -92,36 +82,27 @@ export const useAttendanceStore = create((set, get) => ({
 
   clockIn: async (photo, location) => {
     set({ isClocking: true });
-    console.log("true");
-
     try {
       await api.post("/attendances/clock-in", { photo, location });
       toast.success("Clock In Successful!");
-
-      // 3. REFRESH STATUS & LIST AFTER SUCCESS
       await get().checkTodayStatus();
       await get().fetchAllAttendances();
-
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Clock In Failed");
       return false;
     } finally {
       set({ isClocking: false });
-      console.log("false");
     }
   },
 
   clockOut: async (photo, location) => {
     set({ isClocking: true });
     try {
-      await api.post("/attendances/clock-out", { photo, location }); // Send location
+      await api.post("/attendances/clock-out", { photo, location });
       toast.success("Clock Out Successful!");
-
-      // 4. REFRESH STATUS & LIST AFTER SUCCESS
       await get().checkTodayStatus();
       await get().fetchAllAttendances();
-
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Clock Out Failed");
@@ -134,25 +115,14 @@ export const useAttendanceStore = create((set, get) => ({
   verifyAttendance: async (id, type, status) => {
     set({ isEditingAttendance: true });
     try {
-      const response = await api.put(`/attendances/verify/${id}`, {
-        type,
-        status,
-      });
-
-      // --- BUG FIX IS HERE ---
+      const response = await api.put(`/attendances/verify/${id}`, { type, status });
       set((state) => ({
         attendances: state.attendances.map((record) =>
-          record.id === id
-            ? // Spread the OLD record first, then overwrite with NEW data.
-              // This preserves 'fullname', 'email', etc., which the API doesn't return on update.
-              { ...record, ...response.data.data }
-            : record,
+          record.id === id ? { ...record, ...response.data.data } : record,
         ),
       }));
-
       toast.success(`Verification ${status} successfully`);
     } catch (error) {
-      console.error(error);
       toast.error(error.response?.data?.message || "Verification failed");
     } finally {
       set({ isEditingAttendance: false });
@@ -162,29 +132,80 @@ export const useAttendanceStore = create((set, get) => ({
   verifyWorkday: async (id, status) => {
     set({ isEditingAttendance: true });
     try {
-      // Calls the new unified endpoint
-      const response = await api.put(`/attendances/verify-day/${id}`, {
-        status,
-      });
-
+      const response = await api.put(`/attendances/verify-day/${id}`, { status });
       set((state) => ({
         attendances: state.attendances.map((record) =>
-          record.id === id
-            ? { ...record, ...response.data.data } // Merge old user data with new status
-            : record,
+          record.id === id ? { ...record, ...response.data.data } : record,
         ),
       }));
-
       toast.success(`Workday ${status} successfully`);
       return true;
     } catch (error) {
-      console.error(error);
-      toast.error(
-        error.response?.data?.message || "Workday verification failed",
-      );
+      toast.error(error.response?.data?.message || "Workday verification failed");
       return false;
     } finally {
       set({ isEditingAttendance: false });
+    }
+  },
+
+  // =======================================================
+  // REAL-TIME SOCKET LISTENERS
+  // =======================================================
+
+  subscribeToAttendanceUpdates: () => {
+    const { socket, authUser } = useAuthStore.getState();
+    if (!socket) return;
+
+    socket.off("attendance_update");
+
+    socket.on("attendance_update", (payload) => {
+      const { type, data } = payload;
+      const { attendances } = get();
+
+      // 1. UPDATE ATTENDANCE LIST
+      if (type === "TIME_IN" || type === "MANUAL_ENTRY") {
+        set({ attendances: [data, ...attendances] });
+        if (data.user_id !== authUser?.id) {
+           toast.success(`Clock In: ${data.fullname || "User"}`);
+        }
+      } 
+      else if (type === "TIME_OUT" || type === "UPDATE") {
+        set({
+          attendances: attendances.map((item) =>
+            item.id === data.id ? { ...item, ...data } : item
+          ),
+        });
+
+        // 2. REFRESH BUTTON STATUS IF RECORD BELONGS TO CURRENT USER
+        // This ensures the employee's Clock In/Out buttons update if an admin modifies their data
+        if (data.user_id === authUser?.id) {
+            get().checkTodayStatus();
+            
+            // Notify employee specifically about verification
+            if (data.status_in === "Verified" || data.status_out === "Verified") {
+                toast.success("Your attendance has been verified!", { icon: '✅' });
+            } else if (data.status_in === "Rejected" || data.status_out === "Rejected") {
+                toast.error("Your attendance was rejected.", { icon: '❌' });
+            }
+        }
+        
+        // Notify Admins about other people clocking out
+        if (type === "TIME_OUT" && data.user_id !== authUser?.id) {
+            toast(`Clock Out: ${data.fullname}`, { icon: "👋" });
+        }
+      } 
+      else if (type === "DELETE") {
+        set({
+          attendances: attendances.filter((item) => item.id !== Number(data.id)),
+        });
+      }
+    });
+  },
+
+  unsubscribeFromAttendanceUpdates: () => {
+    const { socket } = useAuthStore.getState();
+    if (socket) {
+      socket.off("attendance_update");
     }
   },
 }));

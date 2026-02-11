@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { PlusCircle, Info, Wallet } from "lucide-react";
 import { useDeductionStore } from "@/stores/useDeductionStore";
+import { useAuthStore } from "@/stores/useAuthStore"; // 1. Import Auth Store
+import DeductionCard from "./DeductionCard";
 import CreateDeductionModal from "./CreateDeductionModal";
-import DeleteDeductionModal from "./DeleteDeductionModal"; 
-import DeductionCard from "./DeductionCard"; 
+import DeleteDeductionModal from "./DeleteDeductionModal";
 
-const PayrollDeductionList = ({ canManage = false }) => { // <--- 1. Accept Permission Prop
+const PayrollDeductionList = ({ canManage = false }) => {
   const { 
     deductions, 
     fetchDeductions, 
@@ -14,9 +15,8 @@ const PayrollDeductionList = ({ canManage = false }) => { // <--- 1. Accept Perm
     isLoading 
   } = useDeductionStore();
 
+  const { authUser } = useAuthStore(); // 2. Get Current User
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  
-  // New State for Deletion
   const [planToDelete, setPlanToDelete] = useState(null); 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -24,10 +24,8 @@ const PayrollDeductionList = ({ canManage = false }) => { // <--- 1. Accept Perm
     fetchDeductions();
   }, [fetchDeductions]);
 
-  // Handle the actual Delete Action
   const handleDeleteConfirm = async () => {
     if (!planToDelete) return;
-    
     setIsDeleting(true);
     await deleteDeduction(planToDelete.id);
     setIsDeleting(false);
@@ -36,57 +34,93 @@ const PayrollDeductionList = ({ canManage = false }) => { // <--- 1. Accept Perm
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
+      <div className="flex flex-col items-center justify-center h-64 gap-2">
+        <span className="loading loading-spinner loading-md text-primary"></span>
+        <p className="text-sm opacity-50">Loading Plans...</p>
       </div>
     );
   }
 
+  // --- 3. FILTERING LOGIC ---
+  const filteredDeductions = canManage
+    ? deductions // Managers see ALL
+    : deductions.filter(plan => {
+        // Employees see:
+        // 1. GLOBAL plans
+        // 2. SPECIFIC plans where they are in the subscriber list
+        const isGlobal = plan.is_global;
+        const isSubscriber = (plan.subscribers || []).some(sub => sub.user_id === authUser?.id);
+        return isGlobal || isSubscriber;
+      });
+
+  const hasData = filteredDeductions.length > 0;
+
   return (
     <div className="space-y-6">
       
-      {/* GRID LAYOUT */}
+      {/* 1. HEADER ROW */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+           <h2 className="text-xl font-bold flex items-center gap-2">
+             <Wallet className="text-primary" /> Deductions & Contributions
+           </h2>
+           <p className="text-sm opacity-60">
+             Statutory contributions, government mandates, and standard withholdings.
+           </p>
+        </div>
+        
+        {/* Only show Add Button if user has permission */}
+        {canManage && (
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="btn btn-primary gap-2 shadow-md hover:shadow-lg transition-all"
+          >
+            <PlusCircle size={18} /> Add Deduction
+          </button>
+        )}
+      </div>
+
+      {/* 2. CONTENT GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
-        {/* HERO CARD */}
-        <div className="card bg-blue-600 text-white shadow-xl h-full min-h-[280px]">
-          <div className="card-body justify-between p-8">
-            <div>
-              <div className="p-3 bg-white/20 w-fit rounded-xl mb-4 backdrop-blur-sm">
-                <ShieldCheck size={32} className="text-white" />
-              </div>
-              <h2 className="card-title text-2xl font-bold mb-2">FINANCIAL STRATEGIES</h2>
-              <p className="text-white/80 text-sm leading-relaxed">
-                Manage statutory withholdings, recurring contributions, and staff loan amortizations in one place.
-              </p>
-            </div>
-            
-            {/* 2. SECURITY: Only show Add Button if allowed */}
-            {canManage && (
-              <button 
-                onClick={() => setIsCreateModalOpen(true)}
-                className="btn bg-white text-blue-700 hover:bg-blue-50 border-none w-full font-bold shadow-lg"
-              >
-                + ADD LOAN
-              </button>
-            )}
+        {/* Empty State */}
+        {!hasData && (
+          <div className="col-span-full py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-base-300 rounded-xl bg-base-50/50">
+             <div className="p-4 bg-base-200 rounded-full mb-3">
+               <Info size={32} className="opacity-30" />
+             </div>
+             <p className="font-bold opacity-60 text-lg">No active plans found.</p>
+             <p className="text-sm opacity-40 max-w-sm mt-1">
+               {canManage 
+                 ? "Create standard deductions like 'SSS', 'PhilHealth', or 'Cash Advance' to get started." 
+                 : "You do not have any active deductions or loans assigned to you yet." // Employee Message
+               }
+             </p>
+             {canManage && (
+                <button 
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="btn btn-ghost btn-sm mt-4 text-primary"
+                >
+                  + Create First Deduction
+                </button>
+             )}
           </div>
-        </div>
+        )}
 
-        {/* DEDUCTION CARDS */}
-        {deductions.map((plan) => (
+        {/* Card Loop */}
+        {filteredDeductions.map((plan) => (
           <DeductionCard 
             key={plan.id} 
             plan={plan} 
-            // 3. SECURITY: Disable actions if not manager
+            // Only pass handlers if the user has permission. 
             onToggle={canManage ? () => toggleStatus(plan.id, plan.status) : undefined}
-            onDelete={canManage ? () => setPlanToDelete(plan) : undefined} 
+            onDelete={canManage ? () => setPlanToDelete(plan) : undefined}
           />
         ))}
 
       </div>
 
-      {/* MODALS - Only render if allowed */}
+      {/* 3. MODALS */}
       {canManage && (
         <>
           <CreateDeductionModal 
@@ -103,6 +137,7 @@ const PayrollDeductionList = ({ canManage = false }) => { // <--- 1. Accept Perm
           />
         </>
       )}
+
     </div>
   );
 };

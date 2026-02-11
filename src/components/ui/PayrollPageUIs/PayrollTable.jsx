@@ -3,10 +3,9 @@ import { Search, FileText, User, Loader2, Eye } from "lucide-react";
 import { usePayrollStore } from "@/stores/usePayrollStore";
 import PayslipTemplate from "./PayslipTemplate";
 
-const PayrollTable = ({ canManage = false }) => {
-  // <--- 1. ACCEPT PROP
-  const { activeRunDetails, activePayRun, isFetchingDetails } =
-    usePayrollStore();
+const PayrollTable = ({ canManage = false, canViewAll = false }) => {
+  // <--- 1. ACCEPT PROPS
+  const { activeRunDetails, activePayRun, isFetchingDetails } = usePayrollStore();
   const [searchTerm, setSearchTerm] = useState("");
 
   const [selectedPayslip, setSelectedPayslip] = useState(null);
@@ -29,6 +28,29 @@ const PayrollTable = ({ canManage = false }) => {
   }, [activeRunDetails, searchTerm]);
 
   const handleViewPayslip = (record) => {
+    // 1. Extract Breakdown Lists safely
+    const allowanceList = record.details.allowance_breakdown || [];
+    const deductionList = record.details.deduction_breakdown || [];
+
+    // 2. Format Earnings (Basic + OT + Specific Allowances)
+    const earnings = [
+        {
+          label: "Basic Salary",
+          amount: record.basic_salary,
+          units: "Attendance",
+        },
+        {
+          label: "Overtime",
+          amount: record.overtime_pay,
+          units: "Approved OT",
+        },
+        // Spread the specific allowance items here
+        ...allowanceList.map(item => ({
+            label: item.name,
+            amount: item.amount
+        }))
+    ];
+
     const formattedData = {
       payrollRun: {
         startDate: activeRunDetails.meta.start_date,
@@ -45,20 +67,8 @@ const PayrollTable = ({ canManage = false }) => {
         philhealth: "-",
         pagibig: "-",
       },
-      earnings: [
-        {
-          label: "Basic Salary",
-          amount: record.basic_salary,
-          units: "Attendance",
-        },
-        {
-          label: "Overtime",
-          amount: record.overtime_pay,
-          units: "Approved OT",
-        },
-        { label: "Allowances", amount: record.allowances },
-      ],
-      deductions: record.details.deduction_breakdown.map((d) => ({
+      earnings: earnings, // Use the detailed list
+      deductions: deductionList.map((d) => ({
         label: d.name,
         amount: d.amount,
       })),
@@ -92,27 +102,29 @@ const PayrollTable = ({ canManage = false }) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-base-100 rounded-xl border border-white/10 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+        
         {/* --- TOOLBAR --- */}
-        {/* If you have buttons like "Process Payroll" or "Recalculate", hide them using canManage */}
-        {/* Example: {canManage && <button>Process</button>} */}
-
         <div className="p-4 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
           <h3 className="font-bold text-sm hidden md:block">
-            Employee Breakdown
+            {canViewAll ? "Employee Breakdown" : "My Payslip"}
             <span className="ml-2 text-xs opacity-50 font-normal">
               ({filteredRecords.length} records)
             </span>
           </h3>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 opacity-40" />
-            <input
-              type="text"
-              placeholder="Search employee..."
-              className="input input-sm input-bordered bg-base-200/50 w-full pl-9 focus:outline-none focus:border-primary/50"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          
+          {/* SEARCH BAR (Only show if user can see multiple people) */}
+          {canViewAll && (
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 opacity-40" />
+              <input
+                type="text"
+                placeholder="Search employee..."
+                className="input input-sm input-bordered bg-base-200/50 w-full pl-9 focus:outline-none focus:border-primary/50"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
         </div>
 
         {/* --- TABLE --- */}
@@ -129,6 +141,10 @@ const PayrollTable = ({ canManage = false }) => {
                 <th className="text-right text-xxs uppercase tracking-wide">
                   Overtime
                 </th>
+                {/* NEW COLUMN: ALLOWANCES */}
+                <th className="text-right text-xxs uppercase tracking-wide text-emerald-600">
+                  Allowances
+                </th>
                 <th className="text-right text-error text-xxs uppercase tracking-wide">
                   Deductions
                 </th>
@@ -143,13 +159,13 @@ const PayrollTable = ({ canManage = false }) => {
             <tbody className="text-sm divide-y divide-white/5">
               {isFetchingDetails ? (
                 <tr>
-                  <td colSpan="6" className="h-64 text-center">
+                  <td colSpan="7" className="h-64 text-center">
                     <Loader2 className="animate-spin size-8 text-primary mx-auto" />
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="h-64 text-center opacity-40">
+                  <td colSpan="7" className="h-64 text-center opacity-40">
                     <User size={32} className="mx-auto" /> No employees found.
                   </td>
                 </tr>
@@ -161,13 +177,21 @@ const PayrollTable = ({ canManage = false }) => {
                   >
                     <td className="pl-6 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="avatar placeholder">
-                          <div className="bg-neutral text-neutral-content rounded-full w-8">
-                            <span className="text-xs">
-                              {rec.fullname.charAt(0)}
-                            </span>
+                        
+                        {/* PROFILE PICTURE LOGIC */}
+                        <div className="avatar">
+                          <div className="w-8 rounded-full bg-base-300">
+                            <img 
+                              src={rec.profile_picture || "/images/default_profile.jpg"} 
+                              alt={rec.fullname} 
+                              onError={(e) => {
+                                e.target.onerror = null; 
+                                e.target.src = "/images/default_profile.jpg";
+                              }}
+                            />
                           </div>
                         </div>
+
                         <div>
                           <div className="font-semibold text-xs">
                             {rec.fullname}
@@ -181,12 +205,20 @@ const PayrollTable = ({ canManage = false }) => {
                     <td className="text-right font-medium opacity-70 text-xxs">
                       {formatMoney(rec.basic_salary)}
                     </td>
-                    <td className="text-right font-medium text-success text-xxs">
+                    <td className="text-right font-medium text-xxs">
                       {parseFloat(rec.overtime_pay) > 0
                         ? `+${formatMoney(rec.overtime_pay)}`
                         : "-"}
                     </td>
-                    <td className="text-right font-medium text-error">
+
+                    {/* NEW: ALLOWANCES DATA */}
+                    <td className="text-right font-medium text-emerald-600 text-xxs">
+                        {parseFloat(rec.allowances) > 0
+                        ? `+${formatMoney(rec.allowances)}`
+                        : "-"}
+                    </td>
+
+                    <td className="text-right font-medium text-error text-xxs">
                       {parseFloat(rec.deductions) > 0
                         ? `-${formatMoney(rec.deductions)}`
                         : "-"}

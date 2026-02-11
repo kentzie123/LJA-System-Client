@@ -12,11 +12,11 @@ const PayrollStatsGrid = () => {
       currency: "PHP",
     }).format(amount || 0);
 
-  // 2. Loading State (Skeleton)
+  // 2. Loading State (Skeleton - Updated to 4 items)
   if (isFetchingDetails) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="h-24 rounded-lg bg-base-100 border border-white/5 animate-pulse"
@@ -29,12 +29,15 @@ const PayrollStatsGrid = () => {
   // 3. Extract totals safely (Default to 0 if no run is selected)
   const totals = activeRunDetails?.totals || { 
     total_overtime: 0, 
+    total_allowances: 0, // Added
     total_deductions: 0, 
     total_net_pay: 0 
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    // Updated Grid Layout for 4 Columns
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      
       {/* CARD 1: OVERTIME COST */}
       <div className="bg-base-100 rounded-lg p-5 border border-white/10 shadow-sm flex flex-col justify-between h-24">
         <div className="text-[10px] font-bold uppercase tracking-widest opacity-50">
@@ -45,7 +48,17 @@ const PayrollStatsGrid = () => {
         </div>
       </div>
 
-      {/* CARD 2: DEDUCTIONS (Red Text) */}
+      {/* CARD 2: TOTAL ALLOWANCES (New - Green Text) */}
+      <div className="bg-base-100 rounded-lg p-5 border border-white/10 shadow-sm flex flex-col justify-between h-24">
+        <div className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+          Total Allowances
+        </div>
+        <div className="text-2xl font-bold text-emerald-600 tracking-tight">
+          {formatMoney(totals.total_allowances)}
+        </div>
+      </div>
+
+      {/* CARD 3: DEDUCTIONS (Red Text) */}
       <div className="bg-base-100 rounded-lg p-5 border border-white/10 shadow-sm flex flex-col justify-between h-24">
         <div className="text-[10px] font-bold uppercase tracking-widest opacity-50">
           Total Deductions
@@ -55,7 +68,7 @@ const PayrollStatsGrid = () => {
         </div>
       </div>
 
-      {/* CARD 3: NET DISBURSEMENT (Blue Background) */}
+      {/* CARD 4: NET DISBURSEMENT (Primary Background) */}
       <div className="bg-primary text-primary-content rounded-lg p-5 shadow-lg shadow-primary/20 flex flex-col justify-between h-24 border border-white/10">
         <div className="text-[10px] font-bold uppercase tracking-widest opacity-80">
           Net Disbursement
@@ -64,6 +77,7 @@ const PayrollStatsGrid = () => {
           {formatMoney(totals.total_net_pay)}
         </div>
       </div>
+      
     </div>
   );
 };

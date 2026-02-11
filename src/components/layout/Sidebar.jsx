@@ -29,60 +29,52 @@ const Sidebar = () => {
 
   // --- MENU ITEMS CONFIGURATION ---
   const navItems = [
-    { 
-      icon: LayoutDashboard, 
-      name: "Dashboard", 
-      href: "/",
-      // Visible to everyone
-      isVisible: true 
-    },
-    { 
-      icon: Users, 
-      name: "Employee", 
+    {
+      icon: Users,
+      name: "Employee",
       href: "/employee",
       // Controlled by 'perm_employee_view'
-      isVisible: role?.perm_employee_view === true
+      isVisible: role?.perm_employee_view === true,
     },
-    { 
-      icon: ShieldCheck, 
-      name: "Roles & Permissions", 
+    {
+      icon: ShieldCheck,
+      name: "Roles & Permissions",
       href: "/roles",
       // UPDATED: Visible for Admin (1) OR Super Admin (3)
-      isVisible: role?.id === 1 || role?.id === 3
+      isVisible: role?.id === 1 || role?.id === 3,
     },
-    { 
-      icon: Clock, 
-      name: "Attendance", 
+    {
+      icon: Clock,
+      name: "Attendance",
       href: "/attendance",
       // Controlled by 'perm_attendance_view'
-      isVisible: role?.perm_attendance_view === true
+      isVisible: role?.perm_attendance_view === true,
     },
-    { 
-      icon: Calendar, 
-      name: "Leave Requests", 
+    {
+      icon: Calendar,
+      name: "Leave Requests",
       href: "/leave",
       // Controlled by 'perm_leave_view'
-      isVisible: role?.perm_leave_view === true 
+      isVisible: role?.perm_leave_view === true,
     },
-    { 
-      icon: Briefcase, 
-      name: "Overtime", 
+    {
+      icon: Briefcase,
+      name: "Overtime",
       href: "/overtime",
       // Controlled by 'perm_overtime_view'
-      isVisible: role?.perm_overtime_view === true
+      isVisible: role?.perm_overtime_view === true,
     },
-    { 
-      icon: DollarSign, 
-      name: "Payroll & Finance", 
+    {
+      icon: DollarSign,
+      name: "Payroll & Finance",
       href: "/payroll",
       // Controlled by 'perm_payroll_view'
-      isVisible: role?.perm_payroll_view === true
+      isVisible: role?.perm_payroll_view === true,
     },
   ];
 
   return (
     <div className="h-full flex flex-col p-6">
-      
       {/* 1. Header / Logo Section */}
       <div className="flex items-center gap-3 mb-10 px-2">
         <div className="relative size-8 shrink-0 rounded-full border border-base-content/10 overflow-hidden shadow-sm">

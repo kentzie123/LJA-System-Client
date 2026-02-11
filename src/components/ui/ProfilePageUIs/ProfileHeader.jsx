@@ -58,7 +58,7 @@ const ProfileHeader = () => {
         <div className="relative">
           {/* Dynamic Image Source */}
           <img
-            src={previewImage || authUser?.profile_picture || "/avatar.png"}
+            src={previewImage || authUser?.profile_picture || "/images/default_profile.jpg"}
             alt="Profile"
             className={`h-48 w-48 object-cover rounded-full border-4 border-base-200 shadow-xl transition-all duration-300 ${
               isUploading ? "opacity-50 blur-sm" : ""

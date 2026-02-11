@@ -23,9 +23,10 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
   });
   const cutoffLabel = `${s} - ${e}`;
 
-  const onDeletePayrun = () => {
+  const onDeletePayrun = (e) => {
+    e.stopPropagation(); // <--- PREVENT OPENING THE CARD WHEN CLICKING DELETE
     setActiveRun(run);
-    onDelete();
+    if (onDelete) onDelete();
   };
 
   // Status Badge Logic
@@ -55,14 +56,16 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
         }
       `}
     >
-      {/* DELETE BUTTON (Visible on Hover) */}
-      <div
-        onClick={onDeletePayrun}
-        className="absolute cursor-pointer top-2 right-2 p-2 text-base-content/30 hover:text-error hover:bg-error/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 z-20"
-        title="Delete Payroll"
-      >
-        <Trash2 size={14} />
-      </div>
+      {/* DELETE BUTTON (Visible on Hover AND Only if Permission exists) */}
+      {onDelete && (
+        <div
+          onClick={onDeletePayrun}
+          className="absolute cursor-pointer top-2 right-2 p-2 text-base-content/30 hover:text-error hover:bg-error/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 z-20"
+          title="Delete Payroll"
+        >
+          <Trash2 size={14} />
+        </div>
+      )}
 
       {/* Top Row: Title & Badge */}
       <div className="flex justify-between items-start w-full mb-1 pr-6">
@@ -92,8 +95,7 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
       <div className="flex items-center gap-1.5 mt-2 opacity-40">
         <Users size={12} />
         <span className="text-[10px] font-semibold uppercase tracking-wide">
-          {/* Placeholder for now, later we map this to real count */}3
-          Employees
+           {run.employee_count || 0} Employees
         </span>
       </div>
 

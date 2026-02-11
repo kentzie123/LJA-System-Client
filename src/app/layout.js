@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "LJA HRIS",
+  title: "HRIS | LJA POWER LIMITED CO",
   description: "HR Management System",
 };
 

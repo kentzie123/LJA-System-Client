@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { 
-  Clock, Calendar, CheckCircle, XCircle, Users, BarChart3 
+  Clock, Calendar, CheckCircle, XCircle, Users, Briefcase, HeartPulse 
 } from "lucide-react";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -21,7 +21,7 @@ const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
 );
 
 const LeaveStatsGrid = () => {
-  const { stats, fetchLeaveStats } = useLeaveStore();
+  const { stats, fetchLeaveStats, leaveBalances, fetchLeaveBalances } = useLeaveStore();
   const { authUser } = useAuthStore();
   
   const roleId = authUser?.role?.id;
@@ -30,7 +30,11 @@ const LeaveStatsGrid = () => {
 
   useEffect(() => {
     fetchLeaveStats();
-  }, [fetchLeaveStats]);
+    // Fetch balances for employees so we can show Vacation/Sick counts
+    if (!isAdmin) {
+      fetchLeaveBalances();
+    }
+  }, [fetchLeaveStats, fetchLeaveBalances, isAdmin]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -44,23 +48,43 @@ const LeaveStatsGrid = () => {
         subtext={isAdmin ? "Requires approval" : "Awaiting approval"}
       />
 
-      {/* 2. APPROVED (Current Activity) */}
-      <StatCard 
-        title={isAdmin ? "Approved Leaves (Month)" : "My Leaves (Month)"}
-        value={stats.approvedCountMonth || 0}
-        icon={Calendar}
-        color="primary"
-        subtext="Scheduled for this month"
-      />
+      {/* 2. SECOND SLOT: Approved (Admin) OR Vacation Balance (Employee) */}
+      {isAdmin ? (
+        <StatCard 
+          title="Approved Leaves (Month)"
+          value={stats.approvedCountMonth || 0}
+          icon={Calendar}
+          color="primary"
+          subtext="Scheduled for this month"
+        />
+      ) : (
+        <StatCard 
+          title="Vacation Balance"
+          value={leaveBalances?.vacationRemaining || 0}
+          icon={Briefcase}
+          color="primary"
+          subtext="Available days"
+        />
+      )}
 
-      {/* 3. REJECTIONS (Quality Control) */}
-      <StatCard 
-        title={isAdmin ? "Rejections (Month)" : "My Rejections (Month)"}
-        value={stats.rejectedCount || 0}
-        icon={XCircle}
-        color="error"
-        subtext="Denied requests"
-      />
+      {/* 3. THIRD SLOT: Rejections (Admin) OR Sick Balance (Employee) */}
+      {isAdmin ? (
+        <StatCard 
+          title="Rejections (Month)"
+          value={stats.rejectedCount || 0}
+          icon={XCircle}
+          color="error"
+          subtext="Denied requests"
+        />
+      ) : (
+        <StatCard 
+          title="Sick Leave Balance"
+          value={leaveBalances?.sickRemaining || 0}
+          icon={HeartPulse}
+          color="error"
+          subtext="Available days"
+        />
+      )}
 
       {/* 4. DYNAMIC CARD (Engagement vs History) */}
       {isAdmin ? (
@@ -77,7 +101,7 @@ const LeaveStatsGrid = () => {
           value={stats.totalApprovedCount || 0}
           icon={CheckCircle}
           color="success"
-          subtext="Lifetime accepted requests"
+          subtext="Accepted requests"
         />
       )}
 

@@ -1,13 +1,9 @@
 import { create } from "zustand";
-
-// Axios
 import api from "@/lib/axios";
-
-// Socket.io
 import { io } from "socket.io-client";
-
-// Toast
 import toast from "react-hot-toast";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -20,34 +16,48 @@ export const useAuthStore = create((set, get) => ({
   },
 
   connectSocket: () => {
-    const { authUser } = get();
-    if (!authUser || get().socket?.connected) return;
+    const { authUser, socket } = get();
+    
+    // Prevent duplicate connection or connecting without user
+    if (!authUser || (socket && socket.connected)) return;
 
-    const socket = io(process.env.NEXT_PUBLIC_API_URL, {
+    const newSocket = io(BASE_URL, {
       query: {
         userId: authUser.id,
+        // --- CRITICAL CHANGE: Send Role ID for Room Logic ---
+        roleId: authUser.role_id, 
       },
       withCredentials: true,
     });
 
-    socket.on("connect", () => {
-      console.log("Socket connected:", socket.connected);
-      set({ socket });
+    newSocket.on("connect", () => {
+      console.log("Global Socket connected:", newSocket.id);
+      set({ socket: newSocket });
+    });
+
+    newSocket.on("disconnect", () => {
+      console.log("Global Socket disconnected");
+      // We don't nullify socket immediately to allow auto-reconnect attempts
     });
   },
 
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    if (get().socket?.connected) {
+      get().socket.disconnect();
+      set({ socket: null });
+    }
   },
 
   checkAuth: async () => {
     try {
       set({ isCheckingAuth: true });
-      const authUser = await api.get("/auth/check-auth");
-      console.log(`Check auth: ${authUser.data}`);
-
-      set({ authUser: authUser.data });
+      const res = await api.get("/auth/check-auth");
+      set({ authUser: res.data });
+      
+      // Connect socket immediately after verifying auth
+      get().connectSocket(); 
     } catch (error) {
+      set({ authUser: null });
     } finally {
       set({ isCheckingAuth: false });
     }
@@ -56,16 +66,17 @@ export const useAuthStore = create((set, get) => ({
   login: async (data) => {
     try {
       set({ isLoggingIn: true });
-      const authUser = await api.post("/auth/login", data);
+      const res = await api.post("/auth/login", data);
       
-      set({ authUser: authUser.data });
+      set({ authUser: res.data });
+      
+      // Connect socket immediately after login
       get().connectSocket();
 
       toast.success("Logged in successfully");
-
       return true;
     } catch (err) {
-      toast.error(err.response.data.error);
+      toast.error(err.response?.data?.message || "Invalid credentials");
       return false;
     } finally {
       set({ isLoggingIn: false });
@@ -75,7 +86,7 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await api.post("/auth/logout");
-      get().disconnectSocket();
+      get().disconnectSocket(); // Clean up socket
       set({ authUser: null });
       toast.success("Logout successfully");
     } catch (err) {

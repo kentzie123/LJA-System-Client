@@ -1,19 +1,24 @@
 import { create } from "zustand";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
+import { useAuthStore } from "./useAuthStore"; // Import for socket access
 
 export const useLeaveStore = create((set, get) => ({
   leaves: [],
   leaveTypes: [],
   
-  // 1. Initialize balances & stats state
+  // NEW: Store raw array for dynamic lookup
+  userBalances: [], 
+  
+  // Legacy support (keep this if you use it in other cards)
   leaveBalances: { vacationRemaining: 0, sickRemaining: 0 },
+  
   stats: {
     pendingCount: 0,
     approvedCountMonth: 0,
     rejectedCount: 0,
-    activeOnLeave: 0, // Admin only
-    totalApprovedCount: 0 // Employee only
+    activeOnLeave: 0,
+    totalApprovedCount: 0,
   },
 
   isFetching: false,
@@ -23,7 +28,6 @@ export const useLeaveStore = create((set, get) => ({
 
   setSelectedLeave: (leave) => set({ selectedLeave: leave }),
 
-  // Fetch all leaves (Admins get all, Employees get theirs)
   fetchAllLeaves: async () => {
     set({ isFetching: true });
     try {
@@ -37,12 +41,15 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // 2. Fetch Balances Action
   fetchLeaveBalances: async () => {
     try {
       const response = await api.get("/leave/balances");
       const data = response.data;
 
+      // 1. SAVE RAW DATA (For dynamic dropdowns)
+      set({ userBalances: data });
+
+      // 2. SAVE SPECIFIC (For legacy stats cards)
       const vacation = data?.find((b) => b.leave_name === "Vacation Leave");
       const sick = data?.find((b) => b.leave_name === "Sick Leave");
 
@@ -59,7 +66,6 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // 3. Fetch Statistics (NEW)
   fetchLeaveStats: async () => {
     try {
       const response = await api.get("/leave/stats");
@@ -69,7 +75,6 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // Fetch types (for the dropdown)
   fetchLeaveTypes: async () => {
     try {
       const response = await api.get("/leave/types");
@@ -79,18 +84,15 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // Submit new request (Standard Employee)
   createLeaveRequest: async (formData) => {
     set({ isCreating: true });
     try {
       await api.post("/leave/create", formData);
       toast.success("Leave request submitted!");
-      
-      // Refresh Data
+      // Fallback refresh (Socket handles real-time)
       get().fetchAllLeaves();
-      get().fetchLeaveBalances(); 
-      get().fetchLeaveStats(); // Refresh stats
-
+      get().fetchLeaveBalances();
+      get().fetchLeaveStats();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit request");
@@ -100,17 +102,13 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // Submit Admin Request (Auto-Approved)
   createAdminLeaveRequest: async (formData) => {
     set({ isCreating: true });
     try {
       await api.post("/leave/create-admin", formData);
       toast.success("Leave assigned successfully!");
-      
-      // Refresh Data
-      get().fetchAllLeaves(); 
-      get().fetchLeaveStats(); // Refresh stats
-
+      get().fetchAllLeaves();
+      get().fetchLeaveStats();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to assign leave");
@@ -120,17 +118,14 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // Update Status (Approve/Reject)
   updateLeaveStatus: async (id, status, rejectionReason = null) => {
     set({ isUpdating: true });
     try {
       await api.put(`/leave/${id}/status`, { status, rejectionReason });
       toast.success(`Leave ${status} successfully`);
-
-      // REFRESH DATA 
       get().fetchAllLeaves();
       get().fetchLeaveBalances();
-      get().fetchLeaveStats(); // Refresh stats
+      get().fetchLeaveStats();
     } catch (error) {
       toast.error("Failed to update status");
       console.error(error);
@@ -139,31 +134,25 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // Delete Request
   deleteLeaveRequest: async (id) => {
     try {
       await api.delete(`/leave/${id}`);
       toast.success("Request deleted");
-      
-      // Refresh Data
       get().fetchAllLeaves();
-      get().fetchLeaveBalances(); 
-      get().fetchLeaveStats(); // Refresh stats
+      get().fetchLeaveBalances();
+      get().fetchLeaveStats();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete");
     }
   },
 
-  // Update Request Details (Edit)
   updateLeaveRequest: async (id, formData) => {
-    set({ isCreating: true }); 
+    set({ isCreating: true });
     try {
       await api.put(`/leave/${id}/update`, formData);
       toast.success("Request updated!");
-      
       get().fetchAllLeaves();
-      // Stats might change if dates change, so refresh just in case
-      get().fetchLeaveStats(); 
+      get().fetchLeaveStats();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update");
@@ -171,5 +160,73 @@ export const useLeaveStore = create((set, get) => ({
     } finally {
       set({ isCreating: false, selectedLeave: null });
     }
+  },
+
+  // =======================================================
+  // REAL-TIME LEAVE SOCKET LISTENERS
+  // =======================================================
+
+  subscribeToLeaveUpdates: () => {
+    const { socket, authUser } = useAuthStore.getState();
+    if (!socket) return;
+
+    socket.off("leave_update");
+
+    socket.on("leave_update", (payload) => {
+      const { type, data } = payload;
+      const { leaves } = get();
+
+      // 1. UPDATE LEAVE LIST
+      if (type === "NEW_REQUEST") {
+        set({ leaves: [data, ...leaves] });
+        if (data.user_id !== authUser?.id) {
+          toast.success(`New Leave Request: ${data.fullname}`, { icon: "📝" });
+        }
+      } else if (
+        type === "STATUS_UPDATE" ||
+        type === "UPDATE" ||
+        type === "ADMIN_ASSIGNED"
+      ) {
+        const exists = leaves.some((l) => l.id === data.id);
+
+        if (exists) {
+          set({
+            leaves: leaves.map((item) => (item.id === data.id ? data : item)),
+          });
+        } else {
+          set({ leaves: [data, ...leaves] });
+        }
+
+        // 2. REFRESH BALANCES & STATS IF IT'S FOR THIS USER
+        if (data.user_id === authUser?.id) {
+          get().fetchLeaveBalances();
+          get().fetchLeaveStats();
+
+          if (type === "STATUS_UPDATE") {
+            const statusIcon = data.status === "Approved" ? "✅" : "❌";
+            toast(`Your leave request was ${data.status}`, {
+              icon: statusIcon,
+            });
+          }
+          if (type === "ADMIN_ASSIGNED") {
+            toast.success("Admin has assigned a leave for you.", {
+              icon: "📅",
+            });
+          }
+        } else {
+          get().fetchLeaveStats();
+        }
+      } else if (type === "DELETE") {
+        set({
+          leaves: leaves.filter((item) => item.id !== Number(data.id)),
+        });
+        get().fetchLeaveStats();
+      }
+    });
+  },
+
+  unsubscribeFromLeaveUpdates: () => {
+    const { socket } = useAuthStore.getState();
+    if (socket) socket.off("leave_update");
   },
 }));

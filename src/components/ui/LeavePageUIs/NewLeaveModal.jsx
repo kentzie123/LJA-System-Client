@@ -3,8 +3,14 @@ import { X, CircleAlert, Loader2 } from "lucide-react";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 
 const NewLeaveModal = ({ isOpen, onClose }) => {
-  const { leaveTypes, fetchLeaveTypes, createLeaveRequest, isCreating } =
-    useLeaveStore();
+  const { 
+    leaveTypes, 
+    fetchLeaveTypes, 
+    createLeaveRequest, 
+    isCreating,
+    userBalances,      // Get Balances Array
+    fetchLeaveBalances // Get Fetch Function
+  } = useLeaveStore();
 
   const [formData, setFormData] = useState({
     leaveTypeId: "",
@@ -13,31 +19,49 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
     reason: "",
   });
 
-  // New State for Errors
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetchLeaveTypes();
-  }, [fetchLeaveTypes]);
-
-  // Reset form AND errors when modal opens
-  useEffect(() => {
     if (isOpen) {
+      // Fetch both Types AND Balances when modal opens
+      fetchLeaveTypes();
+      fetchLeaveBalances(); 
+      
+      // Reset form
       setFormData({
         leaveTypeId: "",
         startDate: "",
         endDate: "",
         reason: "",
       });
-      setErrors({}); // Clear errors
+      setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, fetchLeaveTypes, fetchLeaveBalances]);
+
+  // --- DYNAMIC BALANCE CHECKER ---
+  const getSelectedBalance = () => {
+    if (!formData.leaveTypeId) return "Select a leave type";
+    
+    // 1. Find the type definition (to get the name)
+    const selectedType = leaveTypes.find(t => t.id === Number(formData.leaveTypeId));
+    if (!selectedType) return "Unknown Type";
+
+    // 2. Find the user's balance for this specific type name
+    // (Note: Backend returns 'leave_name', ensure it matches DB name)
+    const balance = userBalances.find(b => b.leave_name === selectedType.name);
+
+    if (balance) {
+      const remaining = balance.allocated_days - balance.used_days;
+      return `${remaining} days remaining`;
+    }
+    
+    return "No credits allocated"; 
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Clear error for this specific field as user types
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -46,14 +70,11 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    // 1. Check Required Fields
-    if (!formData.leaveTypeId)
-      newErrors.leaveTypeId = "Please select a leave type.";
+    if (!formData.leaveTypeId) newErrors.leaveTypeId = "Please select a leave type.";
     if (!formData.startDate) newErrors.startDate = "Start date is required.";
     if (!formData.endDate) newErrors.endDate = "End date is required.";
     if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
 
-    // 2. Logical Check: End Date vs Start Date
     if (formData.startDate && formData.endDate) {
       if (new Date(formData.endDate) < new Date(formData.startDate)) {
         newErrors.endDate = "End date cannot be before start date.";
@@ -61,12 +82,10 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
     }
 
     setErrors(newErrors);
-    // Return true if no errors
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    // Run validation before submitting
     if (!validateForm()) return;
 
     const success = await createLeaveRequest(formData);
@@ -78,10 +97,11 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
+        
         {/* Header */}
-        <div className="flex items-center justify-between bg-base-200 py-4 px-6">
+        <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div className="text-lg font-bold">Apply for Leave</div>
           <button
             onClick={onClose}
@@ -93,18 +113,18 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Body */}
-        <div className="py-4 px-6 space-y-4">
+        <div className="py-6 px-6 space-y-5 overflow-y-auto">
+          
           {/* Leave Type Dropdown */}
-          <fieldset className="fieldset">
-            <legend className="fieldset-legend text-xs font-semibold">
+          <fieldset className="fieldset w-full">
+            <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
               Leave Type
             </legend>
             <select
               name="leaveTypeId"
               value={formData.leaveTypeId}
               onChange={handleChange}
-              // Add select-error class if error exists
-              className={`select w-full text-xs ${
+              className={`select select-bordered w-full text-sm ${
                 errors.leaveTypeId ? "select-error" : ""
               }`}
             >
@@ -117,27 +137,26 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
                 </option>
               ))}
             </select>
-            {/* Show Error Message */}
+            
             {errors.leaveTypeId && (
-              <span className="text-error text-xs mt-1">
+              <span className="text-error text-xs mt-1 block">
                 {errors.leaveTypeId}
               </span>
             )}
 
-            <span className="label">
-              <div className="flex items-center gap-1">
-                <CircleAlert size={10} />{" "}
-                <span className="text-xxs">
-                  Current Balance: Not Applicable
+            {/* BALANCE INDICATOR */}
+            <div className="mt-2 flex items-center gap-2 p-2 bg-base-200/50 rounded-lg border border-base-200">
+                <CircleAlert size={14} className="text-primary" /> 
+                <span className="text-xs font-medium opacity-80">
+                  Current Balance: <span className="text-primary font-bold ml-1">{getSelectedBalance()}</span>
                 </span>
-              </div>
-            </span>
+            </div>
           </fieldset>
 
           {/* Date Pickers */}
           <div className="grid grid-cols-2 gap-4">
             <fieldset className="fieldset">
-              <legend className="fieldset-legend text-xs font-semibold">
+              <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
                 Start Date
               </legend>
               <input
@@ -145,20 +164,19 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
                 name="startDate"
                 value={formData.startDate}
                 onChange={handleChange}
-                // Add input-error class
-                className={`input text-xs w-full ${
+                className={`input input-bordered w-full text-sm ${
                   errors.startDate ? "input-error" : ""
                 }`}
               />
               {errors.startDate && (
-                <span className="text-error text-xs mt-1">
+                <span className="text-error text-xs mt-1 block">
                   {errors.startDate}
                 </span>
               )}
             </fieldset>
 
             <fieldset className="fieldset">
-              <legend className="fieldset-legend text-xs font-semibold">
+              <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
                 End Date
               </legend>
               <input
@@ -167,13 +185,12 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
                 value={formData.endDate}
                 onChange={handleChange}
                 min={formData.startDate}
-                // Add input-error class
-                className={`input text-xs w-full ${
+                className={`input input-bordered w-full text-sm ${
                   errors.endDate ? "input-error" : ""
                 }`}
               />
               {errors.endDate && (
-                <span className="text-error text-xs mt-1">
+                <span className="text-error text-xs mt-1 block">
                   {errors.endDate}
                 </span>
               )}
@@ -182,45 +199,49 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
 
           {/* Reason Textarea */}
           <fieldset className="fieldset">
-            <legend className="fieldset-legend text-xs font-semibold">
+            <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
               Reason for Leave
             </legend>
             <textarea
               name="reason"
               value={formData.reason}
               onChange={handleChange}
-              // Add textarea-error class
-              className={`textarea text-xs w-full h-24 resize-none ${
+              className={`textarea textarea-bordered w-full h-24 resize-none text-sm leading-relaxed ${
                 errors.reason ? "textarea-error" : ""
               }`}
               placeholder="Please provide a brief reason for your request..."
             ></textarea>
             {errors.reason && (
-              <span className="text-error text-xs mt-1">{errors.reason}</span>
+              <span className="text-error text-xs mt-1 block">{errors.reason}</span>
             )}
           </fieldset>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4 mt-4">
-            <button onClick={onClose} className="btn" disabled={isCreating}>
+        {/* Footer */}
+        <div className="p-4 bg-base-200/50 border-t border-base-300 flex justify-end gap-3">
+            <button 
+              onClick={onClose} 
+              className="btn btn-ghost hover:bg-base-200" 
+              disabled={isCreating}
+            >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={isCreating}
-              className="btn btn-primary min-w-[140px]"
+              className="btn btn-primary min-w-[140px] shadow-sm"
             >
               {isCreating ? (
                 <>
-                  <Loader2 className="size-5 animate-spin mr-2" />
+                  <Loader2 className="size-4 animate-spin mr-2" />
                   Submitting...
                 </>
               ) : (
                 "Submit Request"
               )}
             </button>
-          </div>
         </div>
+
       </div>
     </div>
   );

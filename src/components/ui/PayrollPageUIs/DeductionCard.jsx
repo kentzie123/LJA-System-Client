@@ -5,42 +5,63 @@ import {
   Globe, 
   Wallet,
   CalendarDays,
-  PauseCircle 
+  PauseCircle,
+  PlayCircle, // Added
+  Trash2,     // Added
+  CheckCircle2,
+  Users 
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/utils/formatUtils";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const DeductionCard = ({ plan, onToggle, onDelete }) => {
+  const { authUser } = useAuthStore();
+  
+  // Basic Props
   const isGlobal = plan.is_global;
   const isPaused = plan.status === "PAUSED";
+  const subscribers = plan.subscribers || [];
   
-  // --- PERMISSION CHECK ---
-  // If no handlers are passed, the user cannot manage this card.
+  // Permission Check
+  // If handlers are missing, we assume user cannot manage
   const canManage = onToggle || onDelete;
 
-  // --- SAFELY PARSE NUMBERS ---
-  const totalLimit = parseFloat(plan.total_amount || 0);
-  const totalCollected = parseFloat(plan.total_collected || 0);
-  const isLoan = totalLimit > 0;
+  // --- 1. PERSONALIZATION LOGIC ---
+  const mySubscription = !canManage 
+    ? subscribers.find(s => s.user_id === authUser?.id) 
+    : null;
 
-  // Percentage Math
-  const progressPercent = isLoan 
-    ? Math.min(100, Math.max(0, Math.round((totalCollected / totalLimit) * 100))) 
-    : 0;
+  const isAssignedToMe = isGlobal || !!mySubscription;
 
-  // --- DYNAMIC LABEL ---
-  let planLabel = "COMPANY WIDE";
-  if (!isGlobal) {
-    const count = parseInt(plan.subscriber_count || 0);
-    const names = plan.subscriber_names || [];
+  // --- 2. CALCULATE VALUES ---
+  let displayLimit = 0;
+  let displayCollected = 0;
+  let displayLabel = "COMPANY WIDE";
+
+  if (canManage) {
+    // ADMIN VIEW: Show Company Totals
+    displayLimit = parseFloat(plan.total_amount || 0);
+    displayCollected = parseFloat(plan.total_collected || 0);
     
-    if (count === 1 && names.length > 0) {
-      planLabel = `LOAN FOR ${names[0].toUpperCase()}`;
-    } else if (count > 0) {
-      planLabel = `GROUP: ${count} EMPLOYEES`;
+    if (!isGlobal) {
+      displayLabel = "SPECIFIC EMPLOYEES";
+    }
+  } else {
+    // EMPLOYEE VIEW: Show Personal Totals
+    if (isGlobal) {
+       displayLabel = "APPLIED TO YOU (GLOBAL)";
     } else {
-      planLabel = "NO SUBSCRIBERS";
+       displayLimit = parseFloat(mySubscription?.loan_total || 0);
+       displayCollected = parseFloat(mySubscription?.loan_paid || 0);
+       displayLabel = isAssignedToMe ? "APPLIED TO YOU" : "NOT APPLIED";
     }
   }
+
+  // --- 3. PROGRESS MATH ---
+  const isLoan = displayLimit > 0;
+  const progressPercent = isLoan 
+    ? Math.min(100, Math.max(0, Math.round((displayCollected / displayLimit) * 100))) 
+    : 0;
 
   // --- THEME CONFIG ---
   const config = {
@@ -50,6 +71,39 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
   };
 
   const Icon = isLoan ? History : (isGlobal ? Globe : Wallet);
+
+  // --- HELPER: Renders the name list nicely ---
+  const renderSubscriberNames = () => {
+    // 1. Employee View (Assigned)
+    if (!canManage && isAssignedToMe) {
+        return (
+            <span className="font-bold text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 size={12} /> Applied to you
+            </span>
+        );
+    }
+    
+    // 2. Employee View (Not Assigned)
+    if (!canManage && !isAssignedToMe) {
+         return <span className="opacity-40 italic">Not applied to you</span>;
+    }
+
+    // 3. Manager View (Show List)
+    if (subscribers.length === 0) return "No employees assigned yet.";
+
+    const firstTwo = subscribers.slice(0, 2).map(u => u.fullname).join(", ");
+    const remainingCount = subscribers.length - 2;
+
+    if (remainingCount > 0) {
+      return (
+        <div className="tooltip tooltip-bottom text-left cursor-help z-50" data-tip={subscribers.map(s => s.fullname).join(", ")}>
+          <span className="font-semibold text-xs">{firstTwo}</span>
+          <span className="opacity-60 text-xs ml-1"> + {remainingCount} others</span>
+        </div>
+      );
+    }
+    return <span className="font-semibold text-xs">{firstTwo}</span>;
+  };
 
   return (
     <div className={`card bg-base-100 shadow-sm border border-base-200 relative overflow-hidden group hover:shadow-md transition-all duration-300 ${isPaused ? "opacity-70 grayscale-[0.5]" : ""}`}>
@@ -70,7 +124,7 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
               {/* Badge & Date Container */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`badge badge-xs font-bold py-2 border-none h-auto min-h-[1.25rem] whitespace-normal text-left leading-tight ${config.bg} ${config.text} tracking-wider`}>
-                  {planLabel}
+                  {displayLabel}
                 </span>
                 
                 <span className="text-[10px] font-medium opacity-40 flex items-center gap-1 whitespace-nowrap">
@@ -84,30 +138,53 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
               </h3>
             </div>
 
-            {/* RIGHT SIDE: Menu (Hidden if no permission) */}
-            {canManage && (
+            {/* RIGHT SIDE: Menu (Exact Copy of Allowance Design) */}
+            {(onDelete || onToggle) && (
               <div className="dropdown dropdown-end flex-shrink-0 -mr-2">
-                <div tabIndex={0} role="button" className="btn btn-ghost btn-circle btn-sm opacity-40 hover:opacity-100">
+                <div
+                  tabIndex={0}
+                  role="button"
+                  className="btn btn-ghost btn-circle btn-sm opacity-40 hover:opacity-100"
+                >
                   <MoreVertical size={18} />
                 </div>
-                <ul tabIndex={0} className="dropdown-content z-[1] menu p-1 shadow-lg bg-base-100 rounded-xl w-48 border border-base-200 text-sm mt-1">
-                  
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content z-[1] menu p-1 shadow-xl bg-base-100 rounded-xl w-44 border border-base-200 text-xs mt-1"
+                >
                   {onToggle && (
                     <li>
-                      <a onClick={onToggle} className="gap-3 py-2 font-medium">
-                        {isPaused ? "Resume" : "Pause"}
+                      <a
+                        onClick={onToggle}
+                        className="py-2 gap-3 font-medium"
+                      >
+                        {isPaused ? (
+                          <>
+                            <PlayCircle size={14} className="text-emerald-600" />
+                            Resume
+                          </>
+                        ) : (
+                          <>
+                            <PauseCircle size={14} className="text-warning" />
+                            Pause
+                          </>
+                        )}
                       </a>
                     </li>
                   )}
-                  
-                  {onToggle && onDelete && <div className="divider my-0"></div>}
-                  
+
                   {onDelete && (
-                    <li>
-                      <a onClick={onDelete} className="text-error gap-3 py-2 font-medium">
-                        Delete
-                      </a>
-                    </li>
+                    <>
+                      <div className="divider my-0"></div>
+                      <li>
+                        <a
+                          onClick={onDelete}
+                          className="text-error py-2 gap-3 font-medium"
+                        >
+                          <Trash2 size={14} /> Delete
+                        </a>
+                      </li>
+                    </>
                   )}
                 </ul>
               </div>
@@ -131,7 +208,7 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
           </div>
         </div>
 
-        {/* --- FOOTER (PROGRESS BAR) --- */}
+        {/* --- FOOTER (PROGRESS BAR or USER LIST) --- */}
         <div className="mt-2">
           {isLoan ? (
             <div className="w-full">
@@ -143,19 +220,38 @@ const DeductionCard = ({ plan, onToggle, onDelete }) => {
                 ></div>
               </div>
 
-              {/* Stats */}
+              {/* Stats - Dynamic Text based on Role */}
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold opacity-60 uppercase text-[10px] tracking-wider">Payment Progress</span>
+                <span className="font-bold opacity-60 uppercase text-[10px] tracking-wider">
+                   {canManage ? "Total Collected" : "Your Paid Balance"}
+                </span>
                 <div className="font-mono font-bold text-sm text-base-content/80">
-                  <span className="text-emerald-600">{formatCurrency(totalCollected)}</span>
+                  <span className="text-emerald-600">{formatCurrency(displayCollected)}</span>
                   <span className="opacity-40 mx-1">/</span>
-                  <span>{formatCurrency(totalLimit)}</span>
+                  <span>{formatCurrency(displayLimit)}</span>
                 </div>
               </div>
             </div>
           ) : (
-             <div className="h-8 flex items-end border-t border-base-200/50 pt-2">
-                <p className="text-xs font-medium opacity-40 italic">Recurring deduction</p>
+             // Non-Loan Footer: WITH DIVIDER
+             <div className="border-t border-base-200 pt-3 text-xs min-h-[30px] flex items-center">
+                {isGlobal ? (
+                   <div className="flex items-center gap-2 opacity-50">
+                     <Globe size={14} />
+                     <p className="italic">
+                       {!canManage ? "Applied to you (Global)" : "All active employees included."}
+                     </p>
+                   </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-base-content/80 w-full">
+                    <Users size={14} className="mt-0.5 flex-shrink-0 opacity-50" />
+                    
+                    {/* Name List Container */}
+                    <div className="leading-tight flex-1">
+                       {renderSubscriberNames()}
+                    </div>
+                  </div>
+                )}
              </div>
           )}
         </div>
