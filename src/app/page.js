@@ -1,7 +1,9 @@
-import DashboardPage from "@/components/pages/DashboardPage";
+import AttendancePage from "@/components/pages/AttendancePage";
 
-export default function Home() {
+export default async function Page() {
   return (
-   <DashboardPage/>
+    <>
+      <AttendancePage />
+    </>
   );
 }

@@ -7,7 +7,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 // Icons
 import {
-  LayoutDashboard,
   Users,
   ShieldCheck,
   Clock,
@@ -46,7 +45,7 @@ const Sidebar = () => {
     {
       icon: Clock,
       name: "Attendance",
-      href: "/attendance",
+      href: "/",
       // Controlled by 'perm_attendance_view'
       isVisible: role?.perm_attendance_view === true,
     },
@@ -105,8 +104,15 @@ const Sidebar = () => {
             // Skip rendering if the item shouldn't be visible
             if (!item.isVisible) return null;
 
-            const isActive = pathname === item.href;
             const Icon = item.icon;
+
+            // --- UPDATED ACTIVE LOGIC ---
+            // If the item href is "/", we want an exact match.
+            // For other routes (e.g. "/employee"), we want to support nested paths (e.g. "/employee/add")
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname?.startsWith(item.href);
 
             return (
               <Link
