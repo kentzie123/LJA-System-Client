@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Search, Users, Globe, AlertCircle, Wallet } from "lucide-react";
 import { useDeductionStore } from "@/stores/useDeductionStore";
 import { useUserStore } from "@/stores/useUserStore";
+import toast from "react-hot-toast"; // IMPORT TOAST
 
 const CreateDeductionModal = ({ isOpen, onClose }) => {
   const { createDeduction, isSubmitting } = useDeductionStore();
@@ -67,7 +68,8 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
     if (!formData.name || !formData.amount) return;
 
     if (!formData.is_global && formData.selected_users.length === 0) {
-      alert("Please select at least one employee.");
+      // REPLACED ALERT WITH TOAST
+      toast.error("Please select at least one employee.");
       return;
     }
 
@@ -212,11 +214,21 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
                             isSelected ? "bg-primary/10 border border-primary/20" : "border border-transparent"
                           }`}
                         >
+                          {/* ADDED PROFILE PICTURE HERE */}
                           <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-base-300 shrink-0 border border-base-content/10">
+                              <img
+                                src={user.profile_picture || "/images/default_profile.jpg"}
+                                alt={user.fullname}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.onerror = null; e.target.src = "/images/default_profile.jpg"; }}
+                              />
+                            </div>
                             <span className={`text-sm font-medium ${isSelected ? "text-primary" : ""}`}>
                               {user.fullname}
                             </span>
                           </div>
+                          
                           <input
                             type="checkbox"
                             className="checkbox checkbox-xs checkbox-primary"

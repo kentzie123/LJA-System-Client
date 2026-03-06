@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { X, Loader2, Clock } from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 
+// IMPORT CUSTOM DATE PICKER
+import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
+
 const NewOvertimeModal = ({ isOpen, onClose }) => {
   const {
     createOvertimeRequest,
@@ -18,15 +21,12 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
     reason: "",
   });
 
-  // New State for Errors (Matching your requested design)
   const [errors, setErrors] = useState({});
 
-  // Fetch Types on mount
   useEffect(() => {
     fetchOvertimeTypes();
   }, [fetchOvertimeTypes]);
 
-  // Reset form AND errors when modal opens
   useEffect(() => {
     if (isOpen) {
       setFormData({
@@ -36,7 +36,7 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
         endTime: "",
         reason: "",
       });
-      setErrors({}); // Clear errors
+      setErrors({}); 
     }
   }, [isOpen]);
 
@@ -44,16 +44,22 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Clear error for this specific field as user types
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // Custom handler for CustomDatePicker
+  const handleDateChange = (val) => {
+    setFormData((prev) => ({ ...prev, date: val }));
+    if (errors.date) {
+      setErrors((prev) => ({ ...prev, date: "" }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // 1. Check Required Fields
     if (!formData.otTypeId)
       newErrors.otTypeId = "Please select an overtime type.";
     if (!formData.date) newErrors.date = "Date is required.";
@@ -61,7 +67,6 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
     if (!formData.endTime) newErrors.endTime = "End time is required.";
     if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
 
-    // 2. Logical Check: End Time vs Start Time
     if (formData.startTime && formData.endTime) {
       if (formData.endTime <= formData.startTime) {
         newErrors.endTime = "End time must be after start time.";
@@ -69,12 +74,10 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
     }
 
     setErrors(newErrors);
-    // Return true if no errors
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    // Run validation before submitting
     if (!validateForm()) return;
 
     const success = await createOvertimeRequest(formData);
@@ -104,9 +107,9 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Body */}
-        <div className="py-4 px-6 space-y-4 overflow-y-auto">
+        <div className="py-4 px-6 space-y-4 overflow-y-auto custom-scrollbar">
           {/* Overtime Type Dropdown */}
-          <fieldset className="fieldset">
+          <fieldset className="fieldset relative z-[30]">
             <legend className="fieldset-legend text-xs font-semibold">
               Overtime Type
             </legend>
@@ -114,8 +117,7 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
               name="otTypeId"
               value={formData.otTypeId}
               onChange={handleChange}
-              // Add select-error class if error exists
-              className={`select w-full text-xs ${
+              className={`select select-bordered w-full text-xs h-10 ${
                 errors.otTypeId ? "select-error" : ""
               }`}
             >
@@ -128,26 +130,20 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
                 </option>
               ))}
             </select>
-            {/* Show Error Message */}
             {errors.otTypeId && (
               <span className="text-error text-xs mt-1">{errors.otTypeId}</span>
             )}
           </fieldset>
 
-          {/* Date Picker */}
-          <fieldset className="fieldset">
+          {/* Date Picker - UPDATED TO USE CUSTOM DATE PICKER */}
+          <fieldset className="fieldset relative z-[20]">
             <legend className="fieldset-legend text-xs font-semibold">
               Overtime Date
             </legend>
-            <input
-              type="date"
-              name="date"
+            <CustomDatePicker 
               value={formData.date}
-              onChange={handleChange}
-              // Add input-error class
-              className={`input text-xs w-full ${
-                errors.date ? "input-error" : ""
-              }`}
+              onChange={handleDateChange}
+              className={`text-xs ${errors.date ? "border-error" : ""}`}
             />
             {errors.date && (
               <span className="text-error text-xs mt-1">{errors.date}</span>
@@ -155,20 +151,23 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
           </fieldset>
 
           {/* Time Pickers (Start & End) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 relative z-0">
             <fieldset className="fieldset">
               <legend className="fieldset-legend text-xs font-semibold">
                 Start Time
               </legend>
-              <input
-                type="time"
-                name="startTime"
-                value={formData.startTime}
-                onChange={handleChange}
-                className={`input text-xs w-full ${
-                  errors.startTime ? "input-error" : ""
-                }`}
-              />
+              <div className="relative">
+                <input
+                  type="time"
+                  name="startTime"
+                  value={formData.startTime}
+                  onChange={handleChange}
+                  className={`input input-bordered text-xs w-full pl-9 h-10 ${
+                    errors.startTime ? "input-error" : ""
+                  }`}
+                />
+                <Clock className="absolute left-3 top-2.5 text-base-content/50 pointer-events-none" size={16} />
+              </div>
               {errors.startTime && (
                 <span className="text-error text-xs mt-1">
                   {errors.startTime}
@@ -180,15 +179,18 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
               <legend className="fieldset-legend text-xs font-semibold">
                 End Time
               </legend>
-              <input
-                type="time"
-                name="endTime"
-                value={formData.endTime}
-                onChange={handleChange}
-                className={`input text-xs w-full ${
-                  errors.endTime ? "input-error" : ""
-                }`}
-              />
+              <div className="relative">
+                <input
+                  type="time"
+                  name="endTime"
+                  value={formData.endTime}
+                  onChange={handleChange}
+                  className={`input input-bordered text-xs w-full pl-9 h-10 ${
+                    errors.endTime ? "input-error" : ""
+                  }`}
+                />
+                <Clock className="absolute left-3 top-2.5 text-base-content/50 pointer-events-none" size={16} />
+              </div>
               {errors.endTime && (
                 <span className="text-error text-xs mt-1">
                   {errors.endTime}
@@ -198,7 +200,7 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Reason Textarea */}
-          <fieldset className="fieldset">
+          <fieldset className="fieldset relative z-0">
             <legend className="fieldset-legend text-xs font-semibold">
               Task / Reason
             </legend>
@@ -206,8 +208,7 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
               name="reason"
               value={formData.reason}
               onChange={handleChange}
-              // Add textarea-error class
-              className={`textarea text-xs w-full h-24 resize-none ${
+              className={`textarea textarea-bordered text-xs w-full h-24 resize-none ${
                 errors.reason ? "textarea-error" : ""
               }`}
               placeholder="Describe the task or reason for overtime..."
@@ -218,8 +219,8 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
           </fieldset>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-4 mt-4 pt-2">
-            <button onClick={onClose} className="btn" disabled={isCreating}>
+          <div className="flex justify-end gap-4 mt-4 pt-4 border-t border-base-300">
+            <button onClick={onClose} className="btn btn-ghost" disabled={isCreating}>
               Cancel
             </button>
             <button

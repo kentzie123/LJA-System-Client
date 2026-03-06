@@ -52,9 +52,10 @@ export const useAuthStore = create((set, get) => ({
     try {
       set({ isCheckingAuth: true });
       const res = await api.get("/auth/check-auth");
+      console.log(res.data);
+      
       set({ authUser: res.data });
       
-      // Connect socket immediately after verifying auth
       get().connectSocket(); 
     } catch (error) {
       set({ authUser: null });

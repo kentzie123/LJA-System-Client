@@ -29,7 +29,7 @@ export const useDeductionStore = create((set, get) => ({
     set({ isSubmitting: true });
     try {
       await api.post("/deductions/create", payload);
-      
+
       // Refresh list to get the full subscriber data/counts calculated by server
       await get().fetchDeductions();
 
@@ -58,7 +58,7 @@ export const useDeductionStore = create((set, get) => ({
     try {
       // FIX: Added "/status" to match the backend route
       await api.patch(`/deductions/${id}/status`);
-      
+
       toast.success(`Plan ${newStatus === "ACTIVE" ? "Resumed" : "Paused"}`);
     } catch (error) {
       console.error("Toggle Status Error:", error);

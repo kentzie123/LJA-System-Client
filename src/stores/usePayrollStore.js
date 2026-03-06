@@ -5,21 +5,20 @@ import toast from "react-hot-toast";
 export const usePayrollStore = create((set, get) => ({
   // --- STATE ---
   payrollPeriods: [],
-  activePayRun: null,      // Basic info (selected from sidebar)
-  activeRunDetails: null,  // FULL DETAILS (Meta + Records + Totals) for the main view
+  activePayRun: null, // Basic info (selected from sidebar)
+  activeRunDetails: null, // FULL DETAILS (Meta + Records + Totals) for the main view
 
   isFetchingPeriods: false,
   isFetchingDetails: false,
   isCreating: false,
   isDeleting: false,
-  isFinalizing: false, // Added loading state for finalization
+  isFinalizing: false,
 
   // --- ACTIONS ---
 
   // 1. SELECT ACTIVE RUN (Client-side selection)
   setActiveRun: (data) => {
     set({ activePayRun: data });
-    // If we select a run, we should probably fetch its details immediately
     if (data?.id) {
       get().getPayRunDetails(data.id);
     }
@@ -31,14 +30,11 @@ export const usePayrollStore = create((set, get) => ({
     try {
       const res = await api.get("/payroll");
       set({ payrollPeriods: res.data });
-      
-      // Optional: If no active run is selected, select the most recent one
+
       const { activePayRun, payrollPeriods } = get();
       if (!activePayRun && res.data.length > 0) {
-         // Default to the first one (most recent)
-         get().setActiveRun(res.data[0]); 
+        get().setActiveRun(res.data[0]);
       }
-
     } catch (error) {
       console.error("Fetch Payroll Error:", error);
       toast.error("Failed to load payroll history");
@@ -61,21 +57,20 @@ export const usePayrollStore = create((set, get) => ({
     }
   },
 
-  // 4. CREATE PAY RUN (Triggers Calculation)
+  // 4. CREATE PAY RUN (Triggers Calculation as DRAFT)
   createPayRun: async (formData) => {
     set({ isCreating: true });
     try {
-      // This calls the calculation engine
       const res = await api.post("/payroll/create", formData);
-      toast.success("Payroll calculated successfully!");
+      toast.success("Payroll drafted successfully!");
 
-      // 1. Refresh the sidebar list
       await get().getAllPayrollPeriod();
-      
-      // 2. Automatically select and load the new run
-      if (res.data?.id) {
-        const newRun = get().payrollPeriods.find(p => p.id === res.data.id);
-        if (newRun) get().setActiveRun(newRun);
+
+      // Automatically select and load the new run
+      if (res.data?.data?.id) {
+        const newRunId = res.data.data.id;
+        // Fetch periods is async, so we might need to find it directly
+        get().getPayRunDetails(newRunId);
       }
 
       return true;
@@ -88,23 +83,25 @@ export const usePayrollStore = create((set, get) => ({
     }
   },
 
-  // 5. FINALIZE PAY RUN (Post to Ledger)
-  finalizePayRun: async (id) => {
+  // 5. APPROVE PAY RUN (Post to Ledger & Finalize)
+  approvePayRun: async (id) => {
     set({ isFinalizing: true });
     try {
-      await api.post(`/payroll/${id}/finalize`);
-      toast.success("Pay run finalized and posted to ledger!");
+      await api.put(`/payroll/${id}/approve`);
+      toast.success("Pay run approved!");
 
-      // Refresh details to show "Completed" status
+      // Refresh details to show "Approved" status
       await get().getPayRunDetails(id);
-      
-      // Refresh list to update status in sidebar
-      get().getAllPayrollPeriod();
-      
+
+      // Refresh sidebar list
+      await get().getAllPayrollPeriod();
+
       return true;
     } catch (error) {
-      console.error("Finalize Error:", error);
-      toast.error("Failed to finalize pay run.");
+      console.error("Approve Error:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to approve pay run.",
+      );
       return false;
     } finally {
       set({ isFinalizing: false });
@@ -118,13 +115,11 @@ export const usePayrollStore = create((set, get) => ({
       await api.delete(`/payroll/${id}`);
       toast.success("Payroll period deleted successfully");
 
-      // Clear active states if we deleted the current one
       const currentActive = get().activePayRun;
       if (currentActive?.id === id) {
         set({ activePayRun: null, activeRunDetails: null });
       }
 
-      // Refresh list
       await get().getAllPayrollPeriod();
       return true;
     } catch (error) {

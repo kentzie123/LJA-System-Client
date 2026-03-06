@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { X, Loader2, Clock, Calendar, Layers, FileText } from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 
+// IMPORT CUSTOM DATE PICKER
+import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
+
 const EditOvertimeModal = ({ isOpen, onClose, request }) => {
   const {
     updateOvertimeRequest,
@@ -48,6 +51,14 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
 
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // Custom handler for CustomDatePicker
+  const handleDateChange = (val) => {
+    setFormData((prev) => ({ ...prev, date: val }));
+    if (errors.date) {
+      setErrors((prev) => ({ ...prev, date: "" }));
     }
   };
 
@@ -115,7 +126,7 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
             noValidate
           >
             {/* 1. Overtime Type */}
-            <fieldset className="fieldset w-full">
+            <fieldset className="fieldset w-full relative z-[30]">
               <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
                 Overtime Type
               </legend>
@@ -125,7 +136,7 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
                   name="otTypeId"
                   value={formData.otTypeId}
                   onChange={handleChange}
-                  className={`select select-bordered w-full pl-10 text-sm ${
+                  className={`select select-bordered w-full pl-10 text-sm h-10 ${
                     errors.otTypeId ? "select-error" : ""
                   }`}
                 >
@@ -146,30 +157,23 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
               )}
             </fieldset>
 
-            {/* 2. Date */}
-            <fieldset className="fieldset w-full">
+            {/* 2. Date - UPDATED TO USE CUSTOM DATE PICKER */}
+            <fieldset className="fieldset w-full relative z-[20]">
               <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
                 Date
               </legend>
-              <div className="relative">
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  className={`input input-bordered w-full pl-10 text-sm ${
-                    errors.date ? "input-error" : ""
-                  }`}
-                />
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none" />
-              </div>
+              <CustomDatePicker 
+                value={formData.date}
+                onChange={handleDateChange}
+                className={`text-xs ${errors.date ? "border-error" : ""}`}
+              />
               {errors.date && (
                 <span className="text-error text-xs mt-1">{errors.date}</span>
               )}
             </fieldset>
 
             {/* 3. Time Grid */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 relative z-0">
               <fieldset className="fieldset w-full">
                 <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
                   Start Time
@@ -180,7 +184,7 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleChange}
-                    className={`input input-bordered w-full pl-10 text-sm ${
+                    className={`input input-bordered w-full pl-10 text-sm h-10 ${
                       errors.startTime ? "input-error" : ""
                     }`}
                   />
@@ -203,7 +207,7 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
                     name="endTime"
                     value={formData.endTime}
                     onChange={handleChange}
-                    className={`input input-bordered w-full pl-10 text-sm ${
+                    className={`input input-bordered w-full pl-10 text-sm h-10 ${
                       errors.endTime ? "input-error" : ""
                     }`}
                   />
@@ -218,7 +222,7 @@ const EditOvertimeModal = ({ isOpen, onClose, request }) => {
             </div>
 
             {/* 4. Reason */}
-            <fieldset className="fieldset w-full">
+            <fieldset className="fieldset w-full relative z-0">
               <legend className="fieldset-legend text-xs font-semibold text-base-content/70 pb-1">
                 Reason / Task
               </legend>

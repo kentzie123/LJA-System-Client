@@ -21,20 +21,20 @@ const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
 );
 
 const LeaveStatsGrid = () => {
-  const { stats, fetchLeaveStats, leaveBalances, fetchLeaveBalances } = useLeaveStore();
+  // We DO NOT fetch stats here anymore. The parent LeavePage handles it!
+  const { stats, leaveBalances, fetchLeaveBalances } = useLeaveStore();
   const { authUser } = useAuthStore();
   
   const roleId = authUser?.role?.id;
-  // Admin (1) or Super Admin (3)
   const isAdmin = roleId === 1 || roleId === 3;
 
   useEffect(() => {
-    fetchLeaveStats();
-    // Fetch balances for employees so we can show Vacation/Sick counts
+    // Balances don't change based on the month filter (they are annual), 
+    // so we can safely fetch them here once on mount for employees.
     if (!isAdmin) {
       fetchLeaveBalances();
     }
-  }, [fetchLeaveStats, fetchLeaveBalances, isAdmin]);
+  }, [fetchLeaveBalances, isAdmin]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -51,7 +51,7 @@ const LeaveStatsGrid = () => {
       {/* 2. SECOND SLOT: Approved (Admin) OR Vacation Balance (Employee) */}
       {isAdmin ? (
         <StatCard 
-          title="Approved Leaves (Month)"
+          title="Approved Leaves"
           value={stats.approvedCountMonth || 0}
           icon={Calendar}
           color="primary"
@@ -70,11 +70,11 @@ const LeaveStatsGrid = () => {
       {/* 3. THIRD SLOT: Rejections (Admin) OR Sick Balance (Employee) */}
       {isAdmin ? (
         <StatCard 
-          title="Rejections (Month)"
+          title="Rejections"
           value={stats.rejectedCount || 0}
           icon={XCircle}
           color="error"
-          subtext="Denied requests"
+          subtext="Denied this month"
         />
       ) : (
         <StatCard 
@@ -97,11 +97,11 @@ const LeaveStatsGrid = () => {
         />
       ) : (
         <StatCard 
-          title="Total Approved (All Time)"
+          title="Total Approved"
           value={stats.totalApprovedCount || 0}
           icon={CheckCircle}
           color="success"
-          subtext="Accepted requests"
+          subtext="All time accepted requests"
         />
       )}
 

@@ -5,6 +5,9 @@ import { X, Calendar, Loader2, AlertCircle } from "lucide-react";
 import { usePayrollStore } from "@/stores/usePayrollStore";
 import { toast } from "react-hot-toast";
 
+// --- IMPORT CUSTOM DATE PICKER ---
+import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
+
 const CreatePayRunModal = ({ isOpen, onClose }) => {
   const { createPayRun, isCreating } = usePayrollStore();
 
@@ -21,6 +24,19 @@ const CreatePayRunModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Custom handler to ensure end_date doesn't slip before start_date
+  const handleDateChange = (name, value) => {
+    setFormData((prev) => {
+      const newData = { ...prev, [name]: value };
+      
+      if (name === "start_date" && prev.end_date && new Date(value) > new Date(prev.end_date)) {
+        newData.end_date = value;
+      }
+      
+      return newData;
+    });
+  };
 
   const handleSubmit = async () => {
     // A. Validation
@@ -49,7 +65,6 @@ const CreatePayRunModal = ({ isOpen, onClose }) => {
     };
 
     // D. Call Store Action
-    // The store handles the API call, Toast success/error, and refreshing the list.
     const success = await createPayRun(payload);
 
     // E. Close Modal on Success
@@ -58,7 +73,7 @@ const CreatePayRunModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-sm rounded-xl shadow-2xl border border-white/10 flex flex-col scale-in-95 duration-200">
+      <div className="bg-base-100 w-full max-w-sm rounded-xl shadow-2xl border border-white/10 flex flex-col scale-in-95 duration-200 overflow-visible">
         {/* --- HEADER --- */}
         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-base-200/30 rounded-t-xl">
           <div className="flex items-center gap-3">
@@ -91,37 +106,29 @@ const CreatePayRunModal = ({ isOpen, onClose }) => {
 
           {/* Date Inputs */}
           <div className="space-y-4">
-            <div className="form-control">
-              <label className="label text-xs font-bold uppercase text-base-content/60">
+            <div className="form-control relative z-[40]">
+              <label className="label text-xs font-bold uppercase text-base-content/60 pb-1">
                 Cut-off Start
               </label>
-              <input
-                type="date"
-                className="input input-bordered w-full focus:outline-none focus:border-primary"
+              <CustomDatePicker 
                 value={formData.start_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, start_date: e.target.value })
-                }
+                onChange={(val) => handleDateChange("start_date", val)}
               />
             </div>
-            <div className="form-control">
-              <label className="label text-xs font-bold uppercase text-base-content/60">
+            <div className="form-control relative z-[30]">
+              <label className="label text-xs font-bold uppercase text-base-content/60 pb-1">
                 Cut-off End
               </label>
-              <input
-                type="date"
-                className="input input-bordered w-full focus:outline-none focus:border-primary"
+              <CustomDatePicker 
                 value={formData.end_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, end_date: e.target.value })
-                }
+                onChange={(val) => handleDateChange("end_date", val)}
               />
             </div>
           </div>
         </div>
 
         {/* --- FOOTER --- */}
-        <div className="p-5 border-t border-white/10 flex gap-3 justify-end bg-base-100 rounded-b-xl">
+        <div className="p-5 border-t border-white/10 flex gap-3 justify-end bg-base-100 rounded-b-xl relative z-0">
           <button
             onClick={onClose}
             disabled={isCreating}

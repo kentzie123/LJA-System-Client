@@ -34,10 +34,10 @@ export const useOvertimeStore = create((set, get) => ({
   },
 
   // 2. Fetch All Requests
-  fetchAllOvertime: async () => {
+  fetchAllOvertime: async (filters = {}) => {
     set({ isFetching: true });
     try {
-      const response = await api.get("/overtime/all");
+      const response = await api.get("/overtime/all", { params: filters });
       set({ overtimeRequests: response.data });
     } catch (error) {
       console.error(error);
@@ -47,10 +47,21 @@ export const useOvertimeStore = create((set, get) => ({
     }
   },
 
-  // 3. Fetch Statistics
-  fetchOvertimeStats: async () => {
+  fetchOvertimeForExport: async (filters = {}) => {
     try {
-      const response = await api.get("/overtime/stats");
+      const response = await api.get("/overtime/all", { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch overtime for export:", error);
+      return [];
+    }
+  },
+
+  // 3. Fetch Statistics
+  fetchOvertimeStats: async (filters = {}) => {
+    try {
+      // Pass the filters (month, year) as query parameters
+      const response = await api.get("/overtime/stats", { params: filters });
       set({ stats: response.data });
     } catch (error) {
       console.error("Failed to fetch stats", error);

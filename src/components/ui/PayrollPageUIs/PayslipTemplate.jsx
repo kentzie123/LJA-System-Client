@@ -1,205 +1,240 @@
 import React, { useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { formatCurrency, formatDate } from "@/utils/formatUtils";
-import { X, Printer, MapPin, Mail } from "lucide-react";
+import { X, Printer, MapPin, Mail, ShieldCheck, Clock } from "lucide-react";
 
 const PayslipTemplate = ({ isOpen, onClose, data }) => {
   const componentRef = useRef(null);
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: `Payslip-${data?.employee?.name || 'Employee'}`,
+    documentTitle: `Payslip_${data?.employee?.name?.replace(/\s+/g, '_') || 'Employee'}_${data?.payrollRun?.endDate || ''}`,
   });
 
   if (!isOpen || !data) return null;
 
-  // Safe Destructuring
-  const payrollRun = data.payrollRun || {};
-  const employee = data.employee || {};
-  const earnings = data.earnings || [];
-  const deductions = data.deductions || [];
-  const loans = data.loans || [];
-  const totals = data.totals || { gross: 0, total_deductions: 0, net_pay: 0 };
+  const { 
+    payrollRun = {}, 
+    employee = {}, 
+    earnings = [], 
+    totals = { gross: 0, total_deductions: 0, net_pay: 0 },
+    details = {} 
+  } = data;
+  
+  const allDeductions = [...(data.deductions || []), ...(data.loans || [])];
+  const attendance = details.attendance_summary || {};
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-0 md:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/80 backdrop-blur-sm p-0 md:p-6 overflow-y-auto print:p-0 print:bg-transparent print:backdrop-blur-none">
       
-      {/* WINDOW CONTAINER (Responsive Width) */}
-      <div className="bg-white w-full h-full md:h-auto md:max-w-3xl md:rounded-sm shadow-2xl flex flex-col md:max-h-[90vh]">
+      <div className="bg-base-200 w-full h-full md:h-auto md:max-w-4xl md:rounded-xl shadow-2xl flex flex-col md:max-h-[90vh] overflow-hidden print:shadow-none print:rounded-none">
         
-        {/* HEADER ACTIONS (Screen Only) */}
-        <div className="bg-neutral-900 text-white p-3 flex justify-between items-center shadow-md print:hidden flex-shrink-0">
-          <h2 className="font-bold text-sm tracking-wide uppercase hidden md:block">Payslip Preview</h2>
-          <h2 className="font-bold text-sm tracking-wide uppercase md:hidden">Payslip</h2>
+        {/* HEADER ACTIONS */}
+        <div className="bg-base-300 border-b border-base-300 p-3 px-5 flex justify-between items-center print:hidden flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-success" />
+            <h2 className="font-bold text-sm tracking-wider uppercase text-base-content">Official Payslip Document</h2>
+          </div>
           
           <div className="flex gap-2">
-            <button 
-              onClick={handlePrint} 
-              className="btn btn-xs btn-primary font-bold gap-2 rounded-sm"
-            >
-              <Printer size={14} /> 
+            <button onClick={handlePrint} className="btn btn-sm btn-primary shadow-sm font-bold gap-2">
+              <Printer size={16} /> 
               <span className="hidden sm:inline">Print / Save PDF</span>
               <span className="sm:hidden">Print</span>
             </button>
-            <button className="btn btn-xs btn-square btn-ghost text-white" onClick={onClose}>
-              <X size={16} />
+            <button className="btn btn-sm btn-circle btn-ghost" onClick={onClose}>
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        {/* SCROLLABLE PREVIEW AREA */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 p-4 md:p-8 flex justify-center print:p-0 print:bg-white print:overflow-visible">
+        <div className="flex-1 overflow-auto p-4 md:p-8 print:p-0 print:overflow-visible print:block">
           
-          {/* --- THE PAYSLIP PAPER (Responsive Scale) --- */}
           <div 
             ref={componentRef} 
-            className="bg-white text-black w-full max-w-[210mm] p-6 md:p-10 shadow-lg print:shadow-none print:w-full print:max-w-none print:p-8 text-sm md:text-base"
-            style={{ fontFamily: '"Courier New", Courier, monospace' }}
+            className="bg-white text-black w-full max-w-[210mm] min-w-[700px] md:min-w-0 mx-auto p-8 md:p-12 shadow-md print:shadow-none print:w-full print:max-w-none print:p-4 text-sm relative overflow-hidden"
           >
             
-            {/* 1. HEADER */}
-            <div className="border-b-4 border-black pb-4 mb-6 flex flex-col md:flex-row justify-between items-start gap-4">
+            {/* WATERMARK SECTION */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.12] pointer-events-none print:opacity-[0.08]">
+              <img src="/images/lja-logo.webp" alt="" className="w-2/3 mix-blend-multiply" />
+            </div>
+
+            {/* 1. DOCUMENT HEADER */}
+            <div className="flex flex-col md:flex-row justify-between items-start gap-6 border-b-2 border-black pb-6 mb-6 relative z-10">
               <div className="flex gap-4 items-center md:items-start">
-                {/* Logo Placeholder */}
-                <div className="h-14 w-14 md:h-16 md:w-16 bg-gray-200 flex-shrink-0 flex items-center justify-center border border-gray-300">
-                   <img src="/images/lja-logo.webp" alt="LJA" className="h-full w-full object-contain mix-blend-multiply" />
+                <div className="h-16 w-16 bg-gray-50 flex-shrink-0 flex items-center justify-center border border-gray-200 rounded-lg p-2">
+                   <img src="/images/lja-logo.webp" alt="LJA Logo" className="h-full w-full object-contain" />
                 </div>
                 <div>
-                  <h1 className="text-lg md:text-xl font-bold uppercase tracking-tighter leading-none">LJA Power Limited Co.</h1>
-                  <div className="text-[10px] mt-2 space-y-0.5 text-gray-600 font-sans">
-                    <p className="flex items-center gap-1"><MapPin size={10}/> Zone 2, Opol, Misamis Oriental</p>
-                    <p className="flex items-center gap-1"><Mail size={10}/> admin@ljapower.com</p>
+                  <h1 className="text-xl md:text-2xl font-extrabold uppercase tracking-tight text-gray-900 leading-none mb-2">LJA Power Limited Co.</h1>
+                  <div className="text-xs space-y-1 text-gray-600 font-medium">
+                    <p className="flex items-center gap-1.5"><MapPin size={12}/> Zone 4, Opol, Misamis Oriental</p>
+                    <p className="flex items-center gap-1.5"><Mail size={12}/>  lja.ljapowerlimitedco@gmail.comadmin</p>
                   </div>
                 </div>
               </div>
-              <div className="text-left md:text-right w-full md:w-auto mt-2 md:mt-0">
-                <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-gray-900">PAYSLIP</h2>
-                <p className="text-xs font-bold mt-1 text-gray-600 md:text-gray-900">
+              <div className="text-left md:text-right w-full md:w-auto mt-2 md:mt-0 bg-gray-50 p-4 rounded-lg border border-gray-200 print:border-none print:bg-transparent print:p-0 print:text-right">
+                <h2 className="text-2xl font-black uppercase tracking-widest text-gray-900 mb-1">PAYSLIP</h2>
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
                    {formatDate(payrollRun.startDate)} — {formatDate(payrollRun.endDate)}
                 </p>
               </div>
             </div>
 
-            {/* 2. EMPLOYEE DETAILS (Responsive Grid) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-xs font-sans mb-8 border-b border-dashed border-gray-400 pb-6">
-              <div className="space-y-1.5">
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span className="text-gray-500 uppercase font-bold text-[10px]">Employee</span>
-                  <span className="font-bold text-right">{employee.name}</span>
+            {/* 2. EMPLOYEE DETAILS GRID */}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-0 text-xs mb-6 border border-gray-300 rounded-lg overflow-hidden relative z-10 print:border-black">
+              <div className="flex flex-col border-r border-gray-300 print:border-black">
+                <div className="flex justify-between p-2 border-b border-gray-200 bg-gray-50 print:bg-transparent">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Employee Name</span>
+                  <span className="font-bold text-gray-900">{employee.name}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span className="text-gray-500 uppercase font-bold text-[10px]">Position</span>
-                  <span className="text-right">{employee.position}</span>
+                <div className="flex justify-between p-2 border-b border-gray-200 print:border-black">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Employee ID</span>
+                  <span className="font-medium text-gray-900">{employee.id}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span className="text-gray-500 uppercase font-bold text-[10px]">ID No.</span>
-                  <span className="text-right">{employee.id}</span>
+                <div className="flex justify-between p-2">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Position</span>
+                  <span className="font-medium text-gray-900">{employee.position}</span>
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span className="text-gray-500 uppercase font-bold text-[10px]">Pay Date</span>
-                  <span className="text-right">{formatDate(payrollRun.paymentDate)}</span>
+              <div className="flex flex-col">
+                <div className="flex justify-between p-2 border-b border-gray-200 bg-gray-50 print:bg-transparent">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Pay Date</span>
+                  <span className="font-bold text-gray-900">{formatDate(payrollRun.paymentDate)}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span className="text-gray-500 uppercase font-bold text-[10px]">TIN</span>
-                  <span className="text-right">{employee.tin || "N/A"}</span>
+                <div className="flex justify-between p-2 border-b border-gray-200 print:border-black">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">TIN</span>
+                  <span className="font-medium text-gray-900 tabular-nums">{employee.tin || "N/A"}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span className="text-gray-500 uppercase font-bold text-[10px]">SSS/PHIC</span>
-                  <span className="text-right">{employee.sss || "N/A"}</span>
+                <div className="flex justify-between p-2">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">SSS / PHIC</span>
+                  <span className="font-medium text-gray-900 tabular-nums">{employee.sss || "N/A"}</span>
                 </div>
               </div>
             </div>
 
-            {/* 3. DETAILS TABLE (Stacked on Mobile) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-              
-              {/* EARNINGS */}
+            {/* --- 2.5 ATTENDANCE & LATE SUMMARY --- */}
+            {Object.keys(attendance).length > 0 && (
+              <div className="flex flex-wrap gap-4 justify-between items-center bg-gray-50 border border-gray-200 rounded-lg p-3 mb-8 relative z-10 print:border-black print:bg-transparent text-xs">
+                
+                <div className="flex gap-6">
+                  <div>
+                    <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Days Present</span>
+                    <span className="font-bold text-gray-900">{attendance.days_present} Days</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Worked Hours</span>
+                    <span className="font-bold text-gray-900">{attendance.total_worked_hours} Hrs</span>
+                  </div>
+                  {attendance.paid_leave_hours > 0 && (
+                    <div>
+                      <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Paid Leave</span>
+                      <span className="font-bold text-gray-900">{attendance.paid_leave_hours} Hrs</span>
+                    </div>
+                  )}
+                </div>
+
+                {attendance.total_late_hours > 0 && (
+                  <div className="text-right border-l border-gray-300 pl-5 print:border-black">
+                    <span className="text-red-500 print:text-black uppercase font-bold text-[9px] tracking-wider flex items-center gap-1 justify-end mb-0.5">
+                      <Clock size={10} /> Late Penalty
+                    </span>
+                    <span className="font-bold text-red-600 print:text-black tabular-nums">
+                      -{formatCurrency(attendance.late_deduction_amount)}
+                    </span>
+                    {/* SHOW THE EXACT LATE MULTIPLIER MATH HERE */}
+                    <span className="block text-[8px] font-mono text-gray-500 mt-0.5 tracking-tighter">
+                      ({attendance.total_late_hours} hrs × ₱{parseFloat(attendance.hourly_rate || 0).toFixed(2)}/hr)
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. FINANCIAL TABLES */}
+            <div className="grid grid-cols-2 gap-8 mb-8 relative z-10 break-inside-avoid">
               <div>
-                <h3 className="text-xs font-bold uppercase border-b-2 border-black pb-1 mb-2">Earnings</h3>
-                <table className="w-full text-xs font-sans">
-                  <tbody>
+                <h3 className="text-sm font-black uppercase text-gray-900 border-b-2 border-gray-800 pb-2 mb-3 tracking-wider">Earnings</h3>
+                <table className="w-full text-xs">
+                  <tbody className="divide-y divide-gray-100 print:divide-gray-300">
                     {earnings.map((item, idx) => (
                       <tr key={idx}>
-                        <td className="py-1 text-gray-700">{item.label}</td>
-                        <td className="py-1 text-right text-[10px] text-gray-400 hidden sm:table-cell">{item.units}</td>
-                        <td className="py-1 text-right font-medium">{formatCurrency(item.amount)}</td>
+                        <td className="py-2 pr-2 text-gray-800 font-medium">{item.label}</td>
+                        {/* THIS IS WHERE THE MATH FROM PAYROLLTABLE SHOWS UP */}
+                        <td className="py-2 pr-2 text-right font-mono text-[9px] text-gray-500 tracking-tighter whitespace-nowrap">
+                          {item.units}
+                        </td>
+                        <td className="py-2 pl-2 text-right font-semibold tabular-nums text-gray-900">{formatCurrency(item.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan="3" className="pt-2 border-t border-gray-300">
-                        <div className="flex justify-between font-bold">
-                          <span>TOTAL EARNINGS</span>
-                          <span>{formatCurrency(totals.gross)}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
 
-              {/* DEDUCTIONS */}
-              <div className="mt-4 md:mt-0">
-                <h3 className="text-xs font-bold uppercase border-b-2 border-black pb-1 mb-2">Deductions</h3>
-                <table className="w-full text-xs font-sans">
-                  <tbody>
-                    {deductions.concat(loans).length === 0 ? (
-                      <tr><td className="py-2 text-gray-400 italic text-[10px]">No deductions</td></tr>
+              <div>
+                <h3 className="text-sm font-black uppercase text-gray-900 border-b-2 border-gray-800 pb-2 mb-3 tracking-wider">Deductions</h3>
+                <table className="w-full text-xs">
+                  <tbody className="divide-y divide-gray-100 print:divide-gray-300">
+                    {allDeductions.length === 0 ? (
+                      <tr><td className="py-2 text-gray-400 italic text-xs">No deductions for this period.</td></tr>
                     ) : (
-                      deductions.concat(loans).map((item, idx) => (
+                      allDeductions.map((item, idx) => (
                         <tr key={idx}>
-                          <td className="py-1 text-gray-700">
+                          <td className="py-2 text-gray-800 font-medium">
                             {item.label}
-                            {item.balance && <span className="text-[9px] text-gray-400 block">Bal: {formatCurrency(item.balance)}</span>}
+                            {item.balance && <span className="text-[10px] text-gray-500 block mt-0.5">Bal: {formatCurrency(item.balance)}</span>}
                           </td>
-                          <td className="py-1 text-right text-[10px] text-gray-400 hidden sm:table-cell">{item.units}</td>
-                          <td className="py-1 text-right font-medium text-red-600 print:text-black">({formatCurrency(item.amount)})</td>
+                          <td className="py-2 text-right text-[10px] text-gray-400">{item.units}</td>
+                          <td className="py-2 text-right font-semibold tabular-nums text-red-600 print:text-black">({formatCurrency(item.amount)})</td>
                         </tr>
                       ))
                     )}
                   </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan="3" className="pt-2 border-t border-gray-300">
-                        <div className="flex justify-between font-bold text-red-600 print:text-black">
-                          <span>TOTAL DEDUCTIONS</span>
-                          <span>({formatCurrency(totals.total_deductions)})</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
             </div>
 
-            {/* 4. NET PAY HERO */}
-            <div className="border-t-2 border-b-2 border-black py-4 mb-8 md:mb-12 flex flex-col sm:flex-row justify-between items-center text-center sm:text-left gap-2">
-              <div>
-                <span className="block text-xs font-bold uppercase tracking-widest text-gray-500">Net Salary Payable</span>
-                <span className="text-[10px] italic hidden sm:inline">Received correct amount</span>
+            {/* 4. TOTALS SUMMARY & NET PAY */}
+            <div className="flex flex-col border-t-2 border-black pt-4 mb-12 relative z-10 break-inside-avoid">
+              <div className="flex justify-end w-full mb-4">
+                <div className="w-1/2 space-y-2 text-xs">
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span className="font-bold uppercase tracking-wider text-[10px]">Gross Earnings</span>
+                    <span className="font-semibold tabular-nums">{formatCurrency(totals.gross)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span className="font-bold uppercase tracking-wider text-[10px]">Total Deductions</span>
+                    <span className="font-semibold tabular-nums">({formatCurrency(totals.total_deductions)})</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-3xl font-bold tracking-tight">
-                {formatCurrency(totals.net_pay)}
+
+              <div className="bg-gray-900 text-white rounded-lg p-6 flex flex-row justify-between items-center print:bg-transparent print:border-2 print:border-black print:text-black print:rounded-none">
+                <div>
+                  <span className="block text-sm font-black uppercase tracking-widest print:text-gray-900">Net Salary Payable</span>
+                  <span className="text-xs opacity-70 italic mt-1 print:text-gray-600">Amount transferred to employee</span>
+                </div>
+                <div className="text-3xl md:text-4xl font-black tabular-nums tracking-tight">
+                  {formatCurrency(totals.net_pay)}
+                </div>
               </div>
             </div>
 
             {/* 5. SIGNATURES */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 md:gap-12 text-xs font-sans break-inside-avoid">
-              <div className="pt-8 border-t border-black text-center sm:text-left">
-                <p className="font-bold uppercase text-gray-900">Authorized Signature</p>
+            <div className="grid grid-cols-2 gap-12 text-xs break-inside-avoid relative z-10 mt-16">
+              <div className="border-t border-black pt-2 text-left">
+                <p className="font-black uppercase text-gray-900 tracking-wider">Authorized Signature</p>
                 <p className="text-[10px] text-gray-500 mt-1">HR / Finance Department</p>
               </div>
-              <div className="pt-8 border-t border-black text-center sm:text-left">
-                <p className="font-bold uppercase text-gray-900">Employee Signature</p>
-                <p className="text-[10px] text-gray-500 mt-1">Date: _________________</p>
+              <div className="border-t border-black pt-2 text-left">
+                <p className="font-black uppercase text-gray-900 tracking-wider">Employee Signature</p>
+                <p className="text-[10px] text-gray-500 mt-1">I acknowledge receipt of the above amount.</p>
               </div>
             </div>
 
-            <div className="mt-8 text-center text-[9px] text-gray-300 uppercase print:text-black print:opacity-50">
-              System Generated • {new Date().toLocaleDateString()}
+            <div className="mt-12 text-center text-[10px] font-medium text-gray-400 uppercase tracking-widest relative z-10">
+              System Generated • LJA Power Payroll • {new Date().toLocaleDateString()}
             </div>
 
           </div>

@@ -35,9 +35,7 @@ const ProfileHeader = () => {
       const success = await uploadProfilePicture(base64String);
 
       if (success) {
-        // Update Global Auth Store
         setAuthUser({ ...authUser, profile_picture: base64String });
-        // Reset Local State
         setPreviewImage(null);
         setSelectedFile(null);
       }
@@ -47,7 +45,7 @@ const ProfileHeader = () => {
   return (
     <div className="flex flex-col items-center justify-center text-center space-y-6 pt-8 pb-4">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-base-content">Profile</h1>
+        <h1 className="text-3xl font-bold text-base-content">My Profile</h1>
         <p className="text-sm text-base-content/60">
           Manage your personal information
         </p>
@@ -56,16 +54,15 @@ const ProfileHeader = () => {
       {/* IMAGE CONTAINER */}
       <div className="relative group">
         <div className="relative">
-          {/* Dynamic Image Source */}
           <img
             src={previewImage || authUser?.profile_picture || "/images/default_profile.jpg"}
             alt="Profile"
-            className={`h-48 w-48 object-cover rounded-full border-4 border-base-200 shadow-xl transition-all duration-300 ${
+            className={`h-40 w-40 object-cover rounded-full border-4 border-base-200 shadow-xl transition-all duration-300 ${
               isUploading ? "opacity-50 blur-sm" : ""
             }`}
+            onError={(e) => { e.target.src = "/images/default_profile.jpg"; }}
           />
 
-          {/* Loading Overlay */}
           {isUploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full z-20">
               <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -73,7 +70,6 @@ const ProfileHeader = () => {
           )}
         </div>
 
-        {/* CAMERA BUTTON (Hidden if uploading or previewing) */}
         {!previewImage && !isUploading && (
           <label
             htmlFor="profile-upload"
@@ -91,29 +87,21 @@ const ProfileHeader = () => {
         )}
       </div>
 
-      {/* CONFIRM / CANCEL BUTTONS */}
       {previewImage && !isUploading && (
         <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-          <button
-            onClick={handleUpload}
-            className="btn btn-primary btn-sm gap-2 shadow-lg"
-          >
+          <button onClick={handleUpload} className="btn btn-primary btn-sm gap-2 shadow-lg">
             <Check size={16} /> Update Picture
           </button>
-          <button
-            onClick={handleCancel}
-            className="btn btn-ghost btn-sm gap-2 text-error hover:bg-error/10"
-          >
+          <button onClick={handleCancel} className="btn btn-ghost btn-sm gap-2 text-error hover:bg-error/10">
             <X size={16} /> Cancel
           </button>
         </div>
       )}
 
-      {/* USER DETAILS SECTION */}
       {!previewImage && (
         <div className="space-y-1 animate-in fade-in duration-500">
           <h2 className="text-xl font-semibold text-base-content">
-            {authUser?.fullName || "User Name"}
+            {authUser?.fullname || "User Name"} {/* FIX: fullname instead of fullName */}
           </h2>
           <div className="flex items-center justify-center gap-2 text-sm text-base-content/60">
             <User size={14} />

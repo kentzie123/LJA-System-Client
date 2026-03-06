@@ -14,15 +14,18 @@ export const useUserStore = create((set, get) => ({
   isUpdatingUser: false,
   isDeletingUser: false,
   isUploading: false,
+  isFetchingSingleUser: false,
 
   // 1. FETCH ALL
   fetchAllUsers: async () => {
     const { authUser } = useAuthStore.getState();
-    if (!authUser.perm_employee_view) return;
+    if (!authUser.role.perm_employee_view) return;
     set({ isFetchingUsers: true });
     try {
       const response = await api.get("/users/fetch-all");
       set({ users: response.data });
+      console.log(response.data);
+      
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to fetch users");
@@ -90,19 +93,25 @@ export const useUserStore = create((set, get) => ({
     }
   },
 
-  // 5. NEW: SAFE PROFILE UPDATE (Name, Email, Position)
+  // 5. NEW: SAFE PROFILE UPDATE (Self-Update)
   updateUserProfile: async (userData) => {
     set({ isUpdatingUser: true });
     try {
       const res = await api.put(`/users/update-profile`, userData);
       toast.success("Profile updated successfully!");
 
-      // Update local state so the UI reflects changes instantly
+      const updatedUser = res.data.user;
+
       set((state) => ({
         users: state.users.map((u) =>
-          u.id === userId ? { ...u, ...res.data.user } : u,
+          u.id === updatedUser.id ? { ...u, ...updatedUser } : u,
         ),
       }));
+      const { setAuthUser, authUser } = useAuthStore.getState();
+      if (authUser?.id === updatedUser.id) {
+        setAuthUser({ ...authUser, ...updatedUser });
+      }
+
       return true;
     } catch (error) {
       console.error(error);
@@ -129,6 +138,23 @@ export const useUserStore = create((set, get) => ({
       return false;
     } finally {
       set({ isUploading: false });
+    }
+  },
+
+  // 7. FETCH SINGLE USER BY EMPLOYEE_ID
+  fetchUserByEmployeeId: async (employeeId) => {
+    
+    set({ isFetchingSingleUser: true });
+    try {
+      // Calls the backend with the custom ID (e.g., 2025-001)
+      const response = await api.get(`/users/fetch-user/${employeeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to fetch employee details");
+      return null;
+    } finally {
+      set({ isFetchingSingleUser: false });
     }
   },
 }));

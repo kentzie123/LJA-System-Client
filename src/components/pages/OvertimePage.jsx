@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 
+// Utils
+import { getCurrentMonth } from "@/utils/formatUtils";
+
 // Layout
 import OvertimeStatsGrid from "../ui/OvertimePageUIs/OvertimeStatsGrid";
 import OvertimeTableList from "../ui/OvertimePageUIs/OvertimeTableList";
@@ -44,6 +47,14 @@ const OvertimePage = () => {
   const canCreate = authUser?.role?.perm_overtime_create === true;
   const canManage = authUser?.role?.perm_overtime_manage === true;
 
+  // --- FILTER & TAB STATES (Lifted from Table) ---
+  const [activeTab, setActiveTab] = useState(() => {
+    if (canApprove) return "team";
+    return "my";
+  });
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDate, setFilterDate] = useState(getCurrentMonth());
+
   // --- MODAL STATES ---
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false);
@@ -69,7 +80,7 @@ const OvertimePage = () => {
     request: null,
   });
 
-  // --- FETCH & SECURITY ---
+  // --- FETCH & SECURITY (Updated to use filters) ---
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
@@ -79,10 +90,37 @@ const OvertimePage = () => {
       router.push("/not-found");
       return;
     }
-    // Fetch initial data
-    fetchAllOvertime();
-    fetchOvertimeStats();
-  }, [fetchAllOvertime, fetchOvertimeStats, router, authUser, canViewPage]);
+
+    // Build the dynamic filters to send to the backend
+    const params = {
+      status: filterStatus !== "All" ? filterStatus : undefined,
+    };
+
+    if (filterDate) {
+      const [year, month] = filterDate.split("-");
+      params.year = year;
+      params.month = month;
+    }
+
+    // If on the "my" tab (or if the user doesn't have view_all permissions), restrict to their own ID
+    if (activeTab === "my" || !canViewAll) {
+      params.targetUserId = authUser.id;
+    }
+
+    // Fetch initial data with filters
+    fetchAllOvertime(params);
+    fetchOvertimeStats(params); // Successfully passing params to stats so the grid updates!
+  }, [
+    fetchAllOvertime, 
+    fetchOvertimeStats, 
+    router, 
+    authUser, 
+    canViewPage, 
+    filterStatus, 
+    filterDate, 
+    activeTab, 
+    canViewAll
+  ]);
 
   // --- REAL-TIME LISTENER SETUP ---
   useEffect(() => {
@@ -96,14 +134,6 @@ const OvertimePage = () => {
       unsubscribeFromOvertimeUpdates();
     };
   }, [socket, subscribeToOvertimeUpdates, unsubscribeFromOvertimeUpdates]);
-
-  // --- FILTER LOGIC (Privacy) ---
-  const filteredRequests = overtimeRequests.filter((req) => {
-    // If Admin/HR with view_all permission, show everything
-    if (canViewAll) return true;
-    // Otherwise, strictly show only current user's requests
-    return req.user_id === authUser?.id;
-  });
 
   // --- HANDLERS ---
   const handleEdit = (request) => {
@@ -183,12 +213,18 @@ const OvertimePage = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <OvertimeStatsGrid requests={filteredRequests} />
+      {/* Stats Grid - Just pass the props, it will read global store stats */}
+      <OvertimeStatsGrid />
 
       {/* Table */}
       <OvertimeTableList
-        requests={filteredRequests}
+        requests={overtimeRequests}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        filterDate={filterDate}
+        setFilterDate={setFilterDate}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAction={handleAction}

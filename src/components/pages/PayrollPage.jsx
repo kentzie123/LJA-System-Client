@@ -86,7 +86,7 @@ const PayrollPage = () => {
         {activeTab === TABS.PAYOUT && (
           <div className="w-full lg:w-1/4 lg:min-w-[300px] flex flex-col gap-6 animate-in slide-in-from-left-4 duration-300">
             {/* Height: Fixed 80 (320px) on mobile so it doesn't trap scroll, Full on desktop */}
-            <div className="h-80 lg:h-full bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden p-4">
+            <div className="lg:h-full bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden p-4">
               <PayrollPeriodList canManage={permissions.canManagePayroll} />
             </div>
           </div>
@@ -112,6 +112,7 @@ const PayrollPage = () => {
                 <PayrollTable
                   canManage={permissions.canManagePayroll}
                   canViewAll={canViewAllPayslips}
+                  currentUserId={authUser?.id}
                 />
               </div>
             </div>

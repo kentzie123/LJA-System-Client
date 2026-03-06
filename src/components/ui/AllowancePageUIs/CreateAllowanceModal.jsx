@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Coins, Users, Globe, Search, CheckSquare, Square } from "lucide-react";
 import { useAllowanceStore } from "@/stores/useAllowanceStore";
 import { useUserStore } from "@/stores/useUserStore"; 
+import toast from "react-hot-toast"; 
 
 const CreateAllowanceModal = ({ isOpen, onClose }) => {
   const { createAllowance, isCreating } = useAllowanceStore();
@@ -13,11 +14,9 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
     is_global: true,
   });
 
-  // State for specific selection
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Fetch users when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchAllUsers();
@@ -27,7 +26,6 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen, fetchAllUsers]);
 
-  // 2. Filter users
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return users;
     return users.filter(u => 
@@ -36,7 +34,6 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
     );
   }, [users, searchQuery]);
 
-  // 3. Toggle User Selection
   const toggleUser = (userId) => {
     setSelectedUserIds(prev => 
       prev.includes(userId) 
@@ -45,7 +42,6 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
     );
   };
 
-  // 4. Select All / Deselect All
   const toggleSelectAll = () => {
     if (selectedUserIds.length === filteredUsers.length) {
       setSelectedUserIds([]);
@@ -58,7 +54,7 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
     if (!formData.name || !formData.amount) return;
     
     if (!formData.is_global && selectedUserIds.length === 0) {
-      alert("Please select at least one employee for this specific allowance.");
+      toast.error("Please select at least one employee.");
       return;
     }
 
@@ -83,9 +79,9 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-base-100 w-full max-w-lg rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
         
-        {/* HEADER - Emerald Text */}
+        {/* HEADER */}
         <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300 flex-shrink-0">
-          <div className="text-lg font-bold flex items-center gap-2 text-emerald-700">
+          <div className="text-lg font-bold flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
             <Coins size={20} /> New Allowance
           </div>
           <button 
@@ -100,7 +96,6 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
         {/* SCROLLABLE BODY */}
         <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
           
-          {/* 1. Name Input */}
           <div className="form-control">
             <label className="label text-xs font-bold opacity-60 uppercase">Allowance Name</label>
             <input 
@@ -112,7 +107,6 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
             />
           </div>
 
-          {/* 2. Amount Input */}
           <div className="form-control">
             <label className="label text-xs font-bold opacity-60 uppercase">Amount (PHP)</label>
             <div className="relative">
@@ -127,7 +121,7 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* 3. Global vs Specific Toggle (Emerald Active State) */}
+          {/* Toggle Recipients */}
           <div className="form-control">
             <label className="label text-xs font-bold opacity-60 uppercase">Recipients</label>
             <div className="grid grid-cols-2 gap-2 bg-base-200 p-1 rounded-xl">
@@ -135,7 +129,7 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
                   type="button"
                   className={`btn btn-sm border-none shadow-none transition-all ${
                     !formData.is_global 
-                    ? "bg-white text-emerald-700 shadow-md" 
+                    ? "bg-base-100 text-emerald-600 dark:text-emerald-400 shadow-md" 
                     : "btn-ghost text-base-content opacity-50 hover:bg-base-300"
                   }`}
                   onClick={() => setFormData({ ...formData, is_global: false })}
@@ -146,7 +140,7 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
                   type="button"
                   className={`btn btn-sm border-none shadow-none transition-all ${
                     formData.is_global 
-                    ? "bg-white text-emerald-700 shadow-md" 
+                    ? "bg-base-100 text-emerald-600 dark:text-emerald-400 shadow-md" 
                     : "btn-ghost text-base-content opacity-50 hover:bg-base-300"
                   }`}
                   onClick={() => setFormData({ ...formData, is_global: true })}
@@ -156,11 +150,9 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* 4. USER SELECTION LIST (Only if Specific) */}
+          {/* USER SELECTION LIST */}
           {!formData.is_global && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
-              
-              {/* Search & Actions */}
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search size={14} className="z-1 absolute left-3 top-1/2 -translate-y-1/2 opacity-50"/>
@@ -177,7 +169,6 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
                 </button>
               </div>
 
-              {/* List */}
               <div className="border border-base-300 rounded-xl max-h-48 overflow-y-auto bg-base-100 p-2">
                 {isFetchingUsers ? (
                   <div className="flex justify-center py-4">
@@ -193,16 +184,28 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
                         key={user.id} 
                         onClick={() => toggleUser(user.id)}
                         className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-base-200 ${
-                          isSelected ? "bg-emerald-50 border border-emerald-100" : "border border-transparent"
+                          /* FIX: Used /10 and /20 opacity to adapt to dark/light mode automatically */
+                          isSelected ? "bg-emerald-500/10 border border-emerald-500/30" : "border border-transparent"
                         }`}
                       >
-                         <div className={`${isSelected ? "text-emerald-600" : "opacity-30"}`}>
+                         <div className={`${isSelected ? "text-emerald-600 dark:text-emerald-400" : "opacity-30"}`}>
                            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
                          </div>
+
+                         <div className="w-8 h-8 rounded-full overflow-hidden bg-base-300 shrink-0 border border-base-content/10">
+                           <img
+                             src={user.profile_picture || "/images/default_profile.jpg"}
+                             alt={user.fullname}
+                             className="w-full h-full object-cover"
+                             onError={(e) => { e.target.onerror = null; e.target.src = "/images/default_profile.jpg"; }}
+                           />
+                         </div>
+
                          <div className="flex-1 min-w-0">
-                           <p className={`text-sm font-bold truncate ${isSelected ? "text-emerald-700" : ""}`}>
+                           <p className={`text-sm font-bold truncate ${isSelected ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
                              {user.fullname}
                            </p>
+                           {/* Position text will now be perfectly visible! */}
                            <p className="text-xs opacity-50 truncate">{user.position || "No Position"}</p>
                          </div>
                       </div>
@@ -217,7 +220,8 @@ const CreateAllowanceModal = ({ isOpen, onClose }) => {
           )}
 
           {formData.is_global && (
-            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-lg border border-emerald-100 flex items-start gap-2">
+            /* FIX: Banner is now fully dark-mode compliant */
+            <div className="p-3 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs rounded-lg border border-emerald-500/20 flex items-start gap-2">
                <Globe size={14} className="mt-0.5 flex-shrink-0" />
                <p>This allowance will be automatically applied to <b>ALL current and future</b> active employees.</p>
             </div>

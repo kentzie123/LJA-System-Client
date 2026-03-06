@@ -24,30 +24,16 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
   const cutoffLabel = `${s} - ${e}`;
 
   const onDeletePayrun = (e) => {
-    e.stopPropagation(); // <--- PREVENT OPENING THE CARD WHEN CLICKING DELETE
+    e.stopPropagation();
     setActiveRun(run);
     if (onDelete) onDelete();
-  };
-
-  // Status Badge Logic
-  const getStatusStyles = (status) => {
-    switch (status) {
-      case "Paid":
-        return "text-success border-success/20 bg-success/10";
-      case "Approved":
-        return "text-info border-info/20 bg-info/10";
-      case "Draft":
-        return "text-warning border-warning/20 bg-warning/10";
-      default:
-        return "text-base-content/40 border-base-content/10 bg-base-content/5";
-    }
   };
 
   return (
     <button
       onClick={onClick}
       className={`
-        w-full text-left p-4 rounded-lg border transition-all duration-200 group relative
+        w-full text-left p-4 rounded-lg border transition-all duration-200 relative
         flex flex-col gap-1
         ${
           isActive
@@ -56,11 +42,10 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
         }
       `}
     >
-      {/* DELETE BUTTON (Visible on Hover AND Only if Permission exists) */}
       {onDelete && (
         <div
           onClick={onDeletePayrun}
-          className="absolute cursor-pointer top-2 right-2 p-2 text-base-content/30 hover:text-error hover:bg-error/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 z-20"
+          className="absolute cursor-pointer top-2 right-2 p-2 text-base-content/30 hover:text-error hover:bg-error/10 rounded-lg transition-all z-20"
           title="Delete Payroll"
         >
           <Trash2 size={14} />
@@ -76,14 +61,6 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
         >
           {payDate}
         </span>
-
-        <span
-          className={`text-[10px] px-2 py-0.5 rounded border font-bold uppercase tracking-wider ${getStatusStyles(
-            run.status
-          )}`}
-        >
-          {run.status}
-        </span>
       </div>
 
       {/* Middle Row: Date Range */}
@@ -95,7 +72,7 @@ const PayrollPeriodCard = ({ run, isActive, onClick, onDelete }) => {
       <div className="flex items-center gap-1.5 mt-2 opacity-40">
         <Users size={12} />
         <span className="text-[10px] font-semibold uppercase tracking-wide">
-           {run.employee_count || 0} Employees
+          {run.employee_count || 0} Employees
         </span>
       </div>
 

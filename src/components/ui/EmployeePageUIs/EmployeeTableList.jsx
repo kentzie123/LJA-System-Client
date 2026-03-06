@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   Search,
   Edit2,
@@ -8,6 +9,8 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  Eye,
 } from "lucide-react";
 
 /**
@@ -35,6 +38,15 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
 /**
  * MAIN COMPONENT
  */
@@ -53,7 +65,7 @@ const EmployeeTableList = ({
   // --- PERMISSIONS ---
   const canEdit = authUser?.role?.perm_employee_edit === true;
   const canDelete = authUser?.role?.perm_employee_delete === true;
-  const showActionColumn = canEdit || canDelete;
+  const showActionColumn = true; 
 
   // --- FILTERING ---
   const filteredEmployees = useMemo(() => {
@@ -61,6 +73,7 @@ const EmployeeTableList = ({
       const matchesSearch =
         employee.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         employee.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         employee.position?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const roleName = employee.role_name;
@@ -85,7 +98,7 @@ const EmployeeTableList = ({
             <input
               type="text"
               className="grow text-sm placeholder:text-base-content/40"
-              placeholder="Search employees..."
+              placeholder="Search by name, ID, or position..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -122,11 +135,12 @@ const EmployeeTableList = ({
         <table className="table w-full">
           <thead className="bg-base-200 text-base-content/40 text-[11px] uppercase font-bold tracking-wider">
             <tr className="border-b border-base-300">
+              <th className="py-4 px-6 text-left">ID</th>
               <th className="py-4 px-6 text-left">Employee</th>
               <th className="py-4 px-6 text-left">Role</th>
               <th className="py-4 px-6 text-left">Position</th>
+              <th className="py-4 px-6 text-left">Date Hired</th>
               <th className="py-4 px-6 text-left text-primary font-black">Daily Rate</th>
-              <th className="py-4 px-6 text-left">Status</th>
               {showActionColumn && <th className="py-4 px-6 text-right">Action</th>}
             </tr>
           </thead>
@@ -134,63 +148,88 @@ const EmployeeTableList = ({
             {currentEmployees.length > 0 ? (
               currentEmployees.map((employee) => (
                 <tr key={employee.id} className="hover:bg-base-200/40 transition-colors">
+                  
+                  {/* ID Column */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-4">
-                      {/* AVATAR LOGIC */}
+                    <span className="font-mono text-sm font-bold text-base-content/70">
+                      {employee.employee_id || "N/A"}
+                    </span>
+                  </td>
+
+                  {/* Employee Info */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <Link href={`/employee/${employee.employee_id}`} className="flex items-center gap-4 group cursor-pointer">
                       <div className="avatar">
-                        <div className="w-10 rounded-full ring-1 ring-base-300 ring-offset-base-100 ring-offset-1">
+                        <div className="w-10 rounded-full ring-1 ring-base-300 ring-offset-base-100 ring-offset-1 group-hover:ring-primary transition-all">
                           <img 
                             src={employee.profile_picture || "/images/default_profile.jpg"} 
                             alt={employee.fullname} 
                             className="object-cover"
                             onError={(e) => {
-                              // If even the provided profile_picture fails to load (broken link), 
-                              // switch to the default image.
                               e.target.src = "/images/default_profile.jpg";
                             }}
                           />
                         </div>
                       </div>
                       <div>
-                        <div className="font-bold text-base-content leading-tight">
+                        <div className="font-bold text-base-content leading-tight group-hover:text-primary transition-colors">
                           {employee.fullname}
                         </div>
-                        <div className="text-xs text-base-content/50 mt-0.5">
+                        <div className="text-xs text-base-content/50 mt-1">
                           {employee.email}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </td>
+
+                  {/* Role */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`badge border-none h-8 px-4 font-medium rounded-lg ${getRoleBadgeColor(employee.role_name)}`}>
                       {employee.role_name}
                     </span>
                   </td>
+
+                  {/* Position */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-base-content">{employee.position || "N/A"}</div>
                   </td>
+
+                  {/* Date Hired */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-base-content/70 text-xs font-medium">
+                      <Calendar className="size-3.5 opacity-60" />
+                      {formatDate(employee.date_hired)}
+                    </div>
+                  </td>
+
+                  {/* Daily Rate */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-mono font-bold text-primary">
                       {formatCurrency(employee.daily_rate)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {employee.isActive ? (
-                      <span className="badge badge-success bg-success/15 text-success border-none h-7 px-3 font-semibold rounded-md">Active</span>
-                    ) : (
-                      <span className="badge badge-error bg-error/15 text-error border-none h-7 px-3 font-semibold rounded-md">Inactive</span>
-                    )}
-                  </td>
+
+                  {/* Action Column */}
                   {showActionColumn && (
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-80 hover:opacity-100 transition-opacity">
+                        
+                        {/* View Profile Button (uses employee_id slug) */}
+                        <Link 
+                          href={`/employee/${employee.employee_id}`} 
+                          className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-info hover:bg-info/10" 
+                          title="View Details"
+                        >
+                          <Eye className="size-4" />
+                        </Link>
+
                         {canEdit && (
-                          <button onClick={() => onEdit(employee)} className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-warning hover:bg-warning/10">
+                          <button onClick={() => onEdit(employee)} className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-warning hover:bg-warning/10" title="Edit Employee">
                             <Edit2 className="size-4" />
                           </button>
                         )}
                         {canDelete && (
-                          <button onClick={() => onDelete(employee)} className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-error hover:bg-error/10">
+                          <button onClick={() => onDelete(employee)} className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-error hover:bg-error/10" title="Delete Employee">
                             <Trash2 className="size-4" />
                           </button>
                         )}
@@ -201,7 +240,7 @@ const EmployeeTableList = ({
               ))
             ) : (
               <tr>
-                <td colSpan={showActionColumn ? 6 : 5} className="text-center py-10 opacity-50">
+                <td colSpan={7} className="text-center py-10 opacity-50">
                   No employees found matching your criteria.
                 </td>
               </tr>

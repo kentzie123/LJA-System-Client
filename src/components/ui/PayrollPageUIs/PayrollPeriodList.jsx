@@ -52,7 +52,7 @@ const PayrollPeriodList = ({ canManage = false }) => {
   const closeDeletePayrunModal = () => setIsDeletePayrunModalOpen(false);
 
   return (
-    <div className="bg-base-100 rounded-xl border border-white/10 flex flex-col h-[600px] shadow-sm overflow-hidden">
+    <div className="bg-base-100 rounded-xl border border-white/10 flex flex-col h-100 lg:h-150 shadow-sm overflow-hidden">
       
       {/* --- HEADER --- */}
       <div className="p-4 border-b border-white/5 flex justify-between items-center bg-base-200/50">

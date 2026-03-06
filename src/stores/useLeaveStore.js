@@ -1,18 +1,15 @@
 import { create } from "zustand";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
-import { useAuthStore } from "./useAuthStore"; // Import for socket access
+import { useAuthStore } from "./useAuthStore";
 
 export const useLeaveStore = create((set, get) => ({
   leaves: [],
   leaveTypes: [],
-  
-  // NEW: Store raw array for dynamic lookup
-  userBalances: [], 
-  
-  // Legacy support (keep this if you use it in other cards)
+  allBalances: [],
+  isFetchingBalances: false,
+  userBalances: [],
   leaveBalances: { vacationRemaining: 0, sickRemaining: 0 },
-  
   stats: {
     pendingCount: 0,
     approvedCountMonth: 0,
@@ -20,7 +17,6 @@ export const useLeaveStore = create((set, get) => ({
     activeOnLeave: 0,
     totalApprovedCount: 0,
   },
-
   isFetching: false,
   isCreating: false,
   isUpdating: false,
@@ -28,10 +24,11 @@ export const useLeaveStore = create((set, get) => ({
 
   setSelectedLeave: (leave) => set({ selectedLeave: leave }),
 
-  fetchAllLeaves: async () => {
+  fetchAllLeaves: async (filters = {}) => {
     set({ isFetching: true });
     try {
-      const response = await api.get("/leave/all");
+      // Pass filters as query parameters to the backend
+      const response = await api.get("/leave/all", { params: filters });
       set({ leaves: response.data });
     } catch (error) {
       console.error(error);
@@ -46,10 +43,8 @@ export const useLeaveStore = create((set, get) => ({
       const response = await api.get("/leave/balances");
       const data = response.data;
 
-      // 1. SAVE RAW DATA (For dynamic dropdowns)
       set({ userBalances: data });
 
-      // 2. SAVE SPECIFIC (For legacy stats cards)
       const vacation = data?.find((b) => b.leave_name === "Vacation Leave");
       const sick = data?.find((b) => b.leave_name === "Sick Leave");
 
@@ -66,9 +61,32 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  fetchLeaveStats: async () => {
+  fetchAllBalances: async () => {
+    set({ isFetchingBalances: true });
     try {
-      const response = await api.get("/leave/stats");
+      const response = await api.get("/leave/all-balances");
+      set({ allBalances: response.data });
+    } catch (error) {
+      console.error("Failed to fetch all balances", error);
+    } finally {
+      set({ isFetchingBalances: false });
+    }
+  },
+
+  fetchLeavesForExport: async (filters = {}) => {
+    try {
+      const response = await api.get("/leave/all", { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch leaves for export:", error);
+      return [];
+    }
+  },
+
+ fetchLeaveStats: async (filters = {}) => {
+    try {
+      // Pass filters as query parameters to the backend
+      const response = await api.get("/leave/stats", { params: filters });
       set({ stats: response.data });
     } catch (error) {
       console.error("Failed to fetch stats", error);
@@ -89,8 +107,6 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.post("/leave/create", formData);
       toast.success("Leave request submitted!");
-      // Fallback refresh (Socket handles real-time)
-      get().fetchAllLeaves();
       get().fetchLeaveBalances();
       get().fetchLeaveStats();
       return true;
@@ -126,6 +142,10 @@ export const useLeaveStore = create((set, get) => ({
       get().fetchAllLeaves();
       get().fetchLeaveBalances();
       get().fetchLeaveStats();
+
+      if (status === "Approved") {
+        get().fetchAllBalances();
+      }
     } catch (error) {
       toast.error("Failed to update status");
       console.error(error);
@@ -138,9 +158,9 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.delete(`/leave/${id}`);
       toast.success("Request deleted");
-      get().fetchAllLeaves();
       get().fetchLeaveBalances();
       get().fetchLeaveStats();
+      get().fetchAllBalances();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete");
     }
@@ -162,10 +182,6 @@ export const useLeaveStore = create((set, get) => ({
     }
   },
 
-  // =======================================================
-  // REAL-TIME LEAVE SOCKET LISTENERS
-  // =======================================================
-
   subscribeToLeaveUpdates: () => {
     const { socket, authUser } = useAuthStore.getState();
     if (!socket) return;
@@ -176,7 +192,6 @@ export const useLeaveStore = create((set, get) => ({
       const { type, data } = payload;
       const { leaves } = get();
 
-      // 1. UPDATE LEAVE LIST
       if (type === "NEW_REQUEST") {
         set({ leaves: [data, ...leaves] });
         if (data.user_id !== authUser?.id) {
@@ -197,7 +212,6 @@ export const useLeaveStore = create((set, get) => ({
           set({ leaves: [data, ...leaves] });
         }
 
-        // 2. REFRESH BALANCES & STATS IF IT'S FOR THIS USER
         if (data.user_id === authUser?.id) {
           get().fetchLeaveBalances();
           get().fetchLeaveStats();
@@ -216,11 +230,14 @@ export const useLeaveStore = create((set, get) => ({
         } else {
           get().fetchLeaveStats();
         }
+
+        if (type === "STATUS_UPDATE" || type === "ADMIN_ASSIGNED") {
+          get().fetchAllBalances();
+        }
       } else if (type === "DELETE") {
-        set({
-          leaves: leaves.filter((item) => item.id !== Number(data.id)),
-        });
+        set({ leaves: leaves.filter((item) => item.id !== Number(data.id)) });
         get().fetchLeaveStats();
+        get().fetchAllBalances();
       }
     });
   },

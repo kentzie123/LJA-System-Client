@@ -40,7 +40,7 @@ const Sidebar = () => {
       name: "Roles & Permissions",
       href: "/roles",
       // UPDATED: Visible for Admin (1) OR Super Admin (3)
-      isVisible: role?.id === 1 || role?.id === 3,
+      isVisible: (role?.id === 1 || role?.id === 3) && role?.perm_role_view === true,
     },
     {
       icon: Clock,

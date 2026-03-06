@@ -28,31 +28,23 @@ export default function EmployeePage() {
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
 
   // --- PERMISSION CHECK ---
-  // 1. Check if user can VIEW this page
   const canView = authUser?.role?.perm_employee_view === true;
-  // 2. Check if user can CREATE employees
   const canCreate = authUser?.role?.perm_employee_create === true;
 
   // --- Fetch Data / Security Check ---
   useEffect(() => {
-    // 1. Not Logged In? -> Login
     if (!authUser) {
       router.push("/login");
       return;
     }
-
-    // 2. Logged In but NO PERMISSION? -> 404 Not Found
     if (!canView) {
       router.push("/not-found");
       return;
     }
-
-    // 3. Has Permission? -> Fetch Data
     fetchAllUsers();
     fetchRoles();
   }, [authUser, router, fetchAllUsers, fetchRoles, canView]);
 
-  // Loading State
   if (isFetchingUsers) {
     return (
       <div className="flex h-96 w-full items-center justify-center">
@@ -61,34 +53,36 @@ export default function EmployeePage() {
     );
   }
 
-  // SECURITY GUARD:
-  // Prevent the page from rendering anything if user is not logged in OR lacks permission.
-  // This prevents the UI from "flashing" before the redirect happens.
   if (!authUser || !canView) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 px-4 md:px-0">
+      {/* --- RESPONSIVE HEADER --- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-2xl font-bold">Employee</div>
-          <div className="text-sm opacity-65">
+          <h1 className="text-2xl md:text-3xl font-bold text-base-content tracking-tight">
+            Employee
+          </h1>
+          <p className="text-sm opacity-60">
             Manage employees and update records.
-          </div>
+          </p>
         </div>
         
         {/* CONDITIONAL RENDER: Only show if user has 'perm_employee_create' */}
         {canCreate && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="btn btn-primary text-primary-content font-medium px-6"
+            className="btn btn-primary btn-sm md:btn-md text-primary-content font-bold shadow-lg shadow-primary/20 w-full sm:w-auto"
           >
-            <UserPlus className="size-4" /> <span>Add Employee</span>
+            <UserPlus className="size-4 md:size-5" /> 
+            <span>Add Employee</span>
           </button>
         )}
       </div>
 
+      <div className="divider opacity-5 my-0"></div>
+
       {/* Main Table List */}
-      {/* We pass authUser so the table can check Edit/Delete permissions per row */}
       <EmployeeTableList
         employees={users}
         roles={roles}

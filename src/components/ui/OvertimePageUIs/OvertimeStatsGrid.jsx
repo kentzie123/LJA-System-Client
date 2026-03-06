@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { 
-  Clock, AlertCircle, CheckCircle, XCircle, Users, BarChart3 
+  Clock, CheckCircle, XCircle, Users, BarChart3 
 } from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -21,16 +21,13 @@ const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
 );
 
 const OvertimeStatsGrid = () => {
-  const { stats, fetchOvertimeStats } = useOvertimeStore();
+  // 1. Notice we removed fetchOvertimeStats! The Page handles fetching now.
+  const { stats } = useOvertimeStore();
   const { authUser } = useAuthStore();
   
   const roleId = authUser?.role?.id;
   // Admin (1) or Super Admin (3)
   const isAdmin = roleId === 1 || roleId === 3;
-
-  useEffect(() => {
-    fetchOvertimeStats();
-  }, [fetchOvertimeStats]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -46,7 +43,7 @@ const OvertimeStatsGrid = () => {
 
       {/* 2. HOURS (Financial Impact) */}
       <StatCard 
-        title={isAdmin ? "Total OT Hours (Month)" : "My OT Hours (Month)"}
+        title={isAdmin ? "Total OT Hours" : "My OT Hours"}
         value={`${stats.approvedHoursMonth || 0}h`}
         icon={BarChart3}
         color="primary"
@@ -55,11 +52,11 @@ const OvertimeStatsGrid = () => {
 
       {/* 3. REJECTIONS (Quality Control) */}
       <StatCard 
-        title={isAdmin ? "Rejections (Month)" : "My Rejections (Month)"}
+        title={isAdmin ? "Rejections" : "My Rejections"}
         value={stats.rejectedCount || 0}
         icon={XCircle}
         color="error"
-        subtext="Denied requests"
+        subtext="Denied this month"
       />
 
       {/* 4. DYNAMIC CARD (Engagement vs History) */}
@@ -73,7 +70,7 @@ const OvertimeStatsGrid = () => {
         />
       ) : (
         <StatCard 
-          title="Total Approved (All Time)"
+          title="Total Approved"
           value={stats.totalApprovedCount || 0}
           icon={CheckCircle}
           color="success"

@@ -2,14 +2,17 @@ import { useEffect, useState } from "react";
 import { X, CircleAlert, Loader2 } from "lucide-react";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 
+// IMPORT CUSTOM DATE PICKER
+import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
+
 const NewLeaveModal = ({ isOpen, onClose }) => {
-  const { 
-    leaveTypes, 
-    fetchLeaveTypes, 
-    createLeaveRequest, 
+  const {
+    leaveTypes,
+    fetchLeaveTypes,
+    createLeaveRequest,
     isCreating,
-    userBalances,      // Get Balances Array
-    fetchLeaveBalances // Get Fetch Function
+    userBalances,
+    fetchLeaveBalances,
   } = useLeaveStore();
 
   const [formData, setFormData] = useState({
@@ -23,10 +26,9 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
-      // Fetch both Types AND Balances when modal opens
       fetchLeaveTypes();
-      fetchLeaveBalances(); 
-      
+      fetchLeaveBalances();
+
       // Reset form
       setFormData({
         leaveTypeId: "",
@@ -41,21 +43,22 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
   // --- DYNAMIC BALANCE CHECKER ---
   const getSelectedBalance = () => {
     if (!formData.leaveTypeId) return "Select a leave type";
-    
-    // 1. Find the type definition (to get the name)
-    const selectedType = leaveTypes.find(t => t.id === Number(formData.leaveTypeId));
+
+    const selectedType = leaveTypes.find(
+      (t) => t.id === Number(formData.leaveTypeId),
+    );
     if (!selectedType) return "Unknown Type";
 
-    // 2. Find the user's balance for this specific type name
-    // (Note: Backend returns 'leave_name', ensure it matches DB name)
-    const balance = userBalances.find(b => b.leave_name === selectedType.name);
+    const balance = userBalances.find(
+      (b) => b.leave_name === selectedType.name,
+    );
 
     if (balance) {
       const remaining = balance.allocated_days - balance.used_days;
       return `${remaining} days remaining`;
     }
-    
-    return "No credits allocated"; 
+
+    return "No credits allocated";
   };
 
   const handleChange = (e) => {
@@ -67,10 +70,29 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Custom handler for CustomDatePicker
+  const handleDateChange = (name, value) => {
+    setFormData((prev) => {
+      const newData = { ...prev, [name]: value };
+      
+      // Auto-adjust end date if it's now before start date
+      if (name === "startDate" && prev.endDate && new Date(value) > new Date(prev.endDate)) {
+        newData.endDate = value;
+      }
+      
+      return newData;
+    });
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.leaveTypeId) newErrors.leaveTypeId = "Please select a leave type.";
+    if (!formData.leaveTypeId)
+      newErrors.leaveTypeId = "Please select a leave type.";
     if (!formData.startDate) newErrors.startDate = "Start date is required.";
     if (!formData.endDate) newErrors.endDate = "End date is required.";
     if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
@@ -99,7 +121,6 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
-        
         {/* Header */}
         <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
           <div className="text-lg font-bold">Apply for Leave</div>
@@ -114,9 +135,8 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
 
         {/* Body */}
         <div className="py-6 px-6 space-y-5 overflow-y-auto">
-          
           {/* Leave Type Dropdown */}
-          <fieldset className="fieldset w-full">
+          <fieldset className="fieldset w-full relative z-[30]">
             <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
               Leave Type
             </legend>
@@ -124,7 +144,7 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
               name="leaveTypeId"
               value={formData.leaveTypeId}
               onChange={handleChange}
-              className={`select select-bordered w-full text-sm ${
+              className={`select select-bordered w-full text-sm h-10 ${
                 errors.leaveTypeId ? "select-error" : ""
               }`}
             >
@@ -137,7 +157,7 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
                 </option>
               ))}
             </select>
-            
+
             {errors.leaveTypeId && (
               <span className="text-error text-xs mt-1 block">
                 {errors.leaveTypeId}
@@ -146,27 +166,26 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
 
             {/* BALANCE INDICATOR */}
             <div className="mt-2 flex items-center gap-2 p-2 bg-base-200/50 rounded-lg border border-base-200">
-                <CircleAlert size={14} className="text-primary" /> 
-                <span className="text-xs font-medium opacity-80">
-                  Current Balance: <span className="text-primary font-bold ml-1">{getSelectedBalance()}</span>
+              <CircleAlert size={14} className="text-primary" />
+              <span className="text-xs font-medium opacity-80">
+                Current Balance:{" "}
+                <span className="text-primary font-bold ml-1">
+                  {getSelectedBalance()}
                 </span>
+              </span>
             </div>
           </fieldset>
 
           {/* Date Pickers */}
           <div className="grid grid-cols-2 gap-4">
-            <fieldset className="fieldset">
+            <fieldset className="fieldset relative z-[20]">
               <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
                 Start Date
               </legend>
-              <input
-                type="date"
-                name="startDate"
+              <CustomDatePicker 
                 value={formData.startDate}
-                onChange={handleChange}
-                className={`input input-bordered w-full text-sm ${
-                  errors.startDate ? "input-error" : ""
-                }`}
+                onChange={(val) => handleDateChange("startDate", val)}
+                className={`text-sm ${errors.startDate ? "border-error" : ""}`}
               />
               {errors.startDate && (
                 <span className="text-error text-xs mt-1 block">
@@ -175,19 +194,14 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
               )}
             </fieldset>
 
-            <fieldset className="fieldset">
+            <fieldset className="fieldset relative z-[20]">
               <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
                 End Date
               </legend>
-              <input
-                type="date"
-                name="endDate"
+              <CustomDatePicker 
                 value={formData.endDate}
-                onChange={handleChange}
-                min={formData.startDate}
-                className={`input input-bordered w-full text-sm ${
-                  errors.endDate ? "input-error" : ""
-                }`}
+                onChange={(val) => handleDateChange("endDate", val)}
+                className={`text-sm ${errors.endDate ? "border-error" : ""}`}
               />
               {errors.endDate && (
                 <span className="text-error text-xs mt-1 block">
@@ -198,7 +212,7 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Reason Textarea */}
-          <fieldset className="fieldset">
+          <fieldset className="fieldset relative z-0">
             <legend className="fieldset-legend text-xs font-bold uppercase opacity-60 mb-1">
               Reason for Leave
             </legend>
@@ -212,36 +226,37 @@ const NewLeaveModal = ({ isOpen, onClose }) => {
               placeholder="Please provide a brief reason for your request..."
             ></textarea>
             {errors.reason && (
-              <span className="text-error text-xs mt-1 block">{errors.reason}</span>
+              <span className="text-error text-xs mt-1 block">
+                {errors.reason}
+              </span>
             )}
           </fieldset>
         </div>
 
         {/* Footer */}
         <div className="p-4 bg-base-200/50 border-t border-base-300 flex justify-end gap-3">
-            <button 
-              onClick={onClose} 
-              className="btn btn-ghost hover:bg-base-200" 
-              disabled={isCreating}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isCreating}
-              className="btn btn-primary min-w-[140px] shadow-sm"
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="size-4 animate-spin mr-2" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Request"
-              )}
-            </button>
+          <button
+            onClick={onClose}
+            className="btn btn-ghost hover:bg-base-200"
+            disabled={isCreating}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isCreating}
+            className="btn btn-primary min-w-[140px] shadow-sm"
+          >
+            {isCreating ? (
+              <>
+                <Loader2 className="size-4 animate-spin mr-2" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Request"
+            )}
+          </button>
         </div>
-
       </div>
     </div>
   );
