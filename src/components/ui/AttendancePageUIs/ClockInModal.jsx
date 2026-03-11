@@ -1,17 +1,28 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
-import { Camera, RefreshCw, CheckCircle, X, Loader } from "lucide-react";
+import {
+  Camera,
+  RefreshCw,
+  CheckCircle,
+  X,
+  Loader,
+  ShieldCheck,
+} from "lucide-react";
 import { useAttendanceStore } from "@/stores/useAttendanceStore";
 
 const ClockInModal = ({ isOpen, onClose }) => {
   const { clockIn, isClocking } = useAttendanceStore();
-  
-  // State: 1 = Photo, 2 = Confirm
-  const [step, setStep] = useState(1); 
+  const [step, setStep] = useState(1);
   const [photo, setPhoto] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const webcamRef = useRef(null);
 
-  // Reset state when opening
+  // Update clock every second for the "Live" feel
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       setStep(1);
@@ -19,7 +30,6 @@ const ClockInModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // --- STEP 1: CAPTURE PHOTO ---
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
@@ -28,136 +38,129 @@ const ClockInModal = ({ isOpen, onClose }) => {
     }
   }, [webcamRef]);
 
-  const retake = () => {
-    setPhoto(null);
-    setStep(1);
-  };
-
-  // --- STEP 2: CONFIRM & SUBMIT ---
   const handleConfirm = async () => {
     if (!photo) return;
     const success = await clockIn(photo, null);
-    if (success) {
-      onClose();
-    }
+    if (success) onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    // WRAPPER: Full screen on mobile (items-end), Centered on desktop (items-center)
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      
-      {/* MODAL CARD: Full viewport height on mobile (h-[100dvh]), Standard Card on desktop */}
-      <div className="bg-base-100 w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all">
-        
-        {/* HEADER */}
-        <div className="p-4 border-b border-base-200 flex justify-between items-center bg-base-200/50 shrink-0 z-10 relative">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <div className="w-2 h-6 bg-primary rounded-full"></div>
-            Clock In
-          </h3>
-          <button onClick={onClose} disabled={isClocking} className="btn btn-sm btn-circle btn-ghost">
-            <X size={20} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-base-300/80 backdrop-blur-md animate-in fade-in duration-300 p-4">
+      <div className="bg-base-100 w-full max-w-[400px] rounded-xl border border-base-300 shadow-2xl overflow-hidden flex flex-col transition-all antialiased-text">
+        {/* HEADER: Ultra-Compact */}
+        <div className="px-4 py-3 border-b border-base-200 flex justify-between items-center bg-base-100 shrink-0">
+          <div className="flex flex-col">
+            <h3 className="font-black text-[11px] uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+              <ShieldCheck size={14} /> Biometric Verify
+            </h3>
+            <p className="text-[10px] opacity-40 font-bold uppercase">
+              Attendance Terminal
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={isClocking}
+            className="btn btn-xs btn-circle btn-ghost opacity-50 hover:opacity-100"
+          >
+            <X size={16} />
           </button>
         </div>
 
-        {/* BODY - Flex-1 makes it fill the available mobile screen space */}
-        {/* p-0 on mobile to let camera touch edges, p-6 on desktop for card feel */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-black relative">
-          
-          {/* STEP 1: CAMERA */}
-          {step === 1 && (
-            <div className="flex flex-col w-full h-full relative">
-              {/* Webcam Container: Fills height on mobile, 4/3 Aspect on Desktop */}
-              <div className="relative w-full flex-1 sm:flex-none sm:aspect-[4/3] bg-black overflow-hidden">
+        {/* BODY: The "Camera Lens" View */}
+        <div className="relative bg-black flex flex-col">
+          {/* CAMERA/PREVIEW CONTAINER */}
+          <div className="relative aspect-square w-full overflow-hidden bg-neutral-900">
+            {step === 1 ? (
+              <>
                 <Webcam
                   audio={false}
                   mirrored={true}
                   ref={webcamRef}
                   screenshotFormat="image/jpeg"
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover grayscale-[0.2] contrast-[1.1]"
                   videoConstraints={{ facingMode: "user" }}
                 />
-                
-                {/* Mobile Overlay Text */}
-                <div className="absolute bottom-4 left-0 right-0 text-center sm:hidden">
-                   <p className="text-white/80 text-xs bg-black/40 inline-block px-3 py-1 rounded-full backdrop-blur-md">
-                     Ensure face is visible
-                   </p>
-                </div>
-              </div>
-              
-              {/* Desktop Instruction (Hidden on mobile) */}
-              <div className="hidden sm:block p-4 bg-base-100 text-center">
-                <p className="text-sm opacity-60">
-                  Please ensure your face is clearly visible.
-                </p>
-              </div>
-            </div>
-          )}
+              </>
+            ) : (
+              <img
+                src={photo}
+                alt="Captured"
+                className="w-full h-full object-cover animate-in zoom-in-105 duration-500"
+              />
+            )}
 
-          {/* STEP 2: CONFIRMATION PREVIEW */}
+            {/* LIVE TIMESTAMP OVERLAY */}
+            <div className="absolute top-4 left-4 flex flex-col z-20 pointer-events-none">
+              <span className="text-[10px] font-black text-white drop-shadow-md tracking-widest uppercase opacity-80">
+                {currentTime.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "2-digit",
+                })}
+              </span>
+              <span className="text-xl font-black text-white drop-shadow-md tabular-nums leading-none">
+                {currentTime.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })}
+              </span>
+            </div>
+          </div>
+
+          {/* STATUS SECTION (Only Step 2) */}
           {step === 2 && (
-            <div className="flex flex-col w-full h-full bg-base-100">
-              
-              {/* Photo Container: Fills space on mobile, 4/3 on desktop */}
-              <div className="relative w-full flex-1 sm:flex-none sm:aspect-[4/3] bg-black">
-                <img 
-                  src={photo} 
-                  alt="Captured" 
-                  className="w-full h-full object-cover" 
-                />
-                
-                {/* Retake Button (Floating) */}
-                <button 
-                  onClick={retake}
-                  className="absolute top-4 right-4 btn btn-sm btn-circle btn-neutral opacity-90 hover:opacity-100 shadow-lg z-20"
-                >
-                  <RefreshCw size={16} />
-                </button>
-              </div>
-
-              {/* Time Details */}
-              <div className="p-6 text-center bg-base-100 shrink-0">
-                <h4 className="text-3xl font-black text-primary tracking-tight">
-                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </h4>
-                <p className="text-sm opacity-50 uppercase tracking-widest font-bold mt-1">
-                  {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-                </p>
-              </div>
+            <div className="p-4 text-center bg-base-100 border-t border-base-200 animate-in slide-in-from-bottom-2">
+              <p className="text-[10px] font-black opacity-40 uppercase tracking-widest mb-1">
+                Status Preview
+              </p>
+              <h4 className="text-lg font-black text-base-content tracking-tight">
+                Ready for Submission
+              </h4>
             </div>
           )}
         </div>
 
-        {/* FOOTER ACTION AREA (White background ensures contrast) */}
-        <div className="p-4 border-t border-base-200 bg-base-100 mt-auto shrink-0 z-20">
+        {/* FOOTER: Action Area */}
+        <div className="p-4 bg-base-100 shrink-0 border-t border-base-200">
           {step === 1 ? (
-             <button onClick={capture} className="btn btn-primary w-full gap-2 h-12 text-lg shadow-lg shadow-primary/20">
-                <Camera size={20} /> Capture Photo
-             </button>
-          ) : (
-             <button
-              onClick={handleConfirm}
-              className="btn btn-primary w-full gap-2 h-12 text-lg shadow-lg shadow-primary/20"
-              disabled={isClocking} 
+            <button
+              onClick={capture}
+              className="group btn btn-primary w-full h-12 rounded-lg gap-3 font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
             >
-              {isClocking ? (
-                <>
-                  <Loader className="animate-spin" size={20} />
-                  Clocking In...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={20} />
-                  Confirm Clock In
-                </>
-              )}
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                <Camera size={18} />
+              </div>
+              Capture & Verify
             </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleConfirm}
+                disabled={isClocking}
+                className="btn btn-primary w-full h-12 rounded-lg gap-2 font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20"
+              >
+                {isClocking ? (
+                  <Loader className="animate-spin" size={18} />
+                ) : (
+                  <CheckCircle size={18} />
+                )}
+                Confirm Arrival
+              </button>
+
+              {!isClocking && (
+                <button
+                  onClick={() => setStep(1)}
+                  className="btn btn-ghost btn-sm text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100"
+                >
+                  <RefreshCw size={12} className="mr-2" /> Retake Photo
+                </button>
+              )}
+            </div>
           )}
         </div>
-
       </div>
     </div>
   );

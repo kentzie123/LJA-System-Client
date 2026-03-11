@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 // Auth
 import AuthInitializer from "./AuthInitializer";
 
@@ -12,37 +14,45 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 const Layout = ({ children }) => {
   const { authUser } = useAuthStore();
+  
+  // 1. Create a reference to the DaisyUI drawer checkbox
+  const drawerRef = useRef(null);
+
+  // 2. Safely uncheck the box using the ref
+  const closeDrawer = () => {
+    if (drawerRef.current) {
+      drawerRef.current.checked = false;
+    }
+  };
 
   return (
     <AuthInitializer>
       {!authUser ? (
-        <main className="min-h-screen w-full">{children}</main>
+        <main className="min-h-screen w-full bg-base-100">{children}</main>
       ) : (
-        // DAISY UI DRAWER WRAPPER
-        <div className="drawer lg:drawer-open">
+        <div className="drawer lg:drawer-open h-screen w-full overflow-hidden bg-base-200/50 antialiased-text">
           
-          {/* THE TOGGLE CHECKBOX (Hidden, controlled by TopBar label) */}
-          <input id="my-drawer" type="checkbox" className="drawer-toggle" />
+          {/* 3. Attach the ref to the input */}
+          <input ref={drawerRef} id="my-drawer" type="checkbox" className="drawer-toggle" />
           
-          {/* --- MAIN CONTENT (Right Side) --- */}
-          <div className="drawer-content flex flex-col min-h-screen bg-base-200">
-            {/* TopBar sits at the top of the content area */}
-            <TopBar />
+          <div className="drawer-content flex flex-col h-screen overflow-hidden relative">
+            <div className="shrink-0 z-20 shadow-sm relative">
+              <TopBar />
+            </div>
             
-            {/* Page Content */}
-            <main className="flex-1 p-6 overflow-y-auto">
-              {children}
+            <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative z-10">
+              <div className="mx-auto w-full max-w-[1800px] h-full flex flex-col">
+                {children}
+              </div>
             </main>
           </div> 
           
-          {/* --- SIDEBAR (Left Side) --- */}
-          <div className="drawer-side z-50">
-            {/* Mobile Overlay (Click to close sidebar on mobile) */}
-            <label htmlFor="my-drawer" aria-label="close sidebar" className="drawer-overlay"></label> 
+          <div className="drawer-side z-[100]">
+            <label htmlFor="my-drawer" aria-label="close sidebar" className="drawer-overlay bg-black/60 backdrop-blur-sm"></label> 
             
-            {/* Sidebar Component */}
-            <aside className="bg-base-100 min-h-full w-64 border-r border-base-200 text-base-content">
-               <Sidebar />
+            <aside className="bg-base-100 h-screen w-[240px] border-r border-base-300 flex flex-col shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+               {/* 4. Pass the close function to the Sidebar */}
+               <Sidebar closeDrawer={closeDrawer} />
             </aside>
           </div>
         </div>

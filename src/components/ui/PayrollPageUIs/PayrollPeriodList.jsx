@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useMemo } from "react";
-import { Landmark, Plus, Loader2, Filter } from "lucide-react"; // <--- Added Filter Icon
+import { Landmark, Plus, Loader2, Filter } from "lucide-react";
 import { usePayrollStore } from "@/stores/usePayrollStore";
 import PayrollPeriodCard from "./PayrollPeriodCard";
 
@@ -21,7 +23,6 @@ const PayrollPeriodList = ({ canManage = false }) => {
   const [isDeletePayrunModalOpen, setIsDeletePayrunModalOpen] = useState(false);
   
   // --- 1. YEAR FILTER STATE ---
-  // Default to current year
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
@@ -31,10 +32,7 @@ const PayrollPeriodList = ({ canManage = false }) => {
   // --- 2. CALCULATE UNIQUE YEARS ---
   const uniqueYears = useMemo(() => {
     if (!payrollPeriods.length) return [new Date().getFullYear()];
-    
-    // Extract years from pay_date
     const years = payrollPeriods.map(p => new Date(p.pay_date).getFullYear());
-    // Remove duplicates and sort descending (newest first)
     return [...new Set(years)].sort((a, b) => b - a);
   }, [payrollPeriods]);
 
@@ -52,21 +50,22 @@ const PayrollPeriodList = ({ canManage = false }) => {
   const closeDeletePayrunModal = () => setIsDeletePayrunModalOpen(false);
 
   return (
-    <div className="bg-base-100 rounded-xl border border-white/10 flex flex-col h-100 lg:h-150 shadow-sm overflow-hidden">
+    // CHANGED: Removed fixed heights, now uses h-full to fit the parent Grid/Flex perfectly
+    <div className="bg-base-100 rounded-xl border border-base-200 flex flex-col h-full min-h-[400px] shadow-sm overflow-hidden antialiased-text">
       
       {/* --- HEADER --- */}
-      <div className="p-4 border-b border-white/5 flex justify-between items-center bg-base-200/50">
-        <div className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-          Payroll Periods
+      <div className="p-3 border-b border-base-200 bg-base-200/30 flex justify-between items-center shrink-0">
+        <div className="text-[10px] font-black uppercase tracking-widest text-base-content/60 ml-1">
+          Payroll Cycles
         </div>
 
         {/* --- 4. YEAR SELECTOR --- */}
-        <div className="relative">
-          <Filter className="z-1 absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 opacity-50 pointer-events-none" />
+        <div className="relative group">
+          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-base-content/40 pointer-events-none group-hover:text-primary transition-colors" />
           <select 
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="select select-xs pl-7 bg-base-100 border-base-300 focus:border-primary focus:outline-none rounded-lg font-medium"
+            className="select select-sm h-7 min-h-0 pl-7 pr-6 text-[10px] font-bold bg-base-200/50 hover:bg-base-200 border-transparent focus:border-primary focus:outline-none rounded-md transition-all cursor-pointer"
           >
             {uniqueYears.map((year) => (
               <option key={year} value={year}>{year}</option>
@@ -76,24 +75,28 @@ const PayrollPeriodList = ({ canManage = false }) => {
       </div>
 
       {/* --- SCROLLABLE LIST --- */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar bg-base-100">
+      {/* Added a subtle inner shadow to distinguish the scroll area */}
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar bg-base-100/30 shadow-inner">
+        
         {/* Loading State */}
         {isFetchingPeriods && (
-          <div className="flex flex-col items-center justify-center h-full opacity-50">
-            <Loader2 className="animate-spin mb-2" />
-            <span className="text-xs">Loading...</span>
+          <div className="flex flex-col items-center justify-center h-full text-base-content/40 gap-2">
+            <Loader2 className="animate-spin size-5 text-primary/50" />
+            <span className="text-[9px] font-bold uppercase tracking-widest">Syncing Cycles...</span>
           </div>
         )}
 
         {/* Empty State */}
         {!isFetchingPeriods && filteredPeriods.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 opacity-30">
-            <Landmark size={32} strokeWidth={1.5} />
-            <div className="text-xs font-medium">No cycles found for {selectedYear}.</div>
+          <div className="flex flex-col items-center justify-center h-full gap-3 opacity-40">
+            <div className="p-3 bg-base-200 rounded-full">
+              <Landmark size={24} strokeWidth={1.5} />
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-widest">No cycles for {selectedYear}</div>
           </div>
         )}
 
-        {/* Data List (Using filteredPeriods) */}
+        {/* Data List */}
         {!isFetchingPeriods &&
           filteredPeriods.map((run) => (
             <PayrollPeriodCard
@@ -111,13 +114,13 @@ const PayrollPeriodList = ({ canManage = false }) => {
 
       {/* --- FOOTER (CREATE BUTTON) --- */}
       {canManage && (
-        <div className="p-3 bg-base-100">
+        <div className="p-3 bg-base-100 border-t border-base-200 shrink-0">
           <button
             onClick={openCreatePayrunModal}
-            className="btn btn-outline border-dashed border-white/20 hover:border-primary hover:bg-primary/5 hover:text-primary w-full gap-2 normal-case font-bold text-xs h-10 min-h-0"
+            className="btn btn-sm h-8 min-h-0 btn-outline border-dashed border-base-content/20 hover:border-primary hover:bg-primary/10 hover:text-primary w-full gap-1.5 font-bold text-[10px] uppercase tracking-widest transition-all"
           >
             <Plus size={14} />
-            <span>CREATE NEW PAYROLL</span>
+            <span>Create New Payroll</span>
           </button>
         </div>
       )}

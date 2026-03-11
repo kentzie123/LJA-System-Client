@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Loader } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUserStore } from "@/stores/useUserStore";
 import { useRoleStore } from "@/stores/useRoleStore"; 
@@ -47,8 +47,11 @@ export default function EmployeePage() {
 
   if (isFetchingUsers) {
     return (
-      <div className="flex h-96 w-full items-center justify-center">
-        <Loader className="animate-spin size-10 text-primary" />
+      <div className="flex flex-col h-[60vh] w-full items-center justify-center gap-3">
+        <Loader2 className="animate-spin size-6 text-primary" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40 animate-pulse">
+          Syncing Directory...
+        </span>
       </div>
     );
   }
@@ -56,15 +59,16 @@ export default function EmployeePage() {
   if (!authUser || !canView) return null;
 
   return (
-    <div className="space-y-6 px-4 md:px-0">
-      {/* --- RESPONSIVE HEADER --- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-base-content tracking-tight">
-            Employee
+    <div className="space-y-4 animate-in fade-in duration-300 antialiased-text pb-8">
+      
+      {/* --- HIGH-DENSITY HEADER --- */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-base-300 pb-4">
+        <div className="flex flex-col">
+          <h1 className="text-xl sm:text-2xl font-black text-base-content tracking-tight leading-none mb-1.5">
+            Employee Directory
           </h1>
-          <p className="text-sm opacity-60">
-            Manage employees and update records.
+          <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+            Manage workforce records & roles
           </p>
         </div>
         
@@ -72,15 +76,13 @@ export default function EmployeePage() {
         {canCreate && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="btn btn-primary btn-sm md:btn-md text-primary-content font-bold shadow-lg shadow-primary/20 w-full sm:w-auto"
+            className="btn btn-primary btn-sm h-9 sm:h-8 min-h-0 px-4 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest shadow-sm w-full sm:w-auto flex items-center gap-1.5 shrink-0"
           >
-            <UserPlus className="size-4 md:size-5" /> 
-            <span>Add Employee</span>
+            <UserPlus size={14} /> 
+            Add Employee
           </button>
         )}
       </div>
-
-      <div className="divider opacity-5 my-0"></div>
 
       {/* Main Table List */}
       <EmployeeTableList

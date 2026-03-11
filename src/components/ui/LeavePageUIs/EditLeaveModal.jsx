@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Save } from "lucide-react";
 import { useLeaveStore } from "@/stores/useLeaveStore";
 
 // IMPORT CUSTOM DATE PICKER
@@ -22,8 +24,8 @@ const EditLeaveModal = ({ isOpen, onClose }) => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (isOpen) fetchLeaveTypes();
-  }, [isOpen, fetchLeaveTypes]);
+    if (isOpen && leaveTypes.length === 0) fetchLeaveTypes();
+  }, [isOpen, leaveTypes.length, fetchLeaveTypes]);
 
   useEffect(() => {
     if (isOpen && selectedLeave) {
@@ -53,12 +55,10 @@ const EditLeaveModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // Custom handler for DatePickers
   const handleDateChange = (name, value) => {
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
       
-      // Validation logic: Ensure end date isn't before start date
       if (name === "startDate" && prev.endDate && new Date(value) > new Date(prev.endDate)) {
         newData.endDate = value;
       }
@@ -74,14 +74,14 @@ const EditLeaveModal = ({ isOpen, onClose }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.leaveTypeId) newErrors.leaveTypeId = "Please select a leave type.";
-    if (!formData.startDate) newErrors.startDate = "Start date is required.";
-    if (!formData.endDate) newErrors.endDate = "End date is required.";
-    if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
+    if (!formData.leaveTypeId) newErrors.leaveTypeId = "Required";
+    if (!formData.startDate) newErrors.startDate = "Required";
+    if (!formData.endDate) newErrors.endDate = "Required";
+    if (!formData.reason.trim()) newErrors.reason = "Required";
 
     if (formData.startDate && formData.endDate) {
       if (new Date(formData.endDate) < new Date(formData.startDate)) {
-        newErrors.endDate = "End date cannot be before start date.";
+        newErrors.endDate = "Cannot be before start date.";
       }
     }
 
@@ -89,102 +89,135 @@ const EditLeaveModal = ({ isOpen, onClose }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!validateForm()) return;
     
     const success = await updateLeaveRequest(selectedLeave.id, formData);
     if (success) onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between bg-base-200 py-4 px-6 border-b border-base-300">
-          <div className="text-lg font-bold">Edit Request</div>
-          <button onClick={onClose} disabled={isCreating} className="btn btn-ghost btn-sm btn-square hover:text-error">
-            <X className="size-5" />
+    <div className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
+      
+      {/* MODAL BOX */}
+      <div className="modal-box p-0 bg-base-100 overflow-hidden w-11/12 max-w-[400px] border border-base-300 shadow-2xl rounded-xl flex flex-col max-h-[90vh] antialiased-text">
+        
+        {/* HEADER */}
+        <div className="px-4 py-3 border-b border-base-200 bg-base-200/50 flex justify-between items-center shrink-0">
+          <div className="flex flex-col">
+            <h3 className="font-black text-sm uppercase tracking-wider text-base-content leading-none">
+              Edit Request
+            </h3>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-base-content/50 mt-1">
+              Modify Leave Details
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isCreating}
+            className="btn btn-xs btn-circle btn-ghost text-base-content/50 hover:text-error"
+          >
+            <X size={14} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="py-4 px-6 space-y-4 overflow-y-auto custom-scrollbar">
+        {/* BODY */}
+        <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-base-100">
           
-          {/* Leave Type */}
-          <fieldset className="fieldset relative z-[30]">
-            <legend className="fieldset-legend text-xs font-semibold">Leave Type</legend>
-            <select 
-              name="leaveTypeId" 
-              value={formData.leaveTypeId} 
-              onChange={handleChange} 
-              className={`select select-bordered w-full text-xs h-10 ${errors.leaveTypeId ? "select-error" : ""}`}
-            >
-              <option value="" disabled>Select leave type</option>
-              {leaveTypes.map((type) => (
-                <option key={type.id} value={type.id}>{type.name}</option>
-              ))}
-            </select>
-            {errors.leaveTypeId && <span className="text-error text-xs mt-1">{errors.leaveTypeId}</span>}
-          </fieldset>
+          <form id="edit-leave-form" onSubmit={handleSubmit} className="space-y-3">
+            
+            {/* 1. SELECT LEAVE TYPE */}
+            <div className="form-control relative z-[50]">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                Leave Type {errors.leaveTypeId && <span className="text-error">{errors.leaveTypeId}</span>}
+              </label>
+              <select 
+                name="leaveTypeId"
+                value={formData.leaveTypeId} 
+                onChange={handleChange}
+                className={`select select-bordered select-sm h-8 min-h-0 w-full text-[11px] ${errors.leaveTypeId ? "select-error" : ""}`}
+              >
+                <option value="" disabled>Select type...</option>
+                {leaveTypes.map((type) => (
+                  <option key={type.id} value={type.id}>{type.name}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
-            <fieldset className="fieldset relative z-[20]">
-              <legend className="fieldset-legend text-xs font-semibold">Start Date</legend>
-              <CustomDatePicker 
-                value={formData.startDate}
-                onChange={(val) => handleDateChange("startDate", val)}
-                className={`text-xs ${errors.startDate ? "border-error" : ""}`}
-              />
-              {errors.startDate && <span className="text-error text-xs mt-1">{errors.startDate}</span>}
-            </fieldset>
+            {/* 2. DATES */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="form-control relative z-[40]">
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                  Start {errors.startDate && <span className="text-error text-[10px]">*</span>}
+                </label>
+                <CustomDatePicker 
+                  value={formData.startDate}
+                  onChange={(val) => handleDateChange("startDate", val)}
+                  className={errors.startDate ? "border-error" : ""}
+                />
+              </div>
 
-            <fieldset className="fieldset relative z-[20]">
-              <legend className="fieldset-legend text-xs font-semibold">End Date</legend>
-              <CustomDatePicker 
-                value={formData.endDate}
-                onChange={(val) => handleDateChange("endDate", val)}
-                className={`text-xs ${errors.endDate ? "border-error" : ""}`}
-              />
-              {errors.endDate && <span className="text-error text-xs mt-1">{errors.endDate}</span>}
-            </fieldset>
-          </div>
+              <div className="form-control relative z-[40]">
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                  End {errors.endDate && <span className="text-error text-[10px]">*</span>}
+                </label>
+                <CustomDatePicker 
+                  value={formData.endDate}
+                  onChange={(val) => handleDateChange("endDate", val)}
+                  className={errors.endDate ? "border-error" : ""}
+                />
+              </div>
+            </div>
+            {errors.endDate && <p className="text-[9px] font-bold text-error uppercase tracking-widest mt-0.5">{errors.endDate}</p>}
 
-          {/* Reason */}
-          <fieldset className="fieldset relative z-0">
-            <legend className="fieldset-legend text-xs font-semibold">Reason</legend>
-            <textarea 
-              name="reason" 
-              value={formData.reason} 
-              onChange={handleChange} 
-              className={`textarea textarea-bordered text-xs w-full h-24 resize-none ${errors.reason ? "textarea-error" : ""}`}
-              placeholder="Update your reason..."
-            ></textarea>
-            {errors.reason && <span className="text-error text-xs mt-1">{errors.reason}</span>}
-          </fieldset>
+            {/* 3. REASON */}
+            <div className="form-control relative z-0">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                Reason / Notes {errors.reason && <span className="text-error">{errors.reason}</span>}
+              </label>
+              <textarea 
+                name="reason"
+                value={formData.reason}
+                onChange={handleChange}
+                className={`textarea textarea-bordered text-[11px] leading-snug w-full h-20 resize-none p-2 ${errors.reason ? "textarea-error" : ""}`}
+                placeholder="Update your reason..."
+              ></textarea>
+            </div>
+          </form>
+
         </div>
 
-        {/* Footer */}
-        <div className="p-4 bg-base-200/50 border-t border-base-300 flex justify-end gap-3">
-          <button onClick={onClose} className="btn btn-ghost" disabled={isCreating}>Cancel</button>
+        {/* FOOTER BUTTONS */}
+        <div className="px-4 py-3 border-t border-base-200 bg-base-200/30 flex justify-end gap-2 shrink-0">
           <button 
-            onClick={handleSubmit} 
-            disabled={isCreating} 
-            className="btn btn-primary min-w-[140px] shadow-sm"
+            type="button"
+            onClick={onClose} 
+            className="btn btn-sm h-8 min-h-0 btn-ghost text-[10px] uppercase font-bold px-4"
+            disabled={isCreating}
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit"
+            form="edit-leave-form"
+            className="btn btn-sm h-8 min-h-0 btn-primary text-primary-content text-[10px] uppercase font-bold px-4 shadow-sm border-none"
+            disabled={isCreating}
           >
             {isCreating ? (
-              <>
-                <Loader2 className="size-5 animate-spin mr-2" />
-                Saving...
-              </>
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              "Save Changes"
+              <>
+                <Save size={14} /> Save Changes
+              </>
             )}
           </button>
         </div>
       </div>
+
+      {/* CLICKABLE BACKDROP */}
+      <div className="modal-backdrop bg-black/60 backdrop-blur-sm" onClick={() => !isCreating && onClose()}></div>
     </div>
   );
 };

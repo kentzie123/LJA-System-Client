@@ -1,90 +1,93 @@
-import { AlertTriangle, Loader2, X } from "lucide-react";
+"use client";
+
+import React from "react";
+import { Trash2, X, Loader2 } from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 
-const DeleteOvertimeModal = ({ isOpen, onClose, request }) => {
+const DeleteOvertimeModal = ({ isOpen, onClose, request, userRole }) => {
   const { deleteOvertimeRequest, isDeleting } = useOvertimeStore();
+  
+  // Staff Role ID = 2
+  const isStaff = userRole === 2;
 
-  if (!isOpen || !request) return null;
+  if (!request) return null;
 
   const handleDelete = async () => {
     const success = await deleteOvertimeRequest(request.id);
-    if (success) {
-      onClose();
-    }
+    if (success) onClose();
   };
 
-  // Helper for better readability: "Jan 15, 2026"
-  const formatDateLong = (dateString) => {
-    if (!dateString) return "";
+  const formatDate = (dateString) => {
+    if (!dateString) return "...";
     return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+      year: "numeric", month: "short", day: "numeric",
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-sm rounded-2xl shadow-xl border border-base-300 relative scale-in-95 duration-200 overflow-hidden">
-        <button
-          onClick={onClose}
-          disabled={isDeleting}
-          className="absolute top-4 right-4 btn btn-sm btn-circle btn-ghost text-base-content/50 hover:text-base-content"
-        >
-          <X className="size-4" />
-        </button>
-
-        <div className="p-6 flex flex-col items-center text-center">
-          <div className="size-14 rounded-full bg-error/10 flex items-center justify-center mb-4 text-error">
-            <AlertTriangle className="size-7" />
-          </div>
-
-          <h3 className="text-lg font-bold text-base-content">
-            Delete Request?
-          </h3>
-
-          {/* --- IMPROVED DESCRIPTION --- */}
-          <div className="text-sm text-base-content/60 mt-2 mb-6">
-            Are you sure you want to delete the request for:
-            {/* Boxed details for clarity */}
-            <div className="bg-base-200/50 rounded-lg p-3 mt-3 mb-1 border border-base-200">
-              <div className="font-bold text-base-content">
-                {request.fullname}
-              </div>
-              <div className="text-xs opacity-80">
-                {formatDateLong(request.ot_date)} • {request.total_hours} hrs
-              </div>
+    <div className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
+      <div className="modal-box p-0 bg-base-100 overflow-hidden w-11/12 max-w-[380px] border border-error/30 shadow-2xl rounded-xl flex flex-col antialiased-text">
+        
+        {/* HEADER */}
+        <div className="px-4 py-3 border-b border-error/10 bg-error/5 flex justify-between items-start shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-error/20 rounded-md text-error shadow-sm">
+              <Trash2 size={16} />
             </div>
-            <span className="text-xs text-error/80 block mt-2">
-              This action cannot be undone.
-            </span>
+            <div className="flex flex-col">
+              <h3 className="text-[13px] font-black text-error uppercase tracking-widest leading-none">
+                {isStaff ? "Cancel My Request" : "Delete OT Request"}
+              </h3>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-error/60 mt-1">
+                {isStaff ? "Personal Action" : "Admin Destructive Action"}
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} disabled={isDeleting} className="btn btn-xs btn-circle btn-ghost text-error/50 hover:text-error hover:bg-error/10">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* BODY */}
+        <div className="p-4 bg-base-100">
+          <p className="text-[12px] text-base-content/80 leading-relaxed font-medium">
+            {isStaff 
+              ? `Are you sure you want to cancel your overtime request for `
+              : `You are about to delete the overtime request for `}
+            <strong className="text-base-content font-black">
+              {isStaff ? "this date" : (request?.fullname || "this employee")}
+            </strong>.
+          </p>
+          
+          <div className="mt-3 flex flex-col gap-1 text-[11px]">
+            <div className="flex justify-between border-b border-base-200 pb-1">
+              <span className="text-base-content/50 uppercase font-bold tracking-tighter">Date</span>
+              <span className="font-black text-base-content uppercase">{formatDate(request?.ot_date)}</span>
+            </div>
+            <div className="flex justify-between pt-1">
+              <span className="text-base-content/50 uppercase font-bold tracking-tighter">Duration</span>
+              <span className="font-black text-base-content uppercase">{request?.total_hours} Hours</span>
+            </div>
           </div>
 
-          <div className="flex gap-3 w-full">
-            <button
-              onClick={onClose}
-              className="btn flex-1"
-              disabled={isDeleting}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDelete}
-              className="btn btn-error text-white flex-1"
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin mr-1" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </button>
+          <div className="mt-4 p-2.5 bg-base-200/50 border border-base-300 rounded-lg">
+            <p className="text-[10px] text-base-content/60 italic leading-snug">
+              * {isStaff ? "Once cancelled, you will need to resubmit if you change your mind." : "This action cannot be undone and will be purged from system records."}
+            </p>
           </div>
         </div>
+
+        {/* FOOTER */}
+        <div className="px-4 py-3 border-t border-base-200 bg-base-200/30 flex justify-end gap-2 shrink-0">
+          <button type="button" onClick={onClose} disabled={isDeleting} className="btn btn-sm h-8 min-h-0 btn-ghost text-[10px] font-bold uppercase tracking-widest px-4">
+            Close
+          </button>
+          <button type="button" onClick={handleDelete} disabled={isDeleting} className={`btn btn-sm h-8 min-h-0 btn-error text-white text-[10px] font-bold uppercase tracking-widest px-5 shadow-sm border-none`}>
+            {isDeleting ? <Loader2 className="animate-spin size-4" /> : isStaff ? "Cancel Request" : "Confirm Deletion"}
+          </button>
+        </div>
       </div>
+      <div className="modal-backdrop bg-black/60 backdrop-blur-sm" onClick={() => !isDeleting && onClose()}></div>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// --- HELPER 1: Convert military time (17:00) to 12-hour AM/PM (05:00 PM) ---
+// --- HELPER 1: Convert military time to 12-hour AM/PM ---
 const format12Hour = (timeString) => {
   if (!timeString || timeString === '--:--') return '--:--';
   const [hoursString, minutes] = timeString.split(':');
@@ -11,10 +11,9 @@ const format12Hour = (timeString) => {
   return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
 };
 
-// --- HELPER 2: Convert YYYY-MM-DD to "Feb 27, 2026" (Timezone Safe) ---
+// --- HELPER 2: Convert YYYY-MM-DD safely ---
 const formatFriendlyDate = (dateString) => {
   if (!dateString) return 'N/A';
-  // Append T00:00:00 if it's a raw date to prevent it from shifting back a day!
   const safeDate = dateString.includes('T') ? dateString : `${dateString}T00:00:00`;
   return new Date(safeDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 };
@@ -30,7 +29,7 @@ const formatFileNameDate = (dateString) => {
   return `${month}_${day}_${year}`;
 };
 
-// --- HELPER 4: THE FIX - Ensure database dates are matched in LOCAL time ---
+// --- HELPER 4: Database Date Local Time Matcher ---
 const getLocalYYYYMMDD = (dateInput) => {
   if (!dateInput) return null;
   const d = new Date(dateInput);
@@ -40,42 +39,46 @@ const getLocalYYYYMMDD = (dateInput) => {
   return `${year}-${month}-${day}`;
 };
 
-
 export const downloadDTRExcel = async (employee, attendanceRecords, leaveRecords, overtimeRecords, startDate, endDate) => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('DTR');
 
-  // MODERN SETTINGS
-  const FONT_FAMILY = 'Segoe UI';
-  const COLOR_PRIMARY = 'FF1E293B'; 
-  const COLOR_MUTED = 'FF64748B'; 
+  // --- BRAND COLORS (Official Corporate Blue) ---
+  const FONT_FAMILY = 'Inter'; 
+  const COLOR_ACCENT = 'FF094C8A'; 
+  const COLOR_TEXT = 'FF1F2937'; 
+  const COLOR_MUTED = 'FF6B7280'; 
+  const COLOR_BG_ALT = 'FFF3F4F6'; 
 
-  // 1. Define Columns 
+  // 1. Define Columns
   sheet.columns = [
-    { key: 'A', width: 15 }, // Date
-    { key: 'B', width: 10 }, // Day
-    { key: 'C', width: 14 }, // Time In
-    { key: 'D', width: 14 }, // Time Out
-    { key: 'E', width: 14 }, // OT Hours
-    { key: 'F', width: 45 }, // Scope of Work / Remarks
+    { key: 'A', width: 16 }, 
+    { key: 'B', width: 10 }, 
+    { key: 'C', width: 14 }, 
+    { key: 'D', width: 14 }, 
+    { key: 'E', width: 14 }, 
+    { key: 'F', width: 45 }, 
   ];
 
-  // 2. --- HEADER SECTION ---
+  // 2. --- HEADER SECTION (Shifted back to the top) ---
+  sheet.getRow(1).height = 30; 
+  sheet.getRow(2).height = 20;
+
   sheet.mergeCells('A1:F1');
   const title1 = sheet.getCell('A1');
   title1.value = 'LJA POWER LIMITED CO.';
-  title1.font = { bold: true, size: 16, name: FONT_FAMILY, color: { argb: COLOR_PRIMARY } };
+  title1.font = { bold: true, size: 18, name: FONT_FAMILY, color: { argb: COLOR_ACCENT } };
   title1.alignment = { horizontal: 'center', vertical: 'middle' };
 
   sheet.mergeCells('A2:F2');
   const title2 = sheet.getCell('A2');
   title2.value = 'DAILY TIME RECORD (DTR)';
-  title2.font = { bold: true, size: 10, color: { argb: 'FF94A3B8' }, name: FONT_FAMILY };
+  title2.font = { bold: true, size: 11, color: { argb: COLOR_MUTED }, name: FONT_FAMILY };
   title2.alignment = { horizontal: 'center', vertical: 'middle' };
 
   // 3. --- EMPLOYEE INFO ---
   const labelFont = { bold: true, color: { argb: COLOR_MUTED }, size: 9.5, name: FONT_FAMILY };
-  const valFont = { bold: true, size: 10, color: { argb: COLOR_PRIMARY }, name: FONT_FAMILY };
+  const valFont = { bold: true, size: 10, color: { argb: COLOR_TEXT }, name: FONT_FAMILY };
 
   sheet.getCell('A4').value = 'Employee:';
   sheet.getCell('A4').font = labelFont;
@@ -101,33 +104,33 @@ export const downloadDTRExcel = async (employee, attendanceRecords, leaveRecords
   sheet.getCell('E5').value = employee?.employee_id || 'N/A';
   sheet.getCell('E5').font = valFont;
 
-
-  // 4. --- MODERN TABLE HEADER (Row 7) ---
-  const headerRow = sheet.getRow(7);
+  // 4. --- MODERN TABLE HEADER ---
+  const headerRow = sheet.getRow(7); 
   headerRow.values = ['Date', 'Day', 'Time In', 'Time Out', 'OT Hours', 'Scope of Work / Remarks'];
-  headerRow.height = 25; 
+  headerRow.height = 28; 
   
   for (let i = 1; i <= 6; i++) {
     const cell = headerRow.getCell(i);
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: FONT_FAMILY, size: 9.5 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_PRIMARY } };
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: FONT_FAMILY, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ACCENT } };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.border = { top: { style: 'thin', color: { argb: COLOR_PRIMARY } }, bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } } };
+    cell.border = { 
+      top: { style: 'thin', color: { argb: COLOR_ACCENT } }, 
+      bottom: { style: 'thin', color: { argb: COLOR_ACCENT } } 
+    };
   }
 
-  // 5. --- GENERATE ALL DATES (Timezone Safe Loop) ---
-  // Adding T00:00:00 ensures JS builds the loop based on local timezone midnight, not UTC
+  // 5. --- GENERATE ALL DATES ---
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T00:00:00');
   let curr = new Date(start);
   let currentRow = 8; 
 
   while (curr <= end) {
-    const dateStr = getLocalYYYYMMDD(curr); // Guaranteed Local "YYYY-MM-DD"
+    const dateStr = getLocalYYYYMMDD(curr); 
     const dayName = curr.toLocaleDateString('en-US', { weekday: 'short' });
     const isSunday = dayName === 'Sun'; 
 
-    // Find Data using the Timezone Safe matcher
     const att = attendanceRecords.find(r => getLocalYYYYMMDD(r.date) === dateStr);
     
     const leave = leaveRecords.find(l => {
@@ -142,7 +145,6 @@ export const downloadDTRExcel = async (employee, attendanceRecords, leaveRecords
       return getLocalYYYYMMDD(recordDate) === dateStr && o.status === 'Approved';
     });
 
-    // Build Row Logic
     let timeIn = att ? format12Hour(att.time_in) : '--:--';
     let timeOut = att ? format12Hour(att.time_out) : '--:--';
     let otHours = ot ? `${ot.total_hours || ot.hours || ''} hrs` : '';
@@ -156,26 +158,30 @@ export const downloadDTRExcel = async (employee, attendanceRecords, leaveRecords
     }
 
     const row = sheet.getRow(currentRow);
-    // Use formatFriendlyDate safely
     row.values = [formatFriendlyDate(dateStr), dayName, timeIn, timeOut, otHours, scope];
-    row.height = 20; 
-    
-    const isEven = currentRow % 2 === 0;
+
+    const isEven = currentRow % 2 === 0; 
     
     for (let i = 1; i <= 6; i++) {
       const cell = row.getCell(i);
-      const cellColor = isSunday ? COLOR_MUTED : 'FF334155';
       
+      const cellColor = isSunday ? COLOR_MUTED : COLOR_TEXT;
       cell.font = { name: FONT_FAMILY, size: 9.5, color: { argb: cellColor } };
-      cell.alignment = { vertical: 'middle', horizontal: i === 6 ? 'left' : 'center', wrapText: true };
+      
+      // Auto-height wrapping is still fully enabled here
+      cell.alignment = { 
+        vertical: 'top', 
+        horizontal: i === 6 ? 'left' : 'center', 
+        wrapText: true 
+      };
       
       if (isSunday) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }; 
       } else if (isEven) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_BG_ALT } }; 
       }
       
-      cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+      cell.border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } } };
     }
 
     currentRow++;
@@ -196,8 +202,8 @@ export const downloadDTRExcel = async (employee, attendanceRecords, leaveRecords
   sheet.mergeCells(`A${currentRow}:C${currentRow}`);
   sheet.mergeCells(`E${currentRow}:F${currentRow}`);
   
-  sheet.getCell(`A${currentRow}`).border = { bottom: { style: 'medium', color: { argb: COLOR_PRIMARY} } };
-  sheet.getCell(`E${currentRow}`).border = { bottom: { style: 'medium', color: { argb: COLOR_PRIMARY} } };
+  sheet.getCell(`A${currentRow}`).border = { bottom: { style: 'medium', color: { argb: COLOR_ACCENT} } };
+  sheet.getCell(`E${currentRow}`).border = { bottom: { style: 'medium', color: { argb: COLOR_ACCENT} } };
   
   currentRow += 1;
   
@@ -207,12 +213,12 @@ export const downloadDTRExcel = async (employee, attendanceRecords, leaveRecords
   const sigTextLeft = sheet.getCell(`A${currentRow}`);
   sigTextLeft.value = 'Employee Signature';
   sigTextLeft.alignment = { horizontal: 'center' };
-  sigTextLeft.font = { bold: true, size: 9.5, color: { argb: COLOR_PRIMARY }, name: FONT_FAMILY };
+  sigTextLeft.font = { bold: true, size: 9.5, color: { argb: COLOR_ACCENT }, name: FONT_FAMILY };
   
   const sigTextRight = sheet.getCell(`E${currentRow}`);
   sigTextRight.value = 'Verified By (Manager / HR)';
   sigTextRight.alignment = { horizontal: 'center' };
-  sigTextRight.font = { bold: true, size: 9.5, color: { argb: COLOR_PRIMARY }, name: FONT_FAMILY };
+  sigTextRight.font = { bold: true, size: 9.5, color: { argb: COLOR_ACCENT }, name: FONT_FAMILY };
 
   // 7. --- TRIGGER DOWNLOAD ---
   const buffer = await workbook.xlsx.writeBuffer();

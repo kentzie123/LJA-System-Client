@@ -3,6 +3,9 @@ import { User, Camera, Check, X, Loader2 } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 
+// Helper
+import { getImageUrl } from "@/utils/getImageUrl";
+
 const ProfileHeader = () => {
   const { authUser, setAuthUser } = useAuthStore();
   const { uploadProfilePicture, isUploading } = useUserStore();
@@ -42,6 +45,11 @@ const ProfileHeader = () => {
     };
   };
 
+  // --- FIX: Determine the correct image source to display ---
+  const displayImage = previewImage 
+    ? previewImage 
+    : (authUser?.profile_picture ? getImageUrl(authUser.profile_picture) : "/images/default_profile.jpg");
+
   return (
     <div className="flex flex-col items-center justify-center text-center space-y-6 pt-8 pb-4">
       <div className="space-y-1">
@@ -55,7 +63,7 @@ const ProfileHeader = () => {
       <div className="relative group">
         <div className="relative">
           <img
-            src={previewImage || authUser?.profile_picture || "/images/default_profile.jpg"}
+            src={displayImage}
             alt="Profile"
             className={`h-40 w-40 object-cover rounded-full border-4 border-base-200 shadow-xl transition-all duration-300 ${
               isUploading ? "opacity-50 blur-sm" : ""
@@ -101,7 +109,7 @@ const ProfileHeader = () => {
       {!previewImage && (
         <div className="space-y-1 animate-in fade-in duration-500">
           <h2 className="text-xl font-semibold text-base-content">
-            {authUser?.fullname || "User Name"} {/* FIX: fullname instead of fullName */}
+            {authUser?.fullname || "User Name"}
           </h2>
           <div className="flex items-center justify-center gap-2 text-sm text-base-content/60">
             <User size={14} />

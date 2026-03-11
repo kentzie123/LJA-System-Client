@@ -1,14 +1,28 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
-import { X, Clock, FileText, CheckCircle, Loader2 } from "lucide-react";
+import {
+  X,
+  Clock,
+  FileText,
+  CheckCircle,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
 import { useUserStore } from "@/stores/useUserStore";
 
-// IMPORT THE NEW COMPONENTS
+// IMPORT THE COMPONENTS
 import UserSelectDropdown from "@/components/ui/Selections/UserSelectDropdown";
-import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker"; // <-- ADDED THIS
+import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
 
 const AdminCreateOvertimeModal = ({ isOpen, onClose }) => {
-  const { overtimeTypes, fetchOvertimeTypes, createAdminOvertimeRequest, isCreating } = useOvertimeStore();
+  const {
+    overtimeTypes,
+    fetchOvertimeTypes,
+    createAdminOvertimeRequest,
+    isCreating,
+  } = useOvertimeStore();
   const { users, fetchAllUsers } = useUserStore();
 
   const [formData, setFormData] = useState({
@@ -22,15 +36,19 @@ const AdminCreateOvertimeModal = ({ isOpen, onClose }) => {
 
   const [errors, setErrors] = useState({});
 
-  // Fetch initial data
   useEffect(() => {
     if (isOpen) {
       if (users.length === 0) fetchAllUsers();
       if (overtimeTypes.length === 0) fetchOvertimeTypes();
     }
-  }, [isOpen, users.length, fetchAllUsers, overtimeTypes.length, fetchOvertimeTypes]);
+  }, [
+    isOpen,
+    users.length,
+    fetchAllUsers,
+    overtimeTypes.length,
+    fetchOvertimeTypes,
+  ]);
 
-  // Reset form
   useEffect(() => {
     if (isOpen) {
       setFormData({
@@ -48,212 +66,248 @@ const AdminCreateOvertimeModal = ({ isOpen, onClose }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // Custom handler for CustomDatePicker
   const handleDateChange = (val) => {
     setFormData((prev) => ({ ...prev, date: val }));
-    if (errors.date) {
-      setErrors((prev) => ({ ...prev, date: "" }));
-    }
+    if (errors.date) setErrors((prev) => ({ ...prev, date: "" }));
   };
 
-  // Custom handler for the UserSelectDropdown
   const handleUserSelect = (selectedId) => {
     setFormData({ ...formData, targetUserId: selectedId });
-    if (errors.targetUserId) {
+    if (errors.targetUserId)
       setErrors((prev) => ({ ...prev, targetUserId: "" }));
-    }
   };
 
   const validateForm = () => {
     const newErrors = {};
+    if (!formData.targetUserId) newErrors.targetUserId = "Required";
+    if (!formData.otTypeId) newErrors.otTypeId = "Required";
+    if (!formData.date) newErrors.date = "Required";
+    if (!formData.startTime) newErrors.startTime = "Required";
+    if (!formData.endTime) newErrors.endTime = "Required";
+    if (!formData.reason.trim()) newErrors.reason = "Required";
 
-    if (!formData.targetUserId) newErrors.targetUserId = "Please select an employee.";
-    if (!formData.otTypeId) newErrors.otTypeId = "Please select an overtime type.";
-    if (!formData.date) newErrors.date = "Date is required.";
-    if (!formData.startTime) newErrors.startTime = "Start time is required.";
-    if (!formData.endTime) newErrors.endTime = "End time is required.";
-    if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
-
-    // Logical Check: End Time vs Start Time
-    if (formData.startTime && formData.endTime) {
-      if (formData.endTime <= formData.startTime) {
-        newErrors.endTime = "End time must be after start time.";
-      }
+    if (
+      formData.startTime &&
+      formData.endTime &&
+      formData.endTime <= formData.startTime
+    ) {
+      newErrors.endTime = "Must be after start.";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!validateForm()) return;
-
     const success = await createAdminOvertimeRequest(formData);
-    
-    if (success) {
-      onClose();
-    }
+    if (success) onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-lg rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] scale-in-95 duration-200">
-        
+    <dialog className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
+      <div className="modal-box p-0 bg-base-100 overflow-visible w-11/12 max-w-[400px] border border-base-300 shadow-2xl rounded-xl flex flex-col antialiased-text">
         {/* HEADER */}
-        <div className="flex items-center justify-between bg-base-200 py-4 px-6 rounded-t-2xl border-b border-base-300">
-          <div className="text-lg font-bold flex items-center gap-2">
-            Assign Overtime (Admin)
+        <div className="px-4 py-3 border-b border-base-200 bg-base-200/50 flex justify-between items-center shrink-0">
+          <div className="flex flex-col">
+            <h3 className="font-black text-xs uppercase tracking-wider text-base-content leading-none">
+              Assign Overtime
+            </h3>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-base-content/50 mt-1">
+              Admin Override
+            </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             disabled={isCreating}
-            className="btn btn-ghost btn-sm btn-square text-base-content/50 hover:text-error"
+            className="btn btn-xs btn-circle btn-ghost text-base-content/50 hover:text-error"
           >
-            <X className="size-5" />
+            <X size={14} />
           </button>
         </div>
 
         {/* BODY */}
-        <div className="py-4 px-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
-          
+        <div className="p-4 space-y-3.5 overflow-y-auto custom-scrollbar flex-1 bg-base-100">
           {/* INFO BANNER */}
-          <div className="alert alert-info shadow-sm text-xs py-2">
-            <CheckCircle size={16} />
-            <span>Requests created here are <b>automatically approved</b>.</span>
+          <div className="flex items-start gap-2 p-2.5 bg-info/10 border border-info/20 rounded-lg text-info">
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            <p className="text-[10px] leading-snug font-medium">
+              Requests created here bypass standard workflow and are{" "}
+              <strong className="font-black">automatically approved</strong>.
+            </p>
           </div>
 
-          {/* 1. SELECT EMPLOYEE (Using Custom Component) */}
-          <fieldset className="fieldset relative z-[60]">
-            <legend className="fieldset-legend text-xs font-semibold">Select Employee</legend>
-            <UserSelectDropdown 
-              users={users} 
-              value={formData.targetUserId} 
-              onChange={handleUserSelect} 
-            />
-            {errors.targetUserId && <span className="text-error text-xs mt-1">{errors.targetUserId}</span>}
-          </fieldset>
-
-          {/* 2. OVERTIME TYPE */}
-          <fieldset className="fieldset relative z-[50]">
-            <legend className="fieldset-legend text-xs font-semibold">Overtime Type</legend>
-            <div className="relative">
-              <FileText className="absolute left-3 top-2.5 z-1 text-base-content/50 pointer-events-none" size={16} />
-              <select 
-                name="otTypeId"
-                value={formData.otTypeId} 
-                onChange={handleChange}
-                className={`select select-bordered w-full text-xs pl-9 h-10 ${errors.otTypeId ? "select-error" : ""}`}
-              >
-                <option value="" disabled>Select type...</option>
-                {overtimeTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {errors.otTypeId && <span className="text-error text-xs mt-1">{errors.otTypeId}</span>}
-          </fieldset>
-
-          {/* 3. DATE & TIME */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            
-            {/* Date - UPDATED TO USE CUSTOM DATE PICKER */}
-            <fieldset className="fieldset relative z-[40]">
-              <legend className="fieldset-legend text-xs font-semibold">Date</legend>
-              <CustomDatePicker 
-                value={formData.date}
-                onChange={handleDateChange}
-                className={`text-xs ${errors.date ? "border-error" : ""}`}
+          <form
+            id="admin-ot-form"
+            onSubmit={handleSubmit}
+            className="space-y-3"
+          >
+            {/* 1. EMPLOYEE */}
+            <div className="form-control relative z-[60]">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                Employee{" "}
+                {errors.targetUserId && (
+                  <span className="text-error">{errors.targetUserId}</span>
+                )}
+              </label>
+              <UserSelectDropdown
+                users={users}
+                value={formData.targetUserId}
+                onChange={handleUserSelect}
               />
-              {errors.date && <span className="text-error text-xs mt-1">{errors.date}</span>}
-            </fieldset>
+            </div>
 
-            {/* Start Time */}
-            <fieldset className="fieldset relative z-0">
-              <legend className="fieldset-legend text-xs font-semibold">Start Time</legend>
+            {/* 2. OT TYPE */}
+            <div className="form-control relative z-[50]">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                OT Type{" "}
+                {errors.otTypeId && (
+                  <span className="text-error">{errors.otTypeId}</span>
+                )}
+              </label>
               <div className="relative">
-                <Clock className="absolute left-3 top-2.5 z-1 text-base-content/50 pointer-events-none" size={16} />
-                <input 
-                  type="time" 
-                  name="startTime"
-                  value={formData.startTime}
+                <FileText
+                  className="absolute z-10 left-2.5 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none"
+                  size={12}
+                />
+                <select
+                  name="otTypeId"
+                  value={formData.otTypeId}
                   onChange={handleChange}
-                  className={`input input-bordered text-xs w-full pl-9 h-10 ${errors.startTime ? "input-error" : ""}`}
+                  className={`select select-bordered select-sm h-8 min-h-0 w-full text-[11px] pl-7 ${errors.otTypeId ? "select-error" : ""}`}
+                >
+                  <option value="" disabled>
+                    Select type...
+                  </option>
+                  {overtimeTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 3. DATE & TIMES */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="form-control col-span-2 relative z-[40]">
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1">
+                  Date{" "}
+                  {errors.date && <span className="text-error ml-1">*</span>}
+                </label>
+                <CustomDatePicker
+                  value={formData.date}
+                  onChange={handleDateChange}
                 />
               </div>
-              {errors.startTime && <span className="text-error text-xs mt-1">{errors.startTime}</span>}
-            </fieldset>
 
-            {/* End Time */}
-            <fieldset className="fieldset relative z-0">
-              <legend className="fieldset-legend text-xs font-semibold">End Time</legend>
-              <div className="relative">
-                <Clock className="absolute left-3 top-2.5 z-1 text-base-content/50 pointer-events-none" size={16} />
-                <input 
-                  type="time" 
-                  name="endTime"
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  className={`input input-bordered text-xs w-full pl-9 h-10 ${errors.endTime ? "input-error" : ""}`}
-                />
+              <div className="form-control relative z-0">
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                  Start{" "}
+                  {errors.startTime && (
+                    <span className="text-error text-[10px]">*</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <Clock
+                    className="absolute z-10 left-2 top-1/2 -translate-y-1/2 text-base-content/40"
+                    size={12}
+                  />
+                  <input
+                    type="time"
+                    name="startTime"
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    className="input input-bordered input-sm h-8 min-h-0 w-full pl-6 text-[11px] tabular-nums"
+                  />
+                </div>
               </div>
-              {errors.endTime && <span className="text-error text-xs mt-1">{errors.endTime}</span>}
-            </fieldset>
-          </div>
 
-          {/* 4. REASON */}
-          <fieldset className="fieldset relative z-0">
-            <legend className="fieldset-legend text-xs font-semibold">Reason / Task</legend>
-            <textarea 
-              name="reason"
-              value={formData.reason}
-              onChange={handleChange}
-              className={`textarea textarea-bordered text-xs w-full h-24 resize-none ${errors.reason ? "textarea-error" : ""}`}
-              placeholder="e.g. Urgent project deadline, Server maintenance..."
-            ></textarea>
-            {errors.reason && <span className="text-error text-xs mt-1">{errors.reason}</span>}
-          </fieldset>
+              <div className="form-control relative z-0">
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                  End{" "}
+                  {errors.endTime && (
+                    <span className="text-error text-[10px]">*</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <Clock
+                    className="absolute z-10 left-2 top-1/2 -translate-y-1/2 text-base-content/40"
+                    size={12}
+                  />
+                  <input
+                    type="time"
+                    name="endTime"
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    className="input input-bordered input-sm h-8 min-h-0 w-full pl-6 text-[11px] tabular-nums"
+                  />
+                </div>
+              </div>
+            </div>
+            {errors.endTime && (
+              <p className="text-[9px] font-bold text-error uppercase tracking-widest">
+                {errors.endTime}
+              </p>
+            )}
 
-          {/* FOOTER BUTTONS */}
-          <div className="flex justify-end gap-4 mt-4 pt-4 border-t border-base-300">
-            <button 
-              onClick={onClose} 
-              className="btn btn-ghost"
-              disabled={isCreating}
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleSubmit} 
-              className="btn btn-secondary min-w-[140px]"
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="size-5 animate-spin mr-2" />
-                  Assigning...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={18} className="mr-2" />
-                  Assign OT
-                </>
-              )}
-            </button>
-          </div>
+            {/* 4. REASON */}
+            <div className="form-control relative z-0">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+                Task/Reason{" "}
+                {errors.reason && (
+                  <span className="text-error">{errors.reason}</span>
+                )}
+              </label>
+              <textarea
+                name="reason"
+                value={formData.reason}
+                onChange={handleChange}
+                className={`textarea textarea-bordered text-[11px] leading-snug w-full h-16 resize-none p-2 ${errors.reason ? "textarea-error" : ""}`}
+                placeholder="Brief justification..."
+              ></textarea>
+            </div>
+          </form>
+        </div>
 
+        {/* FOOTER BUTTONS */}
+        <div className="px-4 py-3 border-t border-base-200 bg-base-200/30 flex justify-end gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-sm h-8 min-h-0 btn-ghost text-[10px] uppercase font-bold px-4"
+            disabled={isCreating}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="admin-ot-form"
+            className="btn btn-sm h-8 min-h-0 btn-secondary text-secondary-content text-[10px] uppercase font-bold px-4 shadow-sm border-none"
+            disabled={isCreating}
+          >
+            {isCreating ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <>
+                <CheckCircle size={14} /> Assign OT
+              </>
+            )}
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* CLICKABLE BACKDROP */}
+      <div
+        className="modal-backdrop bg-black/60 backdrop-blur-md"
+        onClick={() => !isCreating && onClose()}
+      ></div>
+    </dialog>
   );
 };
 

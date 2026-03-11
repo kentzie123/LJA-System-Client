@@ -65,7 +65,7 @@ const PayrollPage = () => {
   if (isLoading || !authUser) {
     return (
       <div className="h-[calc(100vh-100px)] flex items-center justify-center">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
+        <span className="loading loading-spinner loading-md text-primary"></span>
       </div>
     );
   }
@@ -73,32 +73,33 @@ const PayrollPage = () => {
   if (!permissions.canViewPayroll) return null;
 
   return (
-    // ROOT: Height auto on mobile to allow scrolling, Fixed on Desktop for "App feel"
-    <div className="flex flex-col gap-6 h-auto lg:h-[calc(100vh-100px)]">
+    // ROOT: Height auto on mobile, Fixed on Desktop for "App feel"
+    // Reduced outer gap from 6 to 3/4 for denser UI
+    <div className="flex flex-col gap-4 h-auto lg:h-[calc(100vh-100px)] antialiased-text">
       
       {/* HEADER */}
       <PayrollHeader activeTab={activeTab} setActiveTab={handleTabChange} />
 
       {/* CONTENT WRAPPER: Column on mobile, Row on Desktop */}
-      <div className="flex flex-col lg:flex-row flex-1 gap-6 lg:overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 gap-3 lg:gap-4 lg:overflow-hidden">
         
         {/* --- LEFT COLUMN (Sidebar / Period List) --- */}
         {activeTab === TABS.PAYOUT && (
-          <div className="w-full lg:w-1/4 lg:min-w-[300px] flex flex-col gap-6 animate-in slide-in-from-left-4 duration-300">
-            {/* Height: Fixed 80 (320px) on mobile so it doesn't trap scroll, Full on desktop */}
-            <div className="lg:h-full bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden p-4">
+          <div className="w-full lg:w-1/4 lg:min-w-[280px] lg:max-w-[320px] flex flex-col shrink-0 animate-in slide-in-from-left-4 duration-300">
+            {/* Height: Full on desktop, auto on mobile */}
+            <div className="lg:h-full flex flex-col shadow-sm">
               <PayrollPeriodList canManage={permissions.canManagePayroll} />
             </div>
           </div>
         )}
 
         {/* --- RIGHT COLUMN (Main Content) --- */}
-        {/* Overflow: Visible on mobile (page scroll), Hidden on desktop (inner scroll) */}
-        <div className="flex-1 flex flex-col gap-6 overflow-visible lg:overflow-hidden min-h-[500px]">
+        {/* Overflow: Visible on mobile, Hidden on desktop (inner scroll) */}
+        <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-visible lg:overflow-hidden min-h-[500px]">
           
           {/* TAB 1: PAYOUT CYCLES */}
           {activeTab === TABS.PAYOUT && (
-            <div className="flex flex-col h-full animate-in fade-in duration-300">
+            <div className="flex flex-col h-full gap-3 lg:gap-4 animate-in fade-in duration-300">
               
               {/* Stats Grid */}
               {activePayRun && canViewAllPayslips && (
@@ -108,7 +109,7 @@ const PayrollPage = () => {
               )}
 
               {/* Main Payroll Table */}
-              <div className="flex-1 overflow-hidden bg-base-100 rounded-xl border border-base-200 shadow-sm min-h-[400px]">
+              <div className="flex-1 overflow-hidden shadow-sm min-h-[400px]">
                 <PayrollTable
                   canManage={permissions.canManagePayroll}
                   canViewAll={canViewAllPayslips}
@@ -121,14 +122,14 @@ const PayrollPage = () => {
           {/* TAB 2: DEDUCTIONS */}
           {activeTab === TABS.DEDUCTIONS && permissions.canViewDeductions && (
             // Height full on desktop, auto on mobile
-            <div className="h-auto lg:h-full overflow-y-auto pr-2 animate-in slide-in-from-bottom-4 duration-300 custom-scrollbar">
+            <div className="h-auto lg:h-full overflow-y-auto pr-1 animate-in slide-in-from-bottom-4 duration-300 custom-scrollbar">
               <PayrollDeductionList canManage={permissions.canManageDeductions} />
             </div>
           )}
 
           {/* TAB 3: ALLOWANCES */}
           {activeTab === TABS.ALLOWANCES && permissions.canViewAllowances && (
-            <div className="h-auto lg:h-full overflow-y-auto pr-2 animate-in slide-in-from-bottom-4 duration-300 custom-scrollbar">
+            <div className="h-auto lg:h-full overflow-y-auto pr-1 animate-in slide-in-from-bottom-4 duration-300 custom-scrollbar">
               <AllowanceList canManage={permissions.canManageAllowances} />
             </div>
           )}

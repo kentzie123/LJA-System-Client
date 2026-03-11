@@ -1,109 +1,103 @@
 "use client";
 
-// Theme toggler
+import { useRef } from "react";
 import ThemeToggle from "./ThemeToggle";
-
-// Image Optimizer
 import Image from "next/image";
 import Link from "next/link";
-
-// Icons
 import { ChevronDown, LogOut, User, Menu } from "lucide-react";
-
-// Store
 import { useAuthStore } from "@/stores/useAuthStore";
+import { getImageUrl } from "@/utils/getImageUrl";
 
 const TopBar = () => {
   const { logout, authUser } = useAuthStore();
+  
+  // 1. Create a reference for the dropdown container
+  const dropdownRef = useRef(null);
+
+  // 2. Safely blur the referenced container to close it
+  const closeDropdown = () => {
+    if (dropdownRef.current) {
+      dropdownRef.current.blur();
+    }
+  };
 
   return (
-    <div className="navbar bg-base-100/80 backdrop-blur sticky top-0 z-30 border-b border-base-200 px-4 h-16">
-      <div className="flex-none lg:hidden mr-2">
-        <label
-          htmlFor="my-drawer"
-          className="btn btn-square btn-ghost drawer-button"
-        >
-          <Menu size={24} />
+    <div className="bg-base-100/95 backdrop-blur sticky top-0 z-30 border-b border-base-300 px-3 sm:px-4 h-14 flex items-center justify-between antialiased-text shadow-sm">
+      
+      {/* MOBILE TOGGLE */}
+      <div className="flex-none lg:hidden">
+        <label htmlFor="my-drawer" className="btn btn-sm h-8 w-8 min-h-0 btn-square btn-ghost border border-base-300 bg-base-200/50">
+          <Menu size={16} className="text-base-content/70" />
         </label>
       </div>
 
-      {/* Spacer */}
       <div className="flex-1"></div>
 
-      {/* --- RIGHT: ACTIONS --- */}
-      <div className="flex items-center gap-4">
-        <ThemeToggle />
+      {/* ACTIONS */}
+      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+        <div className="flex items-center justify-center shrink-0">
+          <ThemeToggle />
+        </div>
 
-        {/* Divider */}
-        <div className="h-8 w-[1px] bg-base-content/10 hidden sm:block"></div>
+        <div className="h-6 w-[1px] bg-base-300 hidden sm:block"></div>
 
-        {/* --- USER DROPDOWN --- */}
-        <div className="dropdown dropdown-end">
+        {/* USER DROPDOWN */}
+        {/* 3. Attach the ref to the dropdown container */}
+        <div className="dropdown dropdown-end" ref={dropdownRef}>
+          
           {/* TRIGGER */}
-          <div
-            tabIndex={0}
-            role="button"
-            className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-xl hover:bg-base-200/50 transition-all cursor-pointer group"
-          >
-            {/* Text Info */}
-            <div className="text-right hidden sm:block">
-              <div className="text-xs font-bold leading-tight text-base-content">
+          <div tabIndex={0} role="button" className="flex items-center gap-2.5 pl-2 pr-1 py-1 rounded-md hover:bg-base-200 transition-all cursor-pointer border border-transparent hover:border-base-300 group">
+            <div className="text-right hidden sm:flex flex-col justify-center">
+              <div className="text-[11px] font-black uppercase tracking-tight leading-none text-base-content group-hover:text-primary transition-colors">
                 {authUser?.fullname || "User"}
               </div>
-              <div className="text-[10px] font-medium opacity-50 tracking-wide uppercase mt-0.5">
+              <div className="text-[8px] font-bold text-base-content/50 tracking-widest uppercase mt-1">
                 {authUser?.position || "Employee"}
               </div>
             </div>
 
-            {/* Avatar Circle */}
-            <div className="relative">
-              <div className="size-9 relative rounded-full ring-1 ring-base-content/10 overflow-hidden bg-base-200">
-                <Image
-                  src={
-                    authUser?.profile_picture || "/images/default_profile.jpg"
-                  }
-                  alt="Profile"
-                  fill
-                  className="object-cover"
-                  sizes="40px"
-                />
+            <div className="relative flex items-center">
+              <div className="size-8 relative rounded-md border border-base-300 overflow-hidden bg-base-200 shadow-sm">
+                {authUser?.profile_picture ? (
+                  <Image src={getImageUrl(authUser.profile_picture)} alt="Profile" fill className="object-cover" sizes="32px" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-base-content/50 bg-base-200">
+                    {authUser?.fullname?.substring(0, 2).toUpperCase() || "??"}
+                  </div>
+                )}
               </div>
-              <ChevronDown
-                size={14}
-                className="absolute bg-base-100 text-base-content -bottom-1 -right-1 rounded-full shadow-sm border border-base-200 p-0.5"
-              />
+              <ChevronDown size={12} className="absolute -bottom-1 -right-1 bg-base-100 text-base-content rounded-sm border border-base-300 shadow-sm transition-transform group-hover:translate-y-px" />
             </div>
           </div>
 
-          {/* DROPDOWN MENU */}
-          <ul
-            tabIndex={0}
-            className="dropdown-content z-[50] menu p-2 shadow-2xl bg-base-100 rounded-box w-56 border border-base-200 mt-4 gap-1"
-          >
-            {/* Mobile Header (Visible only on small screens) */}
-            <li className="menu-title sm:hidden px-4">
-              <span className="text-xs font-black opacity-100 text-base-content">
-                {authUser?.fullname}
-              </span>
-            </li>
+          {/* DROPDOWN CONTENT */}
+          <div tabIndex={0} className="dropdown-content z-[50] mt-2">
+            <div className="p-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-base-100 rounded-lg w-48 border border-base-300 gap-0.5 flex flex-col">
+              
+              <div className="sm:hidden px-3 py-2 border-b border-base-200 mb-1 flex flex-col items-start pointer-events-none">
+                <span className="text-[10px] font-black text-base-content uppercase tracking-widest leading-none">{authUser?.fullname}</span>
+                <span className="text-[8px] font-bold text-base-content/50 uppercase tracking-widest mt-1">{authUser?.position || "Employee"}</span>
+              </div>
 
-            <li>
-              <Link href="/profile" className="flex gap-3">
-                <User size={16} /> My Profile
+              {/* 4. Call closeDropdown directly */}
+              <Link href="/profile" onClick={closeDropdown} className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-base-200/50 text-[10px] font-bold uppercase tracking-widest text-base-content/80 hover:text-primary transition-colors">
+                <User size={14} strokeWidth={2.5} /> My Profile
               </Link>
-            </li>
 
-            <div className="divider my-0"></div>
+              <div className="h-[1px] bg-base-200 my-0.5 w-full"></div>
 
-            <li>
               <button
-                onClick={logout}
-                className="text-error hover:bg-error/10 flex gap-3"
+                onClick={() => {
+                  closeDropdown();
+                  logout();
+                }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-error/10 text-[10px] font-bold uppercase tracking-widest text-error transition-colors w-full text-left"
               >
-                <LogOut size={16} /> Sign Out
+                <LogOut size={14} strokeWidth={2.5} /> Sign Out
               </button>
-            </li>
-          </ul>
+            </div>
+          </div>
+          
         </div>
       </div>
     </div>

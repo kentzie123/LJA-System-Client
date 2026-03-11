@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { getImageUrl } from "@/utils/getImageUrl";
 import {
   Search,
   Edit2,
@@ -11,6 +13,9 @@ import {
   ChevronRight,
   Calendar,
   Eye,
+  Briefcase,
+  Wallet,
+  Hash,
 } from "lucide-react";
 
 /**
@@ -19,15 +24,15 @@ import {
 const getRoleBadgeColor = (roleName) => {
   switch (roleName?.toLowerCase()) {
     case "admin":
-      return "bg-primary/10 text-primary";
+      return "bg-primary/10 text-primary border-primary/20";
     case "manager":
     case "hr":
-      return "bg-info/10 text-info";
+      return "bg-info/10 text-info border-info/20";
     case "employee":
     case "staff":
-      return "bg-base-300 text-base-content/80";
+      return "bg-base-200 text-base-content/80 border-base-300";
     default:
-      return "bg-base-200 text-base-content/50";
+      return "bg-base-200 text-base-content/50 border-base-300";
   }
 };
 
@@ -50,30 +55,30 @@ const formatDate = (dateString) => {
 /**
  * MAIN COMPONENT
  */
-const EmployeeTableList = ({ 
-  employees = [], 
-  roles = [], 
-  authUser, 
-  onEdit, 
-  onDelete 
+const EmployeeTableList = ({
+  employees = [],
+  roles = [],
+  authUser,
+  onEdit,
+  onDelete,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 8;
 
-  // --- PERMISSIONS ---
   const canEdit = authUser?.role?.perm_employee_edit === true;
   const canDelete = authUser?.role?.perm_employee_delete === true;
-  const showActionColumn = true; 
+  const showActionColumn = true;
 
-  // --- FILTERING ---
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
       const matchesSearch =
         employee.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         employee.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        employee.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.employee_id
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
         employee.position?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const roleName = employee.role_name;
@@ -83,22 +88,24 @@ const EmployeeTableList = ({
     });
   }, [employees, searchQuery, roleFilter]);
 
-  // --- PAGINATION ---
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentEmployees = filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
+  const currentEmployees = filteredEmployees.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   return (
-    <div className="bg-base-100 rounded-xl border border-base-300 shadow-lg overflow-hidden flex flex-col">
-      {/* TOOLBAR */}
-      <div className="p-5 flex flex-col md:flex-row gap-4 justify-between items-center border-b border-base-300 bg-base-100/50">
-        <div className="w-full md:w-96">
-          <label className="w-full input input-bordered flex items-center gap-3 bg-base-200/50 focus-within:bg-base-200 focus-within:border-primary/50 transition-all h-10">
-            <Search className="size-4 opacity-50" />
+    <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm overflow-hidden flex flex-col antialiased-text">
+      {/* TOOLBAR: Fully responsive stacking */}
+      <div className="p-3 flex flex-col sm:flex-row gap-3 justify-between items-center border-b border-base-200 bg-base-100">
+        <div className="w-full sm:w-80 shrink-0">
+          <label className="w-full input input-bordered flex items-center gap-2 bg-base-200/30 focus-within:bg-base-100 h-8 rounded-md px-3 border-base-300 transition-colors">
+            <Search className="size-3.5 opacity-50" />
             <input
               type="text"
-              className="grow text-sm placeholder:text-base-content/40"
-              placeholder="Search by name, ID, or position..."
+              className="grow text-[11px] placeholder:text-base-content/40"
+              placeholder="Search ID, name, or position..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -108,129 +115,140 @@ const EmployeeTableList = ({
           </label>
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto">
-          <div className="relative w-full md:w-40">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <Filter className="size-4 z-2 opacity-70" />
-            </div>
-            <select
-              className="select select-bordered select-sm h-10 w-full pl-10 font-normal bg-base-200"
-              value={roleFilter}
-              onChange={(e) => {
-                setRoleFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="All">All Roles</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.role_name}>{role.role_name}</option>
-              ))}
-            </select>
+        <div className="relative w-full sm:w-40 shrink-0">
+          <div className="absolute inset-y-0 left-2.5 flex items-center pointer-events-none">
+            <Filter className="size-3.5 z-2 opacity-50" />
           </div>
+          <select
+            className="select select-bordered select-sm h-8 min-h-0 w-full pl-8 py-0 font-medium bg-base-200 border-base-300 text-[11px] rounded-md transition-colors focus:bg-base-100"
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="All">All Roles</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.role_name}>
+                {role.role_name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto w-full">
-        <table className="table w-full">
-          <thead className="bg-base-200 text-base-content/40 text-[11px] uppercase font-bold tracking-wider">
-            <tr className="border-b border-base-300">
-              <th className="py-4 px-6 text-left">ID</th>
-              <th className="py-4 px-6 text-left">Employee</th>
-              <th className="py-4 px-6 text-left">Role</th>
-              <th className="py-4 px-6 text-left">Position</th>
-              <th className="py-4 px-6 text-left">Date Hired</th>
-              <th className="py-4 px-6 text-left text-primary font-black">Daily Rate</th>
-              {showActionColumn && <th className="py-4 px-6 text-right">Action</th>}
+      {/* =========================================
+          DESKTOP VIEW (Visible on md and up) 
+          ========================================= */}
+      <div className="hidden md:block overflow-x-auto w-full min-h-[300px]">
+        <table className="table table-xs w-full">
+          <thead className="bg-base-200/50 text-base-content/50 text-[9px] uppercase tracking-widest">
+            <tr className="border-b border-base-200">
+              <th className="py-2.5 pl-4 pr-2 font-bold w-20">ID</th>
+              <th className="py-2.5 px-2 font-bold">Employee Info</th>
+              <th className="py-2.5 px-2 font-bold">Role</th>
+              <th className="py-2.5 px-2 font-bold">Position</th>
+              <th className="py-2.5 px-2 font-bold">Date Hired</th>
+              <th className="py-2.5 px-2 font-black text-primary text-right">
+                Daily Rate
+              </th>
+              {showActionColumn && (
+                <th className="py-2.5 pr-4 pl-2 text-right w-24">Action</th>
+              )}
             </tr>
           </thead>
-          <tbody className="text-sm divide-y divide-base-300">
+          <tbody className="text-[12px] divide-y divide-base-200">
             {currentEmployees.length > 0 ? (
               currentEmployees.map((employee) => (
-                <tr key={employee.id} className="hover:bg-base-200/40 transition-colors">
-                  
-                  {/* ID Column */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-mono text-sm font-bold text-base-content/70">
+                <tr
+                  key={employee.id}
+                  className="hover:bg-base-200/30 transition-colors group"
+                >
+                  <td className="py-1.5 pl-4 pr-2 whitespace-nowrap">
+                    <span className="font-mono text-[11px] font-bold opacity-60 group-hover:opacity-100 transition-opacity">
                       {employee.employee_id || "N/A"}
                     </span>
                   </td>
-
-                  {/* Employee Info */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link href={`/employee/${employee.employee_id}`} className="flex items-center gap-4 group cursor-pointer">
+                  <td className="py-1.5 px-2 whitespace-nowrap">
+                    <Link
+                      href={`/employee/${employee.employee_id}`}
+                      className="flex items-center gap-3 w-fit"
+                    >
                       <div className="avatar">
-                        <div className="w-10 rounded-full ring-1 ring-base-300 ring-offset-base-100 ring-offset-1 group-hover:ring-primary transition-all">
-                          <img 
-                            src={employee.profile_picture || "/images/default_profile.jpg"} 
-                            alt={employee.fullname} 
+                        <div className="w-7 h-7 rounded-full ring-1 ring-base-300 ring-offset-base-100 ring-offset-[1px] relative overflow-hidden">
+                          <Image
+                            loading="eager"
+                            src={
+                              employee.profile_picture
+                                ? getImageUrl(employee.profile_picture)
+                                : "/images/default_profile.jpg"
+                            }
+                            alt={employee.fullname}
+                            fill
+                            sizes="28px"
                             className="object-cover"
-                            onError={(e) => {
-                              e.target.src = "/images/default_profile.jpg";
-                            }}
                           />
                         </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-base-content leading-tight group-hover:text-primary transition-colors">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-base-content leading-none group-hover:text-primary transition-colors">
                           {employee.fullname}
-                        </div>
-                        <div className="text-xs text-base-content/50 mt-1">
+                        </span>
+                        <span className="text-[9px] text-base-content/40 mt-0.5 leading-none">
                           {employee.email}
-                        </div>
+                        </span>
                       </div>
                     </Link>
                   </td>
-
-                  {/* Role */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`badge border-none h-8 px-4 font-medium rounded-lg ${getRoleBadgeColor(employee.role_name)}`}>
+                  <td className="py-1.5 px-2 whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded border ${getRoleBadgeColor(employee.role_name)}`}
+                    >
                       {employee.role_name}
                     </span>
                   </td>
-
-                  {/* Position */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-base-content">{employee.position || "N/A"}</div>
+                  <td className="py-1.5 px-2 whitespace-nowrap">
+                    <span className="font-medium text-base-content/80 text-[11px]">
+                      {employee.position || "N/A"}
+                    </span>
                   </td>
-
-                  {/* Date Hired */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2 text-base-content/70 text-xs font-medium">
-                      <Calendar className="size-3.5 opacity-60" />
+                  <td className="py-1.5 px-2 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-base-content/60 text-[11px] font-medium">
+                      <Calendar size={10} className="opacity-50" />
                       {formatDate(employee.date_hired)}
                     </div>
                   </td>
-
-                  {/* Daily Rate */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-mono font-bold text-primary">
+                  <td className="py-1.5 px-2 whitespace-nowrap text-right">
+                    <span className="font-mono font-bold text-primary text-[11px]">
                       {formatCurrency(employee.daily_rate)}
-                    </div>
+                    </span>
                   </td>
-
-                  {/* Action Column */}
                   {showActionColumn && (
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-80 hover:opacity-100 transition-opacity">
-                        
-                        {/* View Profile Button (uses employee_id slug) */}
-                        <Link 
-                          href={`/employee/${employee.employee_id}`} 
-                          className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-info hover:bg-info/10" 
+                    <td className="py-1.5 pr-4 pl-2 text-right">
+                      <div className="flex items-center justify-end gap-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link
+                          href={`/employee/${employee.employee_id}`}
+                          className="btn btn-ghost btn-xs h-6 w-6 min-h-0 p-0 rounded text-base-content/40 hover:text-info hover:bg-info/10"
                           title="View Details"
                         >
-                          <Eye className="size-4" />
+                          <Eye size={12} />
                         </Link>
-
                         {canEdit && (
-                          <button onClick={() => onEdit(employee)} className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-warning hover:bg-warning/10" title="Edit Employee">
-                            <Edit2 className="size-4" />
+                          <button
+                            onClick={() => onEdit(employee)}
+                            className="btn btn-ghost btn-xs h-6 w-6 min-h-0 p-0 rounded text-base-content/40 hover:text-warning hover:bg-warning/10"
+                            title="Edit"
+                          >
+                            <Edit2 size={12} />
                           </button>
                         )}
                         {canDelete && (
-                          <button onClick={() => onDelete(employee)} className="btn btn-ghost btn-xs btn-square text-base-content/70 hover:text-error hover:bg-error/10" title="Delete Employee">
-                            <Trash2 className="size-4" />
+                          <button
+                            onClick={() => onDelete(employee)}
+                            className="btn btn-ghost btn-xs h-6 w-6 min-h-0 p-0 rounded text-base-content/40 hover:text-error hover:bg-error/10"
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
                           </button>
                         )}
                       </div>
@@ -240,8 +258,10 @@ const EmployeeTableList = ({
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="text-center py-10 opacity-50">
-                  No employees found matching your criteria.
+                <td colSpan={7} className="text-center py-12">
+                  <span className="text-[11px] font-bold uppercase tracking-widest opacity-40">
+                    No employees found
+                  </span>
                 </td>
               </tr>
             )}
@@ -249,26 +269,161 @@ const EmployeeTableList = ({
         </table>
       </div>
 
-      {/* PAGINATION FOOTER */}
-      <div className="p-4 border-t border-base-300 flex items-center justify-between text-xs text-base-content/50 bg-base-100/50">
-        <div>
-          Showing {Math.min(startIndex + 1, filteredEmployees.length)} to{" "}
-          {Math.min(startIndex + itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees
+      {/* =========================================
+          MOBILE VIEW (Visible only below md) 
+          ========================================= */}
+      <div className="md:hidden flex flex-col divide-y divide-base-200">
+        {currentEmployees.length > 0 ? (
+          currentEmployees.map((employee, index) => (
+            <div
+              key={employee.id}
+              className="p-4 flex flex-col gap-3 bg-base-100 hover:bg-base-200/20 transition-colors"
+            >
+              {/* Header: Avatar, Name, Role */}
+              <div className="flex justify-between items-start gap-3">
+                <Link
+                  href={`/employee/${employee.employee_id}`}
+                  className="flex items-center gap-3 min-w-0"
+                >
+                  <div className="avatar shrink-0">
+                    <div className="w-10 h-10 rounded-full ring-1 ring-base-300 ring-offset-base-100 ring-offset-[1px] relative overflow-hidden">
+                      <Image
+                        src={
+                          employee.profile_picture
+                            ? getImageUrl(employee.profile_picture)
+                            : "/images/default_profile.jpg"
+                        }
+                        alt={employee.fullname}
+                        fill
+                        sizes="28px"
+                        className="object-cover"
+                        priority={index < 4}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-[13px] text-base-content leading-tight truncate">
+                      {employee.fullname}
+                    </span>
+                    <span className="text-[10px] text-base-content/50 mt-0.5 truncate">
+                      {employee.email}
+                    </span>
+                  </div>
+                </Link>
+                <span
+                  className={`shrink-0 inline-flex items-center px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest rounded border ${getRoleBadgeColor(employee.role_name)}`}
+                >
+                  {employee.role_name}
+                </span>
+              </div>
+
+              {/* Body: Data Grid */}
+              <div className="grid grid-cols-2 gap-2 bg-base-200/30 rounded-lg p-3 border border-base-200/50">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-base-content/40 flex items-center gap-1">
+                    <Hash size={8} /> Emp ID
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-base-content/80">
+                    {employee.employee_id || "N/A"}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-base-content/40 flex items-center gap-1">
+                    <Briefcase size={8} /> Position
+                  </span>
+                  <span className="text-[11px] font-bold text-base-content/80 truncate">
+                    {employee.position || "N/A"}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-base-content/40 flex items-center gap-1">
+                    <Calendar size={8} /> Hired
+                  </span>
+                  <span className="text-[11px] font-bold text-base-content/80">
+                    {formatDate(employee.date_hired)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-base-content/40 flex items-center gap-1">
+                    <Wallet size={8} /> Rate
+                  </span>
+                  <span className="font-mono text-[11px] font-black text-primary">
+                    {formatCurrency(employee.daily_rate)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Footer: Actions (Always visible on mobile since no hover exists) */}
+              {showActionColumn && (
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <Link
+                    href={`/employee/${employee.employee_id}`}
+                    className="btn btn-outline btn-xs h-7 border-base-300 text-base-content/70 hover:bg-info hover:text-white hover:border-info flex-1 sm:flex-none"
+                  >
+                    <Eye size={12} className="mr-1" /> View
+                  </Link>
+                  {canEdit && (
+                    <button
+                      onClick={() => onEdit(employee)}
+                      className="btn btn-outline btn-xs h-7 border-base-300 text-base-content/70 hover:bg-warning hover:text-warning-content hover:border-warning"
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(employee)}
+                      className="btn btn-outline btn-xs h-7 border-base-300 text-base-content/70 hover:bg-error hover:text-white hover:border-error"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-12 text-[11px] font-bold uppercase tracking-widest opacity-40">
+            No employees found
+          </div>
+        )}
+      </div>
+
+      {/* PAGINATION FOOTER: Adapts to flex-col on small screens */}
+      <div className="p-3 sm:px-4 border-t border-base-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] text-base-content/50 bg-base-100">
+        <div className="font-medium tracking-wide">
+          Showing{" "}
+          <span className="text-base-content font-bold">
+            {Math.min(startIndex + 1, filteredEmployees.length)}
+          </span>{" "}
+          to{" "}
+          <span className="text-base-content font-bold">
+            {Math.min(startIndex + itemsPerPage, filteredEmployees.length)}
+          </span>{" "}
+          of{" "}
+          <span className="text-base-content font-bold">
+            {filteredEmployees.length}
+          </span>
         </div>
-        <div className="join">
+        <div className="join border border-base-300 rounded-md overflow-hidden shrink-0">
           <button
-            className="join-item btn btn-xs btn-outline border-base-300 text-base-content/60 font-normal hover:bg-base-200 hover:text-base-content disabled:opacity-30"
+            className="join-item btn btn-xs h-7 sm:h-6 min-h-0 bg-base-100 border-none hover:bg-base-200 text-base-content/60 font-bold uppercase tracking-widest disabled:opacity-30 disabled:bg-transparent"
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
-            <ChevronLeft className="size-3 mr-1" /> Previous
+            <ChevronLeft size={12} className="sm:w-2.5 sm:h-2.5" />
           </button>
+          <div className="join-item flex items-center justify-center px-4 sm:px-3 bg-base-100 border-x border-base-300 text-[10px] sm:text-[9px] font-bold">
+            {currentPage} / {totalPages || 1}
+          </div>
           <button
-            className="join-item btn btn-xs btn-outline border-base-300 text-base-content/60 font-normal hover:bg-base-200 hover:text-base-content disabled:opacity-30"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            className="join-item btn btn-xs h-7 sm:h-6 min-h-0 bg-base-100 border-none hover:bg-base-200 text-base-content/60 font-bold uppercase tracking-widest disabled:opacity-30 disabled:bg-transparent"
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
             disabled={currentPage === totalPages || totalPages === 0}
           >
-            Next <ChevronRight className="size-3 ml-1" />
+            <ChevronRight size={12} className="sm:w-2.5 sm:h-2.5" />
           </button>
         </div>
       </div>

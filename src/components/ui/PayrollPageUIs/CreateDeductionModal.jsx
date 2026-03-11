@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { X, Search, Users, Globe, AlertCircle, Wallet } from "lucide-react";
+import { X, Search, Users, Globe, AlertCircle, Wallet, CheckSquare, Square } from "lucide-react";
 import { useDeductionStore } from "@/stores/useDeductionStore";
 import { useUserStore } from "@/stores/useUserStore";
-import toast from "react-hot-toast"; // IMPORT TOAST
+import toast from "react-hot-toast"; 
+
+// --- NEW IMPORTS ---
+import Image from "next/image";
+import { getImageUrl } from "@/utils/getImageUrl";
 
 const CreateDeductionModal = ({ isOpen, onClose }) => {
   const { createDeduction, isSubmitting } = useDeductionStore();
@@ -39,7 +43,8 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
   const activeUsers = users.filter((user) => user.isActive);
 
   const filteredUsers = activeUsers.filter((u) =>
-    u.fullname.toLowerCase().includes(searchTerm.toLowerCase()),
+    u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.position?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleChange = (e) => {
@@ -63,12 +68,20 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
     });
   };
 
+  // --- NEW: Select All Function ---
+  const toggleSelectAll = () => {
+    if (formData.selected_users.length === filteredUsers.length && filteredUsers.length > 0) {
+      setFormData(prev => ({ ...prev, selected_users: [] }));
+    } else {
+      setFormData(prev => ({ ...prev, selected_users: filteredUsers.map(u => u.id) }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.amount) return;
 
     if (!formData.is_global && formData.selected_users.length === 0) {
-      // REPLACED ALERT WITH TOAST
       toast.error("Please select at least one employee.");
       return;
     }
@@ -159,97 +172,112 @@ const CreateDeductionModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* TARGETING */}
-          <div className="bg-base-200/40 p-5 rounded-lg border border-base-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`p-2 rounded-lg transition-colors ${
-                    formData.is_global 
-                    ? "bg-primary/20 text-primary" 
-                    : "bg-base-300 text-base-content/50"
+          {/* TARGETING (UPDATED TO MATCH ALLOWANCE UI) */}
+          <div className="form-control space-y-3">
+            <label className="label text-xs font-bold opacity-60 uppercase p-0">Target Audience</label>
+            
+            <div className="grid grid-cols-2 gap-2 bg-base-200 p-1 rounded-xl">
+                <button
+                  type="button"
+                  className={`btn btn-sm border-none shadow-none transition-all ${
+                    !formData.is_global 
+                    ? "bg-base-100 text-primary shadow-md" 
+                    : "btn-ghost text-base-content opacity-50 hover:bg-base-300"
                   }`}
+                  onClick={() => setFormData({ ...formData, is_global: false })}
                 >
-                  {formData.is_global ? <Globe size={20} /> : <Users size={20} />}
-                </div>
-                <div>
-                  <div className="font-bold text-sm">Target Audience</div>
-                  <div className="text-xs opacity-60">
-                    {formData.is_global
-                      ? "Applied automatically to ALL active employees."
-                      : "Applied only to specific employees selected below."}
-                  </div>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                name="is_global"
-                className="toggle toggle-primary"
-                checked={formData.is_global}
-                onChange={handleChange}
-              />
+                  <Users size={14} /> Specific
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm border-none shadow-none transition-all ${
+                    formData.is_global 
+                    ? "bg-base-100 text-primary shadow-md" 
+                    : "btn-ghost text-base-content opacity-50 hover:bg-base-300"
+                  }`}
+                  onClick={() => setFormData({ ...formData, is_global: true })}
+                >
+                  <Globe size={14} /> Global
+                </button>
             </div>
 
+            {/* USER SELECTION LIST */}
             {!formData.is_global && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
-                <div className="relative mb-3">
-                  <Search className="z-1 absolute left-3 top-1/2 -translate-y-1/2 size-4 opacity-40" />
-                  <input
-                    type="text"
-                    placeholder="Search employee name..."
-                    className="input input-sm input-bordered w-full pl-9 focus:input-primary"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3 pt-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search size={14} className="z-1 absolute left-3 top-1/2 -translate-y-1/2 opacity-50"/>
+                    <input 
+                      type="text" 
+                      placeholder="Search employees..." 
+                      className="input input-sm input-bordered w-full pl-9 focus:border-primary"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={toggleSelectAll} 
+                    className="btn btn-sm btn-ghost text-xs"
+                  >
+                    {formData.selected_users.length === filteredUsers.length && filteredUsers.length > 0 ? "Deselect All" : "Select All"}
+                  </button>
                 </div>
 
-                <div className="h-48 overflow-y-auto border border-base-300 rounded-lg bg-base-100 p-1 custom-scrollbar">
-                  {filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => {
-                      const isSelected = formData.selected_users.includes(user.id);
-                      return (
-                        <label
-                          key={user.id}
-                          className={`flex items-center justify-between p-3 rounded-md cursor-pointer hover:bg-base-200 transition-all ${
-                            isSelected ? "bg-primary/10 border border-primary/20" : "border border-transparent"
-                          }`}
-                        >
-                          {/* ADDED PROFILE PICTURE HERE */}
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-base-300 shrink-0 border border-base-content/10">
-                              <img
-                                src={user.profile_picture || "/images/default_profile.jpg"}
-                                alt={user.fullname}
-                                className="w-full h-full object-cover"
-                                onError={(e) => { e.target.onerror = null; e.target.src = "/images/default_profile.jpg"; }}
-                              />
-                            </div>
-                            <span className={`text-sm font-medium ${isSelected ? "text-primary" : ""}`}>
-                              {user.fullname}
-                            </span>
-                          </div>
-                          
-                          <input
-                            type="checkbox"
-                            className="checkbox checkbox-xs checkbox-primary"
-                            checked={isSelected}
-                            onChange={() => toggleUser(user.id)}
-                          />
-                        </label>
-                      );
-                    })
-                  ) : (
+                <div className="border border-base-300 rounded-xl max-h-48 overflow-y-auto bg-base-100 p-2 custom-scrollbar">
+                  {users.length === 0 ? (
                     <div className="text-center py-8 opacity-50 text-xs flex flex-col items-center">
                       <AlertCircle size={24} className="mb-2 opacity-50" />
-                      {users.length === 0
-                        ? "Loading employees..."
-                        : "No employees found"}
+                      Loading employees...
                     </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <p className="text-center text-xs opacity-50 py-4">No employees found.</p>
+                  ) : (
+                    filteredUsers.map(user => {
+                      const isSelected = formData.selected_users.includes(user.id);
+                      return (
+                        <div 
+                          key={user.id} 
+                          onClick={() => toggleUser(user.id)}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-base-200 ${
+                            isSelected ? "bg-primary/10 border border-primary/30" : "border border-transparent"
+                          }`}
+                        >
+                           <div className={`${isSelected ? "text-primary" : "opacity-30"}`}>
+                             {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                           </div>
+
+                           <div className="w-8 h-8 relative rounded-full overflow-hidden bg-base-300 shrink-0 border border-base-content/10">
+                             <Image
+                               src={user.profile_picture ? getImageUrl(user.profile_picture) : "/images/default_profile.jpg"}
+                               alt={user.fullname}
+                               fill
+                               sizes="32px"
+                               className="object-cover"
+                             />
+                           </div>
+
+                           <div className="flex-1 min-w-0">
+                             <p className={`text-sm font-bold truncate ${isSelected ? "text-primary" : ""}`}>
+                               {user.fullname}
+                             </p>
+                             <p className="text-xs opacity-50 truncate">{user.position || "No Position"}</p>
+                           </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
-                <div className="text-right text-xs opacity-50 mt-2 font-mono">
+                <p className="text-[10px] text-right opacity-50">
                   {formData.selected_users.length} employee(s) selected
-                </div>
+                </p>
+              </div>
+            )}
+
+            {formData.is_global && (
+              <div className="p-3 bg-primary/10 text-primary text-xs rounded-lg border border-primary/20 flex items-start gap-2 mt-2">
+                 <Globe size={14} className="mt-0.5 flex-shrink-0" />
+                 <p>This deduction will be automatically applied to <b>ALL current and future</b> active employees.</p>
               </div>
             )}
           </div>

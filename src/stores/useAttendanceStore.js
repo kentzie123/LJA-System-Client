@@ -73,7 +73,6 @@ export const useAttendanceStore = create((set, get) => ({
     try {
       await api.post("/attendances/manual/", formData);
       toast.success("Entry created successfully");
-      await get().fetchAllAttendances();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create entry");
     } finally {

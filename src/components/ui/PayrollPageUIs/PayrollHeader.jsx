@@ -13,36 +13,35 @@ const PayrollHeader = ({ activeTab, setActiveTab }) => {
   // --- PERMISSION CHECKS ---
   const canViewPayroll = authUser?.role?.perm_payroll_view === true;
   const canViewDeductions = authUser?.role?.perm_deduction_view === true;
-  
-  // UPDATE: Use the specific permission we created in the backend
   const canViewAllowances = authUser?.role?.perm_allowance_view === true;
 
-  // Helper to determine icon classes based on active state
-  const getIconClass = (tabName) => 
-    activeTab === tabName ? "text-primary-content" : "opacity-70";
-
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">Payroll & Finance</h1>
-        <p className="text-sm opacity-60">
-          Payroll orchestration, audit logs, deductions, and benefits.
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 shrink-0 antialiased-text">
+      
+      {/* TITLE & DESCRIPTION */}
+      <div className="flex flex-col">
+        <h1 className="text-xl sm:text-2xl font-black tracking-tight text-base-content leading-none mb-1">
+          Payroll & Finance
+        </h1>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+          Orchestration, deductions & allowances
         </p>
       </div>
 
-      <div className="bg-base-100 border border-base-300 p-1 rounded-lg flex gap-1 items-center w-full md:w-auto overflow-x-auto">
+      {/* SEGMENTED CONTROL (TABS) */}
+      <div className="bg-base-200 border border-base-300 p-1 rounded-lg flex items-center w-full md:w-auto overflow-x-auto shrink-0 custom-scrollbar">
         
         {/* TAB 1: Payout Cycles */}
         {canViewPayroll && (
           <button
             onClick={() => setActiveTab("payoutCycles")}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1.5 flex-1 md:flex-none px-4 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${
               activeTab === "payoutCycles"
-                ? "bg-primary text-primary-content shadow-sm"
-                : "opacity-60 hover:opacity-100 hover:bg-base-200"
+                ? "bg-base-100 text-primary shadow-sm"
+                : "text-base-content/50 hover:text-base-content"
             }`}
           >
-            <CalendarDays size={16} className={getIconClass("payoutCycles")} />
+            <CalendarDays size={12} className={activeTab === "payoutCycles" ? "text-primary" : "opacity-70"} />
             Payout Cycles
           </button>
         )}
@@ -51,13 +50,13 @@ const PayrollHeader = ({ activeTab, setActiveTab }) => {
         {canViewDeductions && (
           <button
             onClick={() => setActiveTab("deductionRules")}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1.5 flex-1 md:flex-none px-4 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${
               activeTab === "deductionRules"
-                ? "bg-primary text-primary-content shadow-sm"
-                : "opacity-60 hover:opacity-100 hover:bg-base-200"
+                ? "bg-base-100 text-primary shadow-sm"
+                : "text-base-content/50 hover:text-base-content"
             }`}
           >
-            <CreditCard size={16} className={getIconClass("deductionRules")} />
+            <CreditCard size={12} className={activeTab === "deductionRules" ? "text-primary" : "opacity-70"} />
             Deductions
           </button>
         )}
@@ -66,17 +65,18 @@ const PayrollHeader = ({ activeTab, setActiveTab }) => {
         {canViewAllowances && (
           <button
             onClick={() => setActiveTab("allowances")}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1.5 flex-1 md:flex-none px-4 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all whitespace-nowrap ${
               activeTab === "allowances"
-                ? "bg-primary text-primary-content shadow-sm"
-                : "opacity-60 hover:opacity-100 hover:bg-base-200"
+                ? "bg-base-100 text-primary shadow-sm"
+                : "text-base-content/50 hover:text-base-content"
             }`}
           >
-            <Coins size={16} className={getIconClass("allowances")} />
+            <Coins size={12} className={activeTab === "allowances" ? "text-primary" : "opacity-70"} />
             Allowances
           </button>
         )}
       </div>
+      
     </div>
   );
 };

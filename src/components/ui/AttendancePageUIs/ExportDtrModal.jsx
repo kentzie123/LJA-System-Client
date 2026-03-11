@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState } from "react";
-import { Download, X, Loader } from "lucide-react";
+import { Download, X, Loader2, FileSpreadsheet } from "lucide-react";
 import { downloadDTRExcel } from "@/utils/generateDTR";
 import CustomDatePicker from "../Selections/CustomDatePicker";
 
@@ -24,8 +26,6 @@ const ExportDtrModal = ({
   const [endDate, setEndDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [isGeneratingDTR, setIsGeneratingDTR] = useState(false);
 
-  if (!isOpen) return null;
-
   const handleGenerateDTR = async () => {
     if (!startDate || !endDate) return;
     setIsGeneratingDTR(true);
@@ -37,14 +37,13 @@ const ExportDtrModal = ({
       }
 
       // 1. SILENT FETCH: Call the dedicated export functions from the Zustand stores.
-      // These return the data directly without updating the global state arrays.
       const [freshAttendances, freshLeaves, freshOvertime] = await Promise.all([
         useAttendanceStore.getState().fetchAttendancesForExport({ startDate, endDate, userId: targetEmployee.id }),
         useLeaveStore.getState().fetchLeavesForExport({ startDate, endDate, targetUserId: targetEmployee.id }),
         useOvertimeStore.getState().fetchOvertimeForExport({ startDate, endDate, targetUserId: targetEmployee.id })
       ]);
 
-      // 2. Filter local data (just as a safety net)
+      // 2. Filter local data (safety net)
       const dtrAttendance = (freshAttendances || []).filter(record => {
         const recordDate = new Date(record.date).toLocaleDateString("en-CA");
         return recordDate >= startDate && recordDate <= endDate;
@@ -65,33 +64,59 @@ const ExportDtrModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-sm rounded-2xl shadow-2xl border border-base-300 flex flex-col overflow-visible scale-in-95 duration-200">
-        <div className="bg-success/10 border-b border-success/20 p-4 flex justify-between items-center text-success rounded-t-2xl">
-          <h3 className="font-bold flex items-center gap-2">
-            <Download size={18} /> Export DTR (Full Report)
-          </h3>
-          <button onClick={onClose} className="btn btn-ghost btn-xs btn-circle text-success hover:bg-success/20">
-            <X size={16} />
+    <dialog className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
+      
+      {/* MODAL BOX: Must remain overflow-visible so CustomDatePicker popups can escape the box */}
+      <div className="modal-box p-0 bg-base-100 overflow-visible w-11/12 max-w-[360px] border border-success/30 shadow-2xl rounded-xl flex flex-col antialiased-text">
+        
+        {/* HEADER: Success Strip */}
+        <div className="px-4 py-3 border-b border-success/20 bg-success/10 flex justify-between items-start shrink-0 rounded-t-xl">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-success/20 rounded-md text-success shadow-sm">
+              <FileSpreadsheet size={16} />
+            </div>
+            <div className="flex flex-col">
+              <h3 className="text-[13px] font-black text-success uppercase tracking-widest leading-none">
+                Export DTR
+              </h3>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-success/70 mt-1">
+                Full Report Generation
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="btn btn-xs btn-circle btn-ghost text-success/50 hover:text-success hover:bg-success/20"
+          >
+            <X size={14} />
           </button>
         </div>
-        
-        <div className="p-6 space-y-5">
-          <p className="text-xs text-base-content/70">
-            This report includes Attendance, Approved Leaves, and Overtime.
+
+        {/* BODY */}
+        <div className="p-4 bg-base-100">
+          <p className="text-[10px] text-base-content/60 font-medium mb-4 leading-snug">
+            This operation compiles <strong className="text-base-content">Attendance</strong>, <strong className="text-base-content">Approved Leaves</strong>, and <strong className="text-base-content">Overtime</strong> into a unified Excel spreadsheet.
           </p>
           
-          <div className="space-y-4">
-            <div className="relative z-[40]">
+          <div className="space-y-3">
+            {/* START DATE */}
+            <div className="form-control relative z-[40]">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 ml-0.5">
+                Start Date
+              </label>
               <CustomDatePicker 
-                label="Start Date"
                 value={startDate}
                 onChange={setStartDate}
               />
             </div>
-            <div className="relative z-[30]">
+            
+            {/* END DATE */}
+            <div className="form-control relative z-[30]">
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 ml-0.5">
+                End Date
+              </label>
               <CustomDatePicker 
-                label="End Date"
                 value={endDate}
                 onChange={setEndDate}
               />
@@ -99,18 +124,36 @@ const ExportDtrModal = ({
           </div>
         </div>
 
-        <div className="bg-base-200/50 p-4 border-t border-base-300 flex justify-end gap-2 rounded-b-2xl relative z-0">
-          <button onClick={onClose} className="btn btn-ghost btn-sm">Cancel</button>
+        {/* FOOTER ACTIONS */}
+        <div className="px-4 py-3 border-t border-base-200 bg-base-200/30 flex justify-end gap-2 shrink-0 rounded-b-xl relative z-0">
           <button 
+            type="button"
+            onClick={onClose} 
+            className="btn btn-sm h-8 min-h-0 btn-ghost text-[10px] font-bold uppercase tracking-widest px-4"
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
             onClick={handleGenerateDTR} 
             disabled={isGeneratingDTR || !startDate || !endDate}
-            className="btn btn-success btn-sm text-success-content w-32"
+            className="btn btn-sm h-8 min-h-0 btn-success text-white text-[10px] font-bold uppercase tracking-widest px-5 shadow-sm border-none w-[140px]"
           >
-            {isGeneratingDTR ? <Loader className="animate-spin size-4" /> : "Download Excel"}
+            {isGeneratingDTR ? (
+              <Loader2 className="animate-spin size-4" />
+            ) : (
+              <>
+                <Download size={14} className="mr-1" /> Download
+              </>
+            )}
           </button>
         </div>
+
       </div>
-    </div>
+
+      {/* CLICKABLE BACKDROP */}
+      <div className="modal-backdrop bg-black/60 backdrop-blur-sm" onClick={() => !isGeneratingDTR && onClose()}></div>
+    </dialog>
   );
 };
 

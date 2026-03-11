@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAttendanceStore } from "@/stores/useAttendanceStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import {
   X,
   Calendar,
   Clock,
-  Activity,
-  CheckCircle,
-  Type,
   Image as ImageIcon,
+  Loader2,
+  UserCheck
 } from "lucide-react";
 
 import UserSelectDropdown from "../Selections/UserSelectDropdown";
-// --- ADDED IMPORT ---
 import CustomDatePicker from "../Selections/CustomDatePicker";
 
 const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
@@ -24,10 +22,11 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
     adminClockOverride,
     isAddingAttendance,
     isCreating,
-    fetchAllAttendances,
   } = useAttendanceStore();
 
+  const modalRef = useRef(null);
   const isSuperAdmin = authUser?.role_id === 3;
+  const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
     userId: "",
@@ -43,6 +42,8 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
 
   useEffect(() => {
     if (isOpen) {
+      modalRef.current?.showModal();
+      setErrors({});
       setFormData({
         userId: "",
         date: new Date().toLocaleDateString("en-CA"),
@@ -54,10 +55,22 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
         photo: null,
         workSummary: "",
       });
+    } else {
+      modalRef.current?.close();
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.userId) newErrors.userId = "Required";
+    if (isSuperAdmin && !formData.overrideTime) newErrors.overrideTime = "Required";
+    if (isSuperAdmin && formData.type === "out" && !formData.workSummary.trim()) {
+        newErrors.workSummary = "Summary required for clock-out";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -70,17 +83,9 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
     }
   };
 
-  const removePhoto = () => {
-    setFormData((prev) => ({ ...prev, photo: null }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!formData.userId) {
-      alert("Please select an employee first.");
-      return;
-    }
+    if (!validateForm()) return;
 
     if (isSuperAdmin) {
       const payload = {
@@ -103,8 +108,6 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
       };
       await createManualEntry(payload);
     }
-
-    fetchAllAttendances();
     onClose();
   };
 
@@ -112,304 +115,193 @@ const AddNewAttendanceModal = ({ isOpen, onClose, users }) => {
   const isProcessing = isAddingAttendance || isCreating;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-base-100 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh]">
-        {/* --- HEADER --- */}
-        <div
-          className={`flex items-center justify-between py-4 px-6 border-b border-base-300 ${isSuperAdmin ? "bg-primary/10 text-primary" : "bg-base-200"}`}
-        >
+    <dialog ref={modalRef} className={`modal modal-middle ${isOpen ? "modal-open" : ""}`} onClose={onClose}>
+      <div className="modal-box p-0 bg-base-100 overflow-hidden w-11/12 max-w-[380px] border border-base-300 shadow-2xl rounded-xl flex flex-col max-h-[85vh]">
+        
+        {/* COMPACT HEADER */}
+        <div className={`flex items-center justify-between py-3 px-5 border-b border-base-300 shrink-0 ${isSuperAdmin ? "bg-primary/5 text-primary" : "bg-base-200/50"}`}>
           <div>
-            <div className="text-lg font-bold flex items-center gap-2">
-              {isSuperAdmin ? (
-                <>
-                  <Clock size={20} /> Admin Clock Override
-                </>
-              ) : (
-                "Add Manual Record"
-              )}
+            <div className="text-[14px] font-bold flex items-center gap-2">
+              {isSuperAdmin ? <><Clock size={16} /> Admin Override</> : <><UserCheck size={16} /> Manual Entry</>}
             </div>
-            <p
-              className={`text-xs mt-0.5 ${isSuperAdmin ? "opacity-80" : "text-base-content/60"}`}
-            >
-              {isSuperAdmin
-                ? "Force a live clock-in/out for an employee."
-                : "Create a new past attendance entry."}
+            <p className="text-[9px] font-semibold opacity-50 uppercase tracking-widest">
+              {isSuperAdmin ? "Live System Override" : "Historical Record"}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className={`btn btn-ghost btn-sm btn-square hover:text-error ${isSuperAdmin ? "text-primary" : "text-base-content/50"}`}
-          >
-            <X className="size-5" />
+          <button onClick={onClose} className="btn btn-xs btn-circle btn-ghost opacity-50 hover:opacity-100">
+            <X size={14} />
           </button>
         </div>
 
-        {/* --- FORM BODY --- */}
-        <div className="py-4 px-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
-          <form
-            id="attendance-form"
-            onSubmit={handleSubmit}
-            className="space-y-4"
-          >
-            {/* 1. SHARED: Employee Selection */}
-            <fieldset className="fieldset relative z-50">
-              <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60">
-                Employee
-              </legend>
-              <UserSelectDropdown
-                users={users}
-                value={formData.userId}
-                onChange={(selectedId) =>
-                  setFormData({ ...formData, userId: selectedId })
-                }
-              />
-            </fieldset>
+        {/* BODY */}
+        <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+          
+          {/* Employee Selection */}
+          <div className="form-control z-50">
+            <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
+              Employee {errors.userId && <span className="text-error font-bold">{errors.userId}</span>}
+            </label>
+            <UserSelectDropdown
+              users={users}
+              value={formData.userId}
+              onChange={(id) => {
+                setFormData({ ...formData, userId: id });
+                if(errors.userId) setErrors({...errors, userId: ""});
+              }}
+            />
+          </div>
 
-            {/* SUPER ADMIN VIEW */}
-            {isSuperAdmin ? (
-              <>
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60">
-                    Entry Type
-                  </legend>
-                  <div className="flex bg-base-200 p-1 rounded-lg gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, type: "in" })}
-                      className={`flex-1 text-sm py-2 rounded-md font-medium transition-all ${formData.type === "in" ? "bg-base-100 shadow-sm text-primary" : "text-base-content/50 hover:text-base-content"}`}
-                    >
-                      Time In
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, type: "out" })}
-                      className={`flex-1 text-sm py-2 rounded-md font-medium transition-all ${formData.type === "out" ? "bg-base-100 shadow-sm text-error" : "text-base-content/50 hover:text-base-content"}`}
-                    >
-                      Time Out
-                    </button>
-                  </div>
-                </fieldset>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* --- UPDATED: CUSTOM DATE PICKER (SUPER ADMIN) --- */}
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60 flex items-center gap-1.5">
-                      <Calendar size={14} /> Date
-                    </legend>
-                    <CustomDatePicker 
-                      value={formData.date}
-                      onChange={(newDate) => setFormData({ ...formData, date: newDate })}
-                      className="text-sm"
-                    />
-                  </fieldset>
-
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60 flex items-center gap-1.5">
-                      <Clock size={14} /> Exact Time
-                    </legend>
-                    <input
-                      required
-                      type="time"
-                      className="input input-bordered w-full text-sm h-10"
-                      value={formData.overrideTime}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          overrideTime: e.target.value,
-                        })
-                      }
-                    />
-                  </fieldset>
+          {isSuperAdmin ? (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="form-control">
+                <div className="grid grid-cols-2 gap-1 bg-base-200 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, type: "in" })}
+                    className={`h-7 rounded-md text-[10px] font-bold uppercase transition-all ${formData.type === "in" ? "bg-base-100 text-primary shadow-sm" : "opacity-50 hover:opacity-100"}`}
+                  >
+                    Clock In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, type: "out" })}
+                    className={`h-7 rounded-md text-[10px] font-bold uppercase transition-all ${formData.type === "out" ? "bg-base-100 text-error shadow-sm" : "opacity-50 hover:opacity-100"}`}
+                  >
+                    Clock Out
+                  </button>
                 </div>
+              </div>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60 flex items-center gap-1.5">
-                    <ImageIcon size={14} /> Photo Evidence (Optional)
-                  </legend>
-
-                  {!formData.photo ? (
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="file-input file-input-bordered file-input-primary w-full text-sm"
-                    />
-                  ) : (
-                    <div className="relative w-full h-40 bg-base-200 rounded-xl overflow-hidden border border-base-300 group">
-                      <img
-                        src={formData.photo}
-                        alt="Preview"
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={removePhoto}
-                          className="btn btn-error btn-sm shadow-xl"
-                        >
-                          <X size={16} className="mr-1" /> Remove Photo
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </fieldset>
-
-                {formData.type === "out" && (
-                  <fieldset className="fieldset animate-in slide-in-from-top-2 duration-300">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60 flex items-center gap-1.5">
-                      <Type size={14} /> Work Summary
-                    </legend>
-                    <textarea
-                      required
-                      placeholder="What did they work on today?"
-                      className="textarea textarea-bordered w-full text-sm"
-                      rows={2}
-                      value={formData.workSummary}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          workSummary: e.target.value,
-                        })
-                      }
-                    />
-                  </fieldset>
-                )}
-              </>
-            ) : (
-              /* STANDARD ADMIN VIEW */
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* --- UPDATED: CUSTOM DATE PICKER (STANDARD ADMIN) --- */}
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60">
-                      Date
-                    </legend>
-                    <CustomDatePicker 
-                      value={formData.date}
-                      onChange={(newDate) => setFormData({ ...formData, date: newDate })}
-                      className="text-sm"
-                    />
-                  </fieldset>
-
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60">
-                      Status
-                    </legend>
-                    <div className="relative">
-                      <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50 pointer-events-none z-10" />
-                      <select
-                        className="select select-bordered w-full pl-10 text-sm h-10"
-                        value={formData.status}
-                        onChange={(e) =>
-                          setFormData({ ...formData, status: e.target.value })
-                        }
-                      >
-                        <option value="Present">Present</option>
-                        <option value="Absent">Absent</option>
-                        <option value="Late">Late</option>
-                        <option value="Half Day">Half Day</option>
-                      </select>
-                    </div>
-                  </fieldset>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <Calendar size={10} /> Date
+                  </label>
+                  <CustomDatePicker 
+                    value={formData.date}
+                    onChange={(d) => setFormData({ ...formData, date: d })}
+                  />
                 </div>
-
-                <div
-                  className={`grid grid-cols-2 gap-4 transition-opacity duration-300 ${isAbsent ? "opacity-50 pointer-events-none" : "opacity-100"}`}
-                >
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase text-success">
-                      Time In
-                    </legend>
-                    <div className="relative">
-                      <input
-                        type="time"
-                        className="input input-bordered w-full pl-10 text-sm h-10"
-                        value={formData.timeIn}
-                        onChange={(e) =>
-                          setFormData({ ...formData, timeIn: e.target.value })
-                        }
-                        disabled={isAbsent}
-                      />
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-success pointer-events-none" />
-                    </div>
-                  </fieldset>
-
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase text-error">
-                      Time Out
-                    </legend>
-                    <div className="relative">
-                      <input
-                        type="time"
-                        className="input input-bordered w-full pl-10 text-sm h-10"
-                        value={formData.timeOut}
-                        onChange={(e) =>
-                          setFormData({ ...formData, timeOut: e.target.value })
-                        }
-                        disabled={isAbsent}
-                      />
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-error pointer-events-none" />
-                    </div>
-                  </fieldset>
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <Clock size={10} /> Time {errors.overrideTime && <span className="text-error">•</span>}
+                  </label>
+                  <input
+                    type="time"
+                    className={`input input-bordered h-8 text-[12px] px-2 focus:outline-none focus:border-primary ${errors.overrideTime ? "border-error" : ""}`}
+                    value={formData.overrideTime}
+                    onChange={(e) => {
+                        setFormData({ ...formData, overrideTime: e.target.value });
+                        if(errors.overrideTime) setErrors({...errors, overrideTime: ""});
+                    }}
+                  />
                 </div>
+              </div>
 
-                {!isAbsent && (
-                  <fieldset className="fieldset animate-in slide-in-from-top-2 duration-300">
-                    <legend className="fieldset-legend text-xs font-semibold uppercase opacity-60 flex items-center gap-1.5">
-                      <Type size={14} /> Work Summary
-                    </legend>
-                    <textarea
-                      placeholder="What did they work on? (Optional)"
-                      className="textarea textarea-bordered w-full text-sm"
-                      rows={2}
-                      value={formData.workSummary}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          workSummary: e.target.value,
-                        })
-                      }
-                    />
-                  </fieldset>
-                )}
-
-                {isAbsent && (
-                  <div className="flex items-center gap-2 text-warning bg-warning/10 p-2 rounded-lg text-xs">
-                    <Activity className="size-4" />
-                    <span>Time records are ignored for Absent status.</span>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* --- FOOTER BUTTONS --- */}
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-base-300 relative z-0">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn btn-ghost btn-sm"
-                disabled={isProcessing}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className={`btn btn-sm w-32 ${isSuperAdmin ? (formData.type === "in" ? "btn-primary" : "btn-error text-white") : "btn-primary"}`}
-                disabled={isProcessing || !formData.userId}
-              >
-                {isProcessing ? (
-                  <span className="loading loading-spinner loading-xs"></span>
-                ) : isSuperAdmin ? (
-                  `Override ${formData.type === "in" ? "In" : "Out"}`
+              <div className="form-control">
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex items-center gap-1">
+                  <ImageIcon size={10} /> Evidence (Optional)
+                </label>
+                {!formData.photo ? (
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} className="file-input file-input-xs file-input-bordered h-8 text-[11px] w-full" />
                 ) : (
-                  "Save Record"
+                  <div className="relative rounded-lg overflow-hidden border border-base-300 aspect-video group">
+                    <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setFormData({...formData, photo: null})} className="absolute top-1 right-1 btn btn-circle btn-xs btn-error shadow-lg">
+                        <X size={10} />
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
+
+              {formData.type === "out" && (
+                <div className="form-control animate-in slide-in-from-top-1">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1">
+                    Work Summary {errors.workSummary && <span className="text-error ml-1">({errors.workSummary})</span>}
+                  </label>
+                  <textarea
+                    placeholder="Tasks completed..."
+                    className={`textarea textarea-bordered h-16 text-[12px] leading-snug w-full ${errors.workSummary ? "border-error" : ""}`}
+                    value={formData.workSummary}
+                    onChange={(e) => {
+                        setFormData({ ...formData, workSummary: e.target.value });
+                        if(errors.workSummary) setErrors({...errors, workSummary: ""});
+                    }}
+                  />
+                </div>
+              )}
             </div>
-          </form>
+          ) : (
+            /* STANDARD ADMIN COMPACT FIELDS */
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1">Date</label>
+                  <CustomDatePicker value={formData.date} onChange={(d) => setFormData({ ...formData, date: d })} />
+                </div>
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1">Status</label>
+                  <select
+                    className="select select-bordered select-sm h-8 min-h-0 py-0 text-[12px] w-full"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  >
+                    <option value="Present">Present</option>
+                    <option value="Absent">Absent</option>
+                    <option value="Late">Late</option>
+                    <option value="Half Day">Half Day</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={`grid grid-cols-2 gap-3 transition-all duration-300 ${isAbsent ? "opacity-30 grayscale pointer-events-none" : ""}`}>
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-success uppercase tracking-widest mb-1">Time In</label>
+                  <input type="time" className="input input-bordered h-8 text-[12px] px-2" value={formData.timeIn} onChange={(e) => setFormData({ ...formData, timeIn: e.target.value })} disabled={isAbsent} />
+                </div>
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-error uppercase tracking-widest mb-1">Time Out</label>
+                  <input type="time" className="input input-bordered h-8 text-[12px] px-2" value={formData.timeOut} onChange={(e) => setFormData({ ...formData, timeOut: e.target.value })} disabled={isAbsent} />
+                </div>
+              </div>
+
+              {!isAbsent && (
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1">Work Summary</label>
+                  <textarea
+                    placeholder="Optional notes..."
+                    className="textarea textarea-bordered h-16 text-[12px] leading-snug w-full"
+                    value={formData.workSummary}
+                    onChange={(e) => setFormData({ ...formData, workSummary: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* FOOTER */}
+        <div className="p-3 bg-base-200/50 border-t border-base-300 flex justify-end gap-2 shrink-0">
+          <button type="button" onClick={onClose} className="btn btn-ghost h-8 min-h-0 text-[11px] px-4 font-bold uppercase tracking-wider" disabled={isProcessing}>Cancel</button>
+          <button 
+            type="submit"
+            onClick={handleSubmit}
+            className={`btn btn-sm h-8 min-h-0 px-5 rounded-md shadow-sm text-[11px] font-bold uppercase tracking-wider border-none ${isSuperAdmin && formData.type === 'out' ? 'bg-error text-white' : 'btn-primary text-white'}`}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <Loader2 className="animate-spin size-3" />
+            ) : isSuperAdmin ? (
+              `Override ${formData.type}`
+            ) : (
+              "Save Record"
+            )}
+          </button>
         </div>
       </div>
-    </div>
+
+      <div className="modal-backdrop bg-black/60 backdrop-blur-sm" onClick={() => !isCreating && onClose()}></div>
+    </dialog>
   );
 };
 

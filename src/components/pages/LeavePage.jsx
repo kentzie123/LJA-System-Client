@@ -2,30 +2,40 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useLeaveStore } from "@/stores/useLeaveStore";
-import { useRouter } from "next/navigation";
-import { Plus, UserPlus, Wallet, ArrowLeft } from "lucide-react"; 
+// 1. IMPORT NEXT.JS NAVIGATION HOOKS
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import {
+  Plus,
+  UserPlus,
+  Wallet,
+  ArrowLeft,
+  Calendar,
+  List,
+} from "lucide-react";
 
 // UI Components
 import LeaveStatsGrid from "../ui/LeavePageUIs/LeaveStatsGrid";
-import LeaveRequestTable from "../ui/LeavePageUIs/LeaveRequestTable"; 
-import LeaveBalanceTable from "../ui/LeavePageUIs/LeaveBalanceTable"; 
+import LeaveRequestTable from "../ui/LeavePageUIs/LeaveRequestTable";
+import LeaveBalanceTable from "../ui/LeavePageUIs/LeaveBalanceTable";
+import LeaveCalendarView from "../ui/LeavePageUIs/LeaveCalendarView";
 
 // Modals
 import NewLeaveModal from "../ui/LeavePageUIs/NewLeaveModal";
 import EditLeaveModal from "../ui/LeavePageUIs/EditLeaveModal";
 import DeleteLeaveModal from "../ui/LeavePageUIs/DeleteLeaveModal";
 import ConfirmLeaveActionModal from "../ui/LeavePageUIs/ConfirmLeaveActionModal";
-import AdminCreateLeaveModal from "../ui/LeavePageUIs/AdminCreateLeaveModal"; 
+import AdminCreateLeaveModal from "../ui/LeavePageUIs/AdminCreateLeaveModal";
 import LeaveRejectReasonModal from "../ui/LeavePageUIs/LeaveRejectReasonModal";
 import ViewLeaveRejectReasonModal from "../ui/LeavePageUIs/ViewLeaveRejectReasonModal";
+import ViewLeaveReasonModal from "../ui/LeavePageUIs/ViewLeaveReasonModal"; // <-- IMPORT NEW MODAL
 
 const LeavePage = () => {
   const { authUser, socket } = useAuthStore();
   const {
     fetchAllLeaves,
-    fetchLeaveBalances, 
-    fetchAllBalances, 
-    allBalances,      
+    fetchLeaveBalances,
+    fetchAllBalances,
+    allBalances,
     isFetchingBalances,
     leaves,
     isFetching,
@@ -34,22 +44,28 @@ const LeavePage = () => {
     selectedLeave,
     subscribeToLeaveUpdates,
     unsubscribeFromLeaveUpdates,
-    fetchLeaveStats // <--- ADDED: Extracted fetchLeaveStats from the store
+    fetchLeaveStats,
   } = useLeaveStore();
 
+  // 2. SETUP NAVIGATION HOOKS
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Permissions
   const canAccessPage = authUser?.role?.perm_leave_view === true;
-  const canViewAll = authUser?.role?.perm_leave_view_all === true; 
+  const canViewAll = authUser?.role?.perm_leave_view_all === true;
   const canApprove = authUser?.role?.perm_leave_approve === true;
   const canCreate = authUser?.role?.perm_leave_create === true;
   const canManage = authUser?.role?.perm_leave_manage === true;
 
-  // View State ("requests" or "balances")
+  // View States
   const [currentView, setCurrentView] = useState("requests");
 
-  // --- NEW: FILTER STATES LIFTED UP FROM TABLE ---
+  // 3. READ LAYOUT FROM URL (Default to 'list' if not present)
+  const layoutView = searchParams.get("layout") || "list";
+
+  // Filter States
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState(() => {
     const now = new Date();
@@ -58,20 +74,25 @@ const LeavePage = () => {
 
   // Modal States
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false); 
+  const [isAdminCreateModalOpen, setIsAdminCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); 
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); 
-  const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false); 
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  
+  // --- SPLIT REASON STATES ---
+  const [isViewRejectReasonModalOpen, setIsViewRejectReasonModalOpen] = useState(false);
+  const [rejectReasonText, setRejectReasonText] = useState("");
+
+  const [isViewLeaveReasonModalOpen, setIsViewLeaveReasonModalOpen] = useState(false);
+  const [leaveReasonText, setLeaveReasonText] = useState("");
 
   // Action States
-  const [actionData, setActionData] = useState(null); 
-  const [viewReason, setViewReason] = useState(""); 
+  const [actionData, setActionData] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
-  // Security & Initial Data (Balances)
+  // Security & Initial Data
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
@@ -82,20 +103,26 @@ const LeavePage = () => {
       return;
     }
 
-    fetchLeaveBalances(); 
+    fetchLeaveBalances();
     if (canViewAll) {
-        fetchAllBalances(); 
+      fetchAllBalances();
     }
-  }, [authUser, router, canAccessPage, fetchLeaveBalances, fetchAllBalances, canViewAll]);
+  }, [
+    authUser,
+    router,
+    canAccessPage,
+    fetchLeaveBalances,
+    fetchAllBalances,
+    canViewAll,
+  ]);
 
-  // --- NEW: DYNAMIC FETCHING BASED ON FILTERS ---
+  // Dynamic Fetching
   useEffect(() => {
     if (!authUser || !canAccessPage) return;
 
     let month = null;
     let year = null;
 
-    // Parse the "YYYY-MM" string into separate month and year for the backend
     if (filterDate) {
       const [y, m] = filterDate.split("-");
       year = y;
@@ -103,22 +130,19 @@ const LeavePage = () => {
     }
 
     const timer = setTimeout(() => {
-      // 1. Fetch the table rows
-      fetchAllLeaves({
-        status: filterStatus,
-        month: month,
-        year: year,
-      });
-      
-      // 2. Fetch the stats to update the grid and the pending badge!
-      fetchLeaveStats({
-        month: month,
-        year: year,
-      });
-    }, 300); // 300ms debounce to prevent spamming the database
+      fetchAllLeaves({ status: filterStatus, month: month, year: year });
+      fetchLeaveStats({ month: month, year: year });
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [filterStatus, filterDate, authUser, canAccessPage, fetchAllLeaves, fetchLeaveStats]);
+  }, [
+    filterStatus,
+    filterDate,
+    authUser,
+    canAccessPage,
+    fetchAllLeaves,
+    fetchLeaveStats,
+  ]);
 
   // Real-time Listeners
   useEffect(() => {
@@ -127,10 +151,18 @@ const LeavePage = () => {
     }
     return () => {
       unsubscribeFromLeaveUpdates();
-    };
+    }
   }, [socket, subscribeToLeaveUpdates, unsubscribeFromLeaveUpdates]);
 
-  // Handlers
+  // --- Handlers ---
+
+  // 4. HANDLER TO UPDATE URL
+  const handleLayoutChange = (newLayout) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("layout", newLayout);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const handleDeleteConfirm = async () => {
     if (!selectedLeave) return;
     setIsDeleting(true);
@@ -148,9 +180,15 @@ const LeavePage = () => {
     }
   };
 
-  const handleViewReason = (reason) => {
-    setViewReason(reason);
-    setIsViewReasonModalOpen(true);
+  // --- REASON HANDLERS ---
+  const handleViewRejectReason = (reason) => {
+    setRejectReasonText(reason);
+    setIsViewRejectReasonModalOpen(true);
+  };
+
+  const handleViewLeaveReason = (reason) => {
+    setLeaveReasonText(reason);
+    setIsViewLeaveReasonModalOpen(true);
   };
 
   const handleApproveConfirm = async () => {
@@ -172,90 +210,140 @@ const LeavePage = () => {
   if (!authUser || !canAccessPage) return null;
 
   return (
-    <div className="space-y-6 h-auto lg:h-[calc(100vh-100px)] flex flex-col">
+    <div className="space-y-4 h-auto lg:h-[calc(100vh-100px)] flex flex-col antialiased-text">
       
-      {/* HEADER SECTION */}
-      <div className="shrink-0 space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          
-          {/* Dynamic Titles based on View */}
-          <div className="flex flex-col">
-            {currentView === "balances" ? (
-              <div className="flex flex-col items-start gap-3">
-                <button 
-                  onClick={() => setCurrentView("requests")}
-                  className="btn btn-sm btn-outline border-base-300 hover:bg-base-200 gap-2 shadow-sm font-bold text-base-content/80"
-                >
-                  <ArrowLeft size={16} /> Back to Requests
-                </button>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-base-content leading-none">
-                    Employee Balances
-                  </h1>
-                  <p className="text-sm opacity-60 mt-1">
-                    Company-wide leave allocation and usage ledger.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-base-content leading-none">
-                  Leave Management
+      {/* --- HIGH-DENSITY HEADER & TOOLBAR --- */}
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 border-b border-base-300 pb-4 shrink-0">
+        
+        {/* LEFT SIDE: Titles & Navigation */}
+        <div className="flex flex-col">
+          {currentView === "balances" ? (
+            <div className="flex flex-col items-start gap-2">
+              <button
+                onClick={() => setCurrentView("requests")}
+                className="btn btn-xs h-7 min-h-0 btn-ghost text-base-content/60 hover:bg-base-200 hover:text-base-content gap-1.5 px-2 -ml-2 transition-colors"
+              >
+                <ArrowLeft size={12} /> <span className="text-[10px] font-bold uppercase tracking-widest">Back to Requests</span>
+              </button>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-base-content leading-none mb-1">
+                  Employee Balances
                 </h1>
-                <p className="text-sm opacity-60 mt-1">
-                  Track time off and manage employee requests.
+                <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+                  Company-wide leave allocation ledger
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-base-content leading-none mb-1">
+                Leave Management
+              </h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+                Track time off & manage requests
+              </p>
+            </div>
+          )}
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0">
-            {canViewAll && currentView === "requests" && (
-              <button 
-                onClick={() => setCurrentView("balances")} 
-                className="btn btn-sm bg-base-100 hover:bg-base-200 border-base-300 gap-2 flex-1 md:flex-none shadow-sm"
+        {/* RIGHT SIDE: Actions & Layout Toggle */}
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 w-full xl:w-auto">
+          
+          {/* TOGGLE (Calendar / List) */}
+          {currentView === "requests" && (
+            <div className="flex items-center p-1 bg-base-200 rounded-lg border border-base-300 w-full sm:w-fit shrink-0">
+              <button
+                onClick={() => handleLayoutChange("calendar")}
+                className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${
+                  layoutView === "calendar"
+                    ? "bg-base-100 text-primary shadow-sm"
+                    : "text-base-content/50 hover:text-base-content"
+                }`}
               >
-                <Wallet size={16} className="text-primary" /> View Balances
+                <Calendar size={12} /> Calendar
+              </button>
+              <button
+                onClick={() => handleLayoutChange("list")}
+                className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${
+                  layoutView === "list"
+                    ? "bg-base-100 text-primary shadow-sm"
+                    : "text-base-content/50 hover:text-base-content"
+                }`}
+              >
+                <List size={12} /> List
+              </button>
+            </div>
+          )}
+
+          {/* ACTION BUTTONS */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto flex-1 sm:flex-none">
+            {canViewAll && currentView === "requests" && (
+              <button
+                onClick={() => setCurrentView("balances")}
+                className="btn btn-sm h-8 min-h-0 bg-base-100 hover:bg-base-200 border-base-300 text-[10px] font-bold uppercase tracking-widest gap-1.5 flex-1 sm:flex-none shadow-sm px-3"
+              >
+                <Wallet size={12} className="text-primary" /> Balances
               </button>
             )}
+            
             {canManage && currentView === "requests" && (
-              <button onClick={() => setIsAdminCreateModalOpen(true)} className="btn btn-sm btn-secondary gap-2 flex-1 md:flex-none shadow-sm">
-                <UserPlus size={16} /> Assign Leave
+              <button
+                onClick={() => setIsAdminCreateModalOpen(true)}
+                className="btn btn-sm h-8 min-h-0 btn-secondary text-secondary-content text-[10px] font-bold uppercase tracking-widest gap-1.5 flex-1 sm:flex-none shadow-sm px-3"
+              >
+                <UserPlus size={12} /> Assign Leave
               </button>
             )}
+            
             {canCreate && currentView === "requests" && (
-              <button onClick={() => setIsNewModalOpen(true)} className="btn btn-sm btn-primary gap-2 flex-1 md:flex-none shadow-sm">
-                <Plus size={16} /> Request Leave
+              <button
+                onClick={() => setIsNewModalOpen(true)}
+                className="btn btn-sm h-8 min-h-0 btn-primary text-primary-content text-[10px] font-bold uppercase tracking-widest gap-1.5 flex-1 sm:flex-none shadow-sm px-3"
+              >
+                <Plus size={12} /> Request Leave
               </button>
             )}
           </div>
         </div>
-
-        {/* Stats Grid (Only show on Requests view) */}
-        {currentView === "requests" && (
-          <div className="pt-2">
-            <LeaveStatsGrid leaves={leaves} isAdminView={canViewAll} />
-          </div>
-        )}
       </div>
 
-      {/* DYNAMIC VIEWS */}
+      {/* --- STATS GRID --- */}
+      {currentView === "requests" && (
+        <div className="shrink-0">
+          <LeaveStatsGrid leaves={leaves} isAdminView={canViewAll} />
+        </div>
+      )}
+
+      {/* --- DYNAMIC VIEWS --- */}
       <div className="flex-1 overflow-hidden min-h-[400px]">
         {currentView === "balances" ? (
-          <LeaveBalanceTable balances={allBalances} isFetching={isFetchingBalances} />
+          <LeaveBalanceTable
+            balances={allBalances}
+            isFetching={isFetchingBalances}
+          />
+        ) : /* 5. CONDITIONAL RENDER BASED ON URL LAYOUT */
+        layoutView === "calendar" ? (
+          <LeaveCalendarView
+            leaves={leaves}
+            filterDate={filterDate}
+            setFilterDate={setFilterDate}
+          />
         ) : (
           <LeaveRequestTable
-            leaves={leaves} 
+            leaves={leaves}
             isFetching={isFetching}
-            filterStatus={filterStatus}           
-            setFilterStatus={setFilterStatus}     
-            filterDate={filterDate}               
-            setFilterDate={setFilterDate}         
+            filterStatus={filterStatus}
+            setFilterStatus={setFilterStatus}
+            filterDate={filterDate}
+            setFilterDate={setFilterDate}
             onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteModalOpen(true)}
             onAction={handleActionTrigger}
-            onViewReason={handleViewReason}
+            
+            // Pass both reason handlers properly
+            onViewRejectReason={handleViewRejectReason}
+            onViewLeaveReason={handleViewLeaveReason}
+            
             canApprove={canApprove}
             canViewAll={canViewAll}
             canCreate={canCreate}
@@ -265,13 +353,49 @@ const LeavePage = () => {
       </div>
 
       {/* --- Modals --- */}
-      <NewLeaveModal isOpen={isNewModalOpen} onClose={() => setIsNewModalOpen(false)} />
-      <AdminCreateLeaveModal isOpen={isAdminCreateModalOpen} onClose={() => setIsAdminCreateModalOpen(false)} />
-      <EditLeaveModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} />
-      <DeleteLeaveModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} leaveRequest={selectedLeave} isDeleting={isDeleting} />
-      <ConfirmLeaveActionModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={handleApproveConfirm} actionData={actionData} isProcessing={isProcessingAction} />
-      <LeaveRejectReasonModal isOpen={isRejectModalOpen} onClose={() => setIsRejectModalOpen(false)} onConfirm={handleRejectConfirm} isProcessing={isProcessingAction} />
-      <ViewLeaveRejectReasonModal isOpen={isViewReasonModalOpen} onClose={() => setIsViewReasonModalOpen(false)} reason={viewReason} />
+      <NewLeaveModal
+        isOpen={isNewModalOpen}
+        onClose={() => setIsNewModalOpen(false)}
+      />
+      <AdminCreateLeaveModal
+        isOpen={isAdminCreateModalOpen}
+        onClose={() => setIsAdminCreateModalOpen(false)}
+      />
+      <EditLeaveModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+      />
+      <DeleteLeaveModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        leaveRequest={selectedLeave}
+        isDeleting={isDeleting}
+        userRole={authUser.role_id}
+      />
+      <ConfirmLeaveActionModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={handleApproveConfirm}
+        actionData={actionData}
+        isProcessing={isProcessingAction}
+      />
+      <LeaveRejectReasonModal
+        isOpen={isRejectModalOpen}
+        onClose={() => setIsRejectModalOpen(false)}
+        onConfirm={handleRejectConfirm}
+        isProcessing={isProcessingAction}
+      />
+      <ViewLeaveRejectReasonModal
+        isOpen={isViewRejectReasonModalOpen}
+        onClose={() => setIsViewRejectReasonModalOpen(false)}
+        reason={rejectReasonText}
+      />
+      <ViewLeaveReasonModal
+        isOpen={isViewLeaveReasonModalOpen}
+        onClose={() => setIsViewLeaveReasonModalOpen(false)}
+        reason={leaveReasonText}
+      />
     </div>
   );
 };

@@ -22,16 +22,16 @@ import ViewOvertimeRejectReasonModal from "../ui/OvertimePageUIs/ViewOvertimeRej
 import DeleteOvertimeModal from "../ui/OvertimePageUIs/DeleteOvertimeModal";
 import ConfirmOvertimeActionModal from "../ui/OvertimePageUIs/ConfirmOvertimeActionModal";
 import OvertimeRejectReasonModal from "../ui/OvertimePageUIs/OvertimeRejectReasonModal";
+import ViewOvertimeReasonModal from "../ui/OvertimePageUIs/ViewOvertimeReasonModal"; // <-- NEW IMPORT
 
 const OvertimePage = () => {
-  const { authUser, socket } = useAuthStore(); // Get socket from Auth
+  const { authUser, socket } = useAuthStore();
   const {
     overtimeRequests,
     fetchAllOvertime,
-    fetchOvertimeStats, // Import stats fetcher
+    fetchOvertimeStats,
     updateOvertimeStatus,
     isUpdating,
-    // --- SOCKET ACTIONS ---
     subscribeToOvertimeUpdates,
     unsubscribeFromOvertimeUpdates,
   } = useOvertimeStore();
@@ -42,16 +42,11 @@ const OvertimePage = () => {
   const canViewPage = authUser?.role?.perm_overtime_view === true;
   const canViewAll = authUser?.role?.perm_overtime_view_all === true;
   const canApprove = authUser?.role?.perm_overtime_approve === true;
-
-  // NEW PERMISSIONS
   const canCreate = authUser?.role?.perm_overtime_create === true;
   const canManage = authUser?.role?.perm_overtime_manage === true;
 
-  // --- FILTER & TAB STATES (Lifted from Table) ---
-  const [activeTab, setActiveTab] = useState(() => {
-    if (canApprove) return "team";
-    return "my";
-  });
+  // --- FILTER & TAB STATES ---
+  const [activeTab, setActiveTab] = useState(() => (canApprove ? "team" : "my"));
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState(getCurrentMonth());
 
@@ -63,8 +58,13 @@ const OvertimePage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState(null);
 
-  // View Reason
-  const [viewReasonState, setViewReasonState] = useState({
+  // Split View Reason States
+  const [viewRejectReasonState, setViewRejectReasonState] = useState({
+    isOpen: false,
+    reason: "",
+  });
+  
+  const [viewOvertimeReasonState, setViewOvertimeReasonState] = useState({
     isOpen: false,
     reason: "",
   });
@@ -80,7 +80,7 @@ const OvertimePage = () => {
     request: null,
   });
 
-  // --- FETCH & SECURITY (Updated to use filters) ---
+  // --- FETCH & SECURITY ---
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
@@ -91,7 +91,6 @@ const OvertimePage = () => {
       return;
     }
 
-    // Build the dynamic filters to send to the backend
     const params = {
       status: filterStatus !== "All" ? filterStatus : undefined,
     };
@@ -102,14 +101,12 @@ const OvertimePage = () => {
       params.month = month;
     }
 
-    // If on the "my" tab (or if the user doesn't have view_all permissions), restrict to their own ID
     if (activeTab === "my" || !canViewAll) {
       params.targetUserId = authUser.id;
     }
 
-    // Fetch initial data with filters
     fetchAllOvertime(params);
-    fetchOvertimeStats(params); // Successfully passing params to stats so the grid updates!
+    fetchOvertimeStats(params);
   }, [
     fetchAllOvertime, 
     fetchOvertimeStats, 
@@ -124,12 +121,9 @@ const OvertimePage = () => {
 
   // --- REAL-TIME LISTENER SETUP ---
   useEffect(() => {
-    // Only subscribe if the socket is actually connected
     if (socket?.connected) {
       subscribeToOvertimeUpdates();
     }
-
-    // Cleanup: Unsubscribe when user leaves this page
     return () => {
       unsubscribeFromOvertimeUpdates();
     };
@@ -146,8 +140,13 @@ const OvertimePage = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleViewReason = (reason) => {
-    setViewReasonState({ isOpen: true, reason });
+  // Splitted Reason Handlers
+  const handleViewRejectReason = (reason) => {
+    setViewRejectReasonState({ isOpen: true, reason });
+  };
+
+  const handleViewOvertimeReason = (reason) => {
+    setViewOvertimeReasonState({ isOpen: true, reason });
   };
 
   const handleAction = (request, status) => {
@@ -180,59 +179,68 @@ const OvertimePage = () => {
   if (!authUser || !canViewPage) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Overtime Requests</h1>
-          <p className="text-sm opacity-60">
-            Manage and approve employee overtime hours.
+    <div className="space-y-4 h-auto lg:h-[calc(100vh-100px)] flex flex-col antialiased-text">
+      
+      {/* HIGH-DENSITY HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-base-300 pb-4 shrink-0">
+        <div className="flex flex-col">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-base-content leading-none mb-1">
+            Overtime Requests
+          </h1>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+            Manage and approve extra hours
           </p>
         </div>
 
-        <div className="flex gap-2">
-          {/* 1. Admin Assign Button */}
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {canManage && (
             <button
               onClick={() => setIsAdminCreateModalOpen(true)}
-              className="btn btn-secondary gap-2"
+              className="btn btn-sm h-8 min-h-0 btn-secondary text-secondary-content text-[10px] font-bold uppercase tracking-widest gap-1.5 flex-1 sm:flex-none shadow-sm px-3"
             >
-              <UserPlus className="size-4" /> Assign Overtime (Admin)
+              <UserPlus size={12} /> Assign OT
             </button>
           )}
 
-          {/* 2. Standard Request Button */}
           {canCreate && (
             <button
               onClick={() => setIsNewModalOpen(true)}
-              className="btn btn-primary gap-2"
+              className="btn btn-sm h-8 min-h-0 btn-primary text-primary-content text-[10px] font-bold uppercase tracking-widest gap-1.5 flex-1 sm:flex-none shadow-sm px-3"
             >
-              <Plus className="size-4" /> Request Overtime
+              <Plus size={12} /> Request OT
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats Grid - Just pass the props, it will read global store stats */}
-      <OvertimeStatsGrid />
+      {/* STATS GRID */}
+      <div className="shrink-0">
+        <OvertimeStatsGrid />
+      </div>
 
-      {/* Table */}
-      <OvertimeTableList
-        requests={overtimeRequests}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        filterStatus={filterStatus}
-        setFilterStatus={setFilterStatus}
-        filterDate={filterDate}
-        setFilterDate={setFilterDate}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onAction={handleAction}
-        onViewReason={handleViewReason}
-        canApprove={canApprove}
-        canCreate={canCreate}
-        authUser={authUser}
-      />
+      {/* DYNAMIC LIST VIEW */}
+      <div className="flex-1 overflow-hidden min-h-[400px]">
+        <OvertimeTableList
+          requests={overtimeRequests}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+          filterDate={filterDate}
+          setFilterDate={setFilterDate}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onAction={handleAction}
+          
+          // Passed Both Handlers
+          onViewRejectReason={handleViewRejectReason}
+          onViewOvertimeReason={handleViewOvertimeReason}
+          
+          canApprove={canApprove}
+          canCreate={canCreate}
+          authUser={authUser}
+        />
+      </div>
 
       {/* --- MODALS --- */}
       <NewOvertimeModal
@@ -254,11 +262,21 @@ const OvertimePage = () => {
         request={selectedRequest}
       />
 
+      {/* Reject Reason Viewer */}
       <ViewOvertimeRejectReasonModal
-        isOpen={viewReasonState.isOpen}
-        reason={viewReasonState.reason}
+        isOpen={viewRejectReasonState.isOpen}
+        reason={viewRejectReasonState.reason}
         onClose={() =>
-          setViewReasonState({ ...viewReasonState, isOpen: false })
+          setViewRejectReasonState({ ...viewRejectReasonState, isOpen: false })
+        }
+      />
+
+      {/* Overtime Reason Viewer */}
+      <ViewOvertimeReasonModal
+        isOpen={viewOvertimeReasonState.isOpen}
+        reason={viewOvertimeReasonState.reason}
+        onClose={() =>
+          setViewOvertimeReasonState({ ...viewOvertimeReasonState, isOpen: false })
         }
       />
 
@@ -269,6 +287,7 @@ const OvertimePage = () => {
           setRequestToDelete(null);
         }}
         request={requestToDelete}
+        userRole={authUser.role_id}
       />
 
       <ConfirmOvertimeActionModal

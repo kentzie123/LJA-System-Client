@@ -1,10 +1,10 @@
 "use client";
 
-import { X, Info, CornerDownRight } from "lucide-react";
+import { X, FileText, CornerDownRight } from "lucide-react";
 
-const ViewLeaveRejectReasonModal = ({ isOpen, onClose, reason }) => {
+const ViewLeaveReasonModal = ({ isOpen, onClose, reason }) => {
   return (
-    <div className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
+    <dialog className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
       
       {/* MODAL BOX */}
       <div className="modal-box p-0 bg-base-100 overflow-hidden w-11/12 max-w-[360px] border border-base-300 shadow-2xl rounded-xl flex flex-col antialiased-text">
@@ -13,14 +13,14 @@ const ViewLeaveRejectReasonModal = ({ isOpen, onClose, reason }) => {
         <div className="px-4 py-3 border-b border-base-200 bg-base-200/50 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 bg-base-300 rounded-md text-base-content/70 shadow-sm">
-              <Info size={14} />
+              <FileText size={14} />
             </div>
             <div className="flex flex-col">
               <h3 className="text-[12px] font-black text-base-content uppercase tracking-widest leading-none">
-                Decision Details
+                Leave Reason
               </h3>
               <p className="text-[9px] font-bold uppercase tracking-widest text-base-content/40 mt-1">
-                Admin Feedback
+                Employee Request Details
               </p>
             </div>
           </div>
@@ -36,7 +36,7 @@ const ViewLeaveRejectReasonModal = ({ isOpen, onClose, reason }) => {
         {/* BODY */}
         <div className="p-5 bg-base-100">
           <label className="text-[9px] font-black text-base-content/40 uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
-            <CornerDownRight size={10} /> Rejection Reason
+            <CornerDownRight size={10} /> Submitted Reason
           </label>
           
           <div className="relative group">
@@ -47,7 +47,7 @@ const ViewLeaveRejectReasonModal = ({ isOpen, onClose, reason }) => {
             
             <div className="bg-base-200/40 p-4 rounded-lg border border-base-300/50 min-h-[80px] max-h-[200px] overflow-y-auto custom-scrollbar shadow-inner">
               <p className="text-[12px] text-base-content/80 font-medium leading-relaxed italic break-words whitespace-pre-wrap">
-                {reason || "No specific reason was provided for this decision."}
+                {reason || "No specific reason was provided by the employee."}
               </p>
             </div>
           </div>
@@ -65,13 +65,10 @@ const ViewLeaveRejectReasonModal = ({ isOpen, onClose, reason }) => {
         </div>
       </div>
 
-      {/* CLICKABLE BACKDROP */}
-      <div 
-        className="modal-backdrop bg-black/60 backdrop-blur-sm" 
-        onClick={onClose}
-      ></div>
-    </div>
+      {/* EXACT CLICKABLE BACKDROP REQUESTED */}
+      <div className="modal-backdrop bg-black/60 backdrop-blur-md" onClick={onClose}></div>
+    </dialog>
   );
 };
 
-export default ViewLeaveRejectReasonModal;
+export default ViewLeaveReasonModal;

@@ -66,6 +66,8 @@ export const useLeaveStore = create((set, get) => ({
     try {
       const response = await api.get("/leave/all-balances");
       set({ allBalances: response.data });
+      console.log(response.data);
+      
     } catch (error) {
       console.error("Failed to fetch all balances", error);
     } finally {
@@ -107,8 +109,6 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.post("/leave/create", formData);
       toast.success("Leave request submitted!");
-      get().fetchLeaveBalances();
-      get().fetchLeaveStats();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit request");
@@ -123,8 +123,6 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.post("/leave/create-admin", formData);
       toast.success("Leave assigned successfully!");
-      get().fetchAllLeaves();
-      get().fetchLeaveStats();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to assign leave");
@@ -139,13 +137,6 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.put(`/leave/${id}/status`, { status, rejectionReason });
       toast.success(`Leave ${status} successfully`);
-      get().fetchAllLeaves();
-      get().fetchLeaveBalances();
-      get().fetchLeaveStats();
-
-      if (status === "Approved") {
-        get().fetchAllBalances();
-      }
     } catch (error) {
       toast.error("Failed to update status");
       console.error(error);
@@ -158,9 +149,6 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.delete(`/leave/${id}`);
       toast.success("Request deleted");
-      get().fetchLeaveBalances();
-      get().fetchLeaveStats();
-      get().fetchAllBalances();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete");
     }
@@ -171,8 +159,6 @@ export const useLeaveStore = create((set, get) => ({
     try {
       await api.put(`/leave/${id}/update`, formData);
       toast.success("Request updated!");
-      get().fetchAllLeaves();
-      get().fetchLeaveStats();
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update");

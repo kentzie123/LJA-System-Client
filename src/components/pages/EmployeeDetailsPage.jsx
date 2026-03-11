@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/stores/useUserStore";
+import Image from "next/image";
+import { getImageUrl } from "@/utils/getImageUrl";
 import {
   ArrowLeft,
   Briefcase,
@@ -12,6 +14,7 @@ import {
   Phone,
   Mail,
   MapPin,
+  Loader2,
 } from "lucide-react";
 
 const EmployeeDetailsPage = ({ employeeId }) => {
@@ -33,7 +36,7 @@ const EmployeeDetailsPage = ({ employeeId }) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
-      month: "long",
+      month: "short", // Shorter month format
       day: "numeric",
     });
   };
@@ -47,82 +50,99 @@ const EmployeeDetailsPage = ({ employeeId }) => {
 
   if (isFetchingSingleUser || !employee) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
-        <p className="text-base-content/50 text-sm animate-pulse">
-          Loading employee profile...
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 className="animate-spin size-6 text-primary" />
+        <p className="text-[10px] font-black uppercase tracking-widest text-base-content/40 animate-pulse">
+          Syncing Profile...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      {/* 1. PAGE TITLE & BACK BUTTON */}
-      <div className="flex items-center gap-4">
+    <div className="space-y-4 pb-8 animate-in fade-in duration-300 antialiased-text">
+      {/* 1. COMPACT PAGE TITLE & BACK BUTTON */}
+      <div className="flex items-center gap-3 border-b border-base-300 pb-3">
         <button
           onClick={() => router.back()}
-          className="btn btn-sm btn-circle btn-ghost border-base-300 bg-base-100 shadow-sm"
+          className="btn btn-xs h-7 w-7 min-h-0 btn-square btn-ghost border-base-300 bg-base-100 shadow-sm"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft size={14} />
         </button>
-        <h1 className="text-2xl font-bold tracking-tight">Employee Profile</h1>
+        <div className="flex flex-col">
+          <h1 className="text-lg font-black tracking-tight leading-none text-base-content">
+            Employee Profile
+          </h1>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-base-content/40 mt-1">
+            Record ID: {employee.employee_id}
+          </span>
+        </div>
       </div>
 
-      {/* 2. TOP PROFILE HEADER CARD */}
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body flex flex-col sm:flex-row items-center sm:items-start gap-6 p-6 md:p-8">
-          <div className="avatar">
-            <div className="w-24 h-24 rounded-full ring ring-base-200 ring-offset-base-100 ring-offset-2">
-              <img
-                src={employee.profile_picture || "/images/default_profile.jpg"}
+      {/* 2. HIGH-DENSITY PROFILE HEADER CARD */}
+      <div className="bg-base-100 shadow-sm border border-base-300 rounded-xl overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 md:p-5 relative">
+          {/* Shrunk Avatar */}
+          <div className="avatar shrink-0 relative z-10">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border border-base-300 bg-base-200 relative overflow-hidden shadow-sm">
+              <Image
+                src={
+                  employee.profile_picture
+                    ? getImageUrl(employee.profile_picture)
+                    : "/images/default_profile.jpg"
+                }
                 alt={employee.fullname}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/images/default_profile.jpg";
-                }}
+                fill
+                sizes="80px"
+                className="object-cover"
+                priority
               />
             </div>
           </div>
 
-          <div className="flex flex-col items-center sm:items-start flex-1 w-full">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-1">
-              <h2 className="text-2xl font-bold text-base-content">
-                {employee.fullname}
-              </h2>
+          <div className="flex flex-col items-center sm:items-start flex-1 min-w-0 text-center sm:text-left z-10">
+            <h2 className="text-xl sm:text-2xl font-black text-base-content leading-none mb-1.5 truncate w-full">
+              {employee.fullname}
+            </h2>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                {employee.position || "Unassigned"}
+              </span>
+              <span className="text-[10px] font-bold text-base-content/50 border border-base-300 px-1.5 py-0.5 rounded">
+                {employee.role_name}
+              </span>
             </div>
 
-            <p className="text-primary font-medium">
-              {employee.position || "No Position Assigned"}
-            </p>
-
-            <div className="divider my-2 w-full"></div>
-
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm text-base-content/70">
-              <span className="flex items-center gap-1.5">
-                <Mail size={16} /> {employee.email}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Phone size={16} /> {employee.contact_number || "N/A"}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin size={16} /> {employee.residential_address || "N/A"}
-              </span>
+            {/* Compact Contact Badges */}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-[11px] font-medium text-base-content/70">
+              <div className="flex items-center gap-1.5 bg-base-200/50 border border-base-300 rounded-md px-2 py-1">
+                <Mail size={12} className="opacity-50" />{" "}
+                <span className="truncate">{employee.email}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-base-200/50 border border-base-300 rounded-md px-2 py-1">
+                <Phone size={12} className="opacity-50" />{" "}
+                {employee.contact_number || "N/A"}
+              </div>
+              <div className="flex items-center gap-1.5 bg-base-200/50 border border-base-300 rounded-md px-2 py-1">
+                <MapPin size={12} className="opacity-50" />{" "}
+                <span className="truncate max-w-[150px]">
+                  {employee.residential_address || "N/A"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. DETAILS GRID (2 Columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 3. DETAILS GRID (2 Columns, Tight Spacing) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Employment */}
         <InfoCard
-          title="Employment Details"
-          icon={<Briefcase size={18} className="text-primary" />}
+          title="Employment Status"
+          icon={<Briefcase size={14} className="text-primary" />}
         >
           <DetailRow label="Employee ID" value={employee.employee_id} isMono />
-          <DetailRow label="Role" value={employee.role_name} />
-          <DetailRow label="Type" value={employee.employment_type} />
+          <DetailRow label="Employment Type" value={employee.employment_type} />
           <DetailRow
             label="Date Hired"
             value={formatDate(employee.date_hired)}
@@ -137,7 +157,7 @@ const EmployeeDetailsPage = ({ employeeId }) => {
         {/* Personal */}
         <InfoCard
           title="Personal Information"
-          icon={<User size={18} className="text-secondary" />}
+          icon={<User size={14} className="text-secondary" />}
         >
           <DetailRow
             label="Date of Birth"
@@ -150,34 +170,31 @@ const EmployeeDetailsPage = ({ employeeId }) => {
 
         {/* Gov & Bank */}
         <InfoCard
-          title="Government & Bank"
-          icon={<Landmark size={18} className="text-accent" />}
+          title="Govt & Banking IDs"
+          icon={<Landmark size={14} className="text-accent" />}
         >
-          <DetailRow label="SSS No." value={employee.sss_number} isMono />
+          <DetailRow label="SSS Number" value={employee.sss_number} isMono />
           <DetailRow
-            label="PhilHealth No."
+            label="PhilHealth"
             value={employee.philhealth_number}
             isMono
           />
-          <DetailRow
-            label="Pag-IBIG No."
-            value={employee.pag_ibig_number}
-            isMono
-          />
+          <DetailRow label="Pag-IBIG" value={employee.pag_ibig_number} isMono />
           <DetailRow label="TIN" value={employee.tin_number} isMono />
-          <div className="col-span-1 sm:col-span-2 border-t border-base-200 mt-2 pt-2"></div>
-          <DetailRow label="Bank Name" value={employee.bank_name} />
-          <DetailRow
-            label="Account No."
-            value={employee.bank_account_number}
-            isMono
-          />
+          <div className="col-span-1 sm:col-span-2 border-t border-base-200/50 mt-1 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+            <DetailRow label="Bank Name" value={employee.bank_name} />
+            <DetailRow
+              label="Account Number"
+              value={employee.bank_account_number}
+              isMono
+            />
+          </div>
         </InfoCard>
 
         {/* Emergency */}
         <InfoCard
           title="Emergency Contact"
-          icon={<HeartPulse size={18} className="text-error" />}
+          icon={<HeartPulse size={14} className="text-error" />}
           className="border-error/20 bg-error/5"
         >
           <div className="col-span-1 sm:col-span-2">
@@ -194,6 +211,7 @@ const EmployeeDetailsPage = ({ employeeId }) => {
           <DetailRow
             label="Phone Number"
             value={employee.emergency_contact_number}
+            isMono
           />
         </InfoCard>
       </div>
@@ -201,34 +219,41 @@ const EmployeeDetailsPage = ({ employeeId }) => {
   );
 };
 
-/* --- REUSABLE MICRO-COMPONENTS --- */
+/* --- COMPACT REUSABLE COMPONENTS --- */
 
-const InfoCard = ({ title, icon, children, className = "border-base-200" }) => (
-  <div className={`card bg-base-100 shadow-sm border ${className}`}>
-    <div className="card-body p-6">
-      <h3 className="card-title text-sm font-bold opacity-70 uppercase tracking-wider mb-4 flex items-center gap-2 border-b border-base-200 pb-2">
-        {icon} {title}
+const InfoCard = ({ title, icon, children, className = "border-base-300" }) => (
+  <div
+    className={`bg-base-100 shadow-sm border rounded-xl overflow-hidden flex flex-col ${className}`}
+  >
+    {/* Card Header */}
+    <div className="px-4 py-2.5 border-b border-current/10 bg-current/5 flex items-center gap-2 shrink-0">
+      {icon}
+      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/70 m-0 leading-none mt-[1px]">
+        {title}
       </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-        {children}
-      </div>
+    </div>
+    {/* Card Body */}
+    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 flex-1">
+      {children}
     </div>
   </div>
 );
 
 const DetailRow = ({ label, value, isHighlight, isMono }) => (
-  <div className="flex flex-col gap-1">
-    <span className="text-[11px] font-bold text-base-content/50 uppercase">
+  <div className="flex flex-col gap-0.5">
+    <span className="text-[8px] font-black tracking-widest text-base-content/40 uppercase">
       {label}
     </span>
     {value ? (
       <span
-        className={`text-sm ${isHighlight ? "font-bold text-primary" : "font-medium text-base-content"} ${isMono ? "font-mono" : ""}`}
+        className={`text-[12px] leading-snug truncate ${isHighlight ? "font-bold text-primary" : "font-medium text-base-content"} ${isMono ? "font-mono font-bold opacity-80 text-[11px]" : ""}`}
       >
         {value}
       </span>
     ) : (
-      <span className="text-sm text-base-content/30 italic">N/A</span>
+      <span className="text-[11px] text-base-content/30 italic font-medium">
+        N/A
+      </span>
     )}
   </div>
 );

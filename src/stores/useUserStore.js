@@ -24,7 +24,6 @@ export const useUserStore = create((set, get) => ({
     try {
       const response = await api.get("/users/fetch-all");
       set({ users: response.data });
-      console.log(response.data);
       
     } catch (error) {
       console.error(error);

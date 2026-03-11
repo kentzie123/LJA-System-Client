@@ -1,7 +1,11 @@
-import React, { useState, useMemo } from "react";
-import { Search, Loader2, User, Umbrella, Stethoscope } from "lucide-react";
+"use client";
 
-// --- SUB-COMPONENT: Visual Progress Bar ---
+import React, { useState, useMemo } from "react";
+import { Search, Loader2, Umbrella, Stethoscope, Briefcase } from "lucide-react";
+import Image from "next/image";
+import { getImageUrl } from "@/utils/getImageUrl";
+
+// --- SUB-COMPONENT: Visual Progress Bar (Ultra-Compact) ---
 const LeaveStatBar = ({ used, allocated, remaining }) => {
   const percentage = allocated > 0 ? (used / allocated) * 100 : 0;
   
@@ -11,21 +15,23 @@ const LeaveStatBar = ({ used, allocated, remaining }) => {
     percentage >= 70 ? "bg-warning" : "bg-primary";
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[120px] mx-auto gap-1.5">
-      <div className="flex items-end gap-1">
-        <span className="text-sm font-black text-base-content">{remaining}</span>
-        <span className="text-[10px] font-bold uppercase opacity-50 mb-[2px]">Left</span>
+    <div className="flex flex-col items-center w-full max-w-[100px] mx-auto gap-0.5">
+      <div className="flex items-end justify-center gap-1 w-full relative">
+        <span className="text-[13px] font-black tracking-tight leading-none text-base-content tabular-nums">
+          {remaining}
+        </span>
+        <span className="text-[8px] font-bold uppercase text-base-content/40 mb-[1px]">Left</span>
       </div>
       
-      {/* Progress Bar Container */}
-      <div className="w-full h-1.5 bg-base-300 rounded-full overflow-hidden">
+      {/* Progress Bar Container - Very Thin */}
+      <div className="w-full h-1 bg-base-300/50 rounded-full overflow-hidden mt-0.5">
         <div 
           className={`h-full rounded-full transition-all duration-500 ${barColor}`} 
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
       
-      <span className="text-[9px] font-semibold opacity-40 uppercase tracking-wider">
+      <span className="text-[8px] font-bold text-base-content/40 uppercase tracking-widest mt-0.5">
         {used} / {allocated} Used
       </span>
     </div>
@@ -63,57 +69,57 @@ const LeaveBalanceTable = ({ balances = [], isFetching = false }) => {
   }, [balances, searchTerm]);
 
   return (
-    <div className="w-full h-full bg-base-100 rounded-2xl shadow-sm border border-base-200 flex flex-col overflow-hidden relative">
+    <div className="w-full h-full bg-base-100 rounded-xl shadow-sm border border-base-200 flex flex-col overflow-hidden relative antialiased-text">
       
-      {/* TOOLBAR */}
-      <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-4 bg-base-100 shrink-0 relative z-20">
-        <div className="font-bold text-base-content/80 px-2 hidden md:block">
+      {/* TOOLBAR: Compact h-8 inputs */}
+      <div className="p-3 flex flex-col md:flex-row justify-between items-center gap-3 bg-base-100 shrink-0 border-b border-base-200">
+        <div className="font-black text-[12px] uppercase tracking-wider text-base-content/80 px-1 hidden md:block">
           Company Leave Ledger
         </div>
-        <div className="relative w-full md:w-72">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40 z-10" />
+        <div className="relative w-full md:w-64">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-50 z-10 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by employee name..."
-            className="input input-sm pl-9 bg-base-200/50 border-transparent hover:bg-base-200 focus:bg-base-100 focus:border-primary w-full rounded-xl transition-all"
+            className="input input-sm h-8 min-h-0 pl-8 bg-base-200/50 border-base-300 text-[11px] focus:bg-base-100 focus:border-primary w-full rounded-md transition-colors placeholder:text-base-content/40"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
-      {/* TABLE */}
+      {/* TABLE: High Density Row Heights */}
       <div className="flex-1 overflow-x-auto custom-scrollbar">
-        <table className="table table-sm w-full min-w-[700px]">
-          <thead className="bg-base-200/50 text-[10px] font-black text-base-content/50 uppercase tracking-widest sticky top-0 z-10 backdrop-blur-md">
+        <table className="table table-xs w-full min-w-[600px]">
+          <thead className="bg-base-200/50 text-[9px] font-black text-base-content/50 uppercase tracking-[0.2em] sticky top-0 z-10">
             <tr>
-              <th className="py-4 pl-6 bg-transparent border-b border-base-200">Employee</th>
+              <th className="py-2.5 pl-4 bg-transparent border-b border-base-200">Employee Details</th>
               <th className="text-center bg-transparent border-b border-base-200">
-                <div className="flex items-center justify-center gap-1.5">
-                  <Umbrella size={12} className="opacity-70" /> Vacation
+                <div className="flex items-center justify-center gap-1">
+                  <Umbrella size={10} className="opacity-60" /> Vacation Leave
                 </div>
               </th>
               <th className="text-center bg-transparent border-b border-base-200">
-                <div className="flex items-center justify-center gap-1.5">
-                  <Stethoscope size={12} className="opacity-70" /> Sick Leave
+                <div className="flex items-center justify-center gap-1">
+                  <Stethoscope size={10} className="opacity-60" /> Sick Leave
                 </div>
               </th>
-              <th className="text-center pr-6 bg-transparent border-b border-base-200">Total Credits</th>
+              <th className="text-center pr-4 bg-transparent border-b border-base-200">Total Available</th>
             </tr>
           </thead>
           
-          <tbody className="divide-y divide-base-200/60">
+          <tbody className="divide-y divide-base-200">
             {isFetching ? (
               <tr>
-                <td colSpan="4" className="h-[400px] text-center">
-                  <Loader2 className="animate-spin size-8 text-primary/40 mx-auto" />
+                <td colSpan="4" className="h-[300px] text-center">
+                  <Loader2 className="animate-spin size-6 text-primary/50 mx-auto" />
                 </td>
               </tr>
             ) : groupedBalances.length === 0 ? (
               <tr>
-                <td colSpan="4" className="h-[400px] text-center opacity-50">
-                  <User size={48} className="mx-auto mb-3 opacity-20" strokeWidth={1.5} />
-                  <h3 className="text-sm font-bold">No employee records found.</h3>
+                <td colSpan="4" className="h-[300px] text-center opacity-40">
+                  <Briefcase size={32} className="mx-auto mb-3 opacity-30" strokeWidth={1.5} />
+                  <h3 className="text-[11px] font-black uppercase tracking-widest">No records found</h3>
                 </td>
               </tr>
             ) : (
@@ -126,26 +132,29 @@ const LeaveBalanceTable = ({ balances = [], isFetching = false }) => {
                   <tr key={idx} className="hover:bg-base-200/30 transition-colors group">
                     
                     {/* 1. Employee Profile */}
-                    <td className="pl-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="avatar">
-                          <div className="w-10 h-10 rounded-full ring-1 ring-base-300 ring-offset-2 ring-offset-base-100 group-hover:ring-primary/30 transition-all">
-                            <img
-                              src={emp.profile_picture || "/images/default_profile.jpg"}
+                    <td className="pl-4 py-2">
+                      <div className="flex items-center gap-2.5 w-fit">
+                        <div className="avatar shrink-0">
+                          <div className="w-8 h-8 relative overflow-hidden rounded-full border border-base-300 bg-base-200 shadow-sm">
+                            <Image
+                              src={emp.profile_picture ? getImageUrl(emp.profile_picture) : "/images/default_profile.jpg"}
                               alt={emp.fullname}
-                              className="object-cover w-full h-full"
+                              fill
+                              sizes="32px"
+                              className="object-cover"
                             />
                           </div>
                         </div>
-                        <div className="flex flex-col">
-                           <span className="font-bold text-sm leading-none mb-1 text-base-content">{emp.fullname}</span>
-                           <span className="text-[10px] font-semibold text-base-content/40 uppercase tracking-wider">Staff</span>
+                        <div className="flex flex-col min-w-0">
+                           <span className="font-bold text-[12px] leading-tight text-base-content truncate group-hover:text-primary transition-colors">
+                             {emp.fullname}
+                           </span>
                         </div>
                       </div>
                     </td>
 
                     {/* 2. Vacation Progress */}
-                    <td className="text-center py-4">
+                    <td className="text-center py-2 align-middle">
                       <LeaveStatBar 
                         used={vl.used} 
                         allocated={vl.allocated} 
@@ -154,7 +163,7 @@ const LeaveBalanceTable = ({ balances = [], isFetching = false }) => {
                     </td>
 
                     {/* 3. Sick Leave Progress */}
-                    <td className="text-center py-4">
+                    <td className="text-center py-2 align-middle">
                       <LeaveStatBar 
                         used={sl.used} 
                         allocated={sl.allocated} 
@@ -163,15 +172,15 @@ const LeaveBalanceTable = ({ balances = [], isFetching = false }) => {
                     </td>
 
                     {/* 4. Total Badge */}
-                    <td className="text-center pr-6 py-4">
+                    <td className="text-center pr-4 py-2 align-middle">
                       <div 
-                        className={`badge font-black py-3 px-3 shadow-sm ${
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-black tracking-widest uppercase border ${
                           totalRemaining <= 3 
-                            ? 'bg-error/10 text-error border-none' 
-                            : 'bg-success/10 text-success border-none'
+                            ? 'bg-error/10 text-error border-error/20' 
+                            : 'bg-success/10 text-success border-success/20'
                         }`}
                       >
-                        {totalRemaining} DAYS
+                        {totalRemaining} <span className="opacity-50 ml-1">Days</span>
                       </div>
                     </td>
 

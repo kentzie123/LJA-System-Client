@@ -44,7 +44,6 @@ const EditAttendanceModal = ({ isOpen, onClose, users, record }) => {
     try {
       if (record?.id) {
         await updateAttendance(record.id, formData);
-        await fetchAllAttendances();
         onClose();
       }
     } catch (error) {

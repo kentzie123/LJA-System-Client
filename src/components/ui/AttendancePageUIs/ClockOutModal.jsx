@@ -1,22 +1,22 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
-import {
-  Camera,
-  RefreshCw,
-  LogOut,
-  X,
-  Loader,
-  CheckCircle,
-} from "lucide-react";
+import { Camera, RefreshCw, LogOut, X, Loader, CheckCircle, FileText, ChevronRight, ArrowLeft } from "lucide-react";
 import { useAttendanceStore } from "@/stores/useAttendanceStore";
 
 const ClockOutModal = ({ isOpen, onClose }) => {
   const { clockOut, isClocking } = useAttendanceStore();
-
-  const [step, setStep] = useState(1);
+  
+  // Steps: 1 = Camera, 2 = Photo Review, 3 = Summary Report
+  const [step, setStep] = useState(1); 
   const [photo, setPhoto] = useState(null);
   const [workSummary, setWorkSummary] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
   const webcamRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,154 +34,138 @@ const ClockOutModal = ({ isOpen, onClose }) => {
     }
   }, [webcamRef]);
 
-  const retake = () => {
-    setPhoto(null);
-    setStep(1);
-  };
-
   const handleConfirm = async () => {
     if (!photo || !workSummary.trim()) return;
-
     const success = await clockOut(photo, null, workSummary);
-    if (success) {
-      onClose();
-    }
+    if (success) onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
-      {/* Container: 
-        h-[100dvh] forces it to be full screen on mobile (zero space at top).
-        sm:h-auto makes it behave like a normal modal on desktop.
-      */}
-      <div className="bg-base-100 w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-base-300/90 backdrop-blur-md animate-in fade-in duration-300 p-4">
+      
+      <div className="bg-base-100 w-full max-w-[400px] rounded-xl border border-base-300 shadow-2xl overflow-hidden flex flex-col transition-all antialiased-text">
+        
         {/* HEADER */}
-        <div className="p-4 flex justify-between items-center bg-error/10 shrink-0 border-b border-error/20 z-20">
-          <h3 className="font-bold text-lg flex items-center gap-2 text-error">
-            <LogOut size={20} />
-            Clock Out
-          </h3>
-          <button
-            onClick={onClose}
-            disabled={isClocking}
-            className="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/20"
-          >
-            <X size={20} />
+        <div className="px-4 py-3 border-b border-error/10 flex justify-between items-center bg-error/5 shrink-0">
+          <div className="flex items-center gap-3">
+            {step > 1 && !isClocking && (
+               <button onClick={() => setStep(step - 1)} className="btn btn-xs btn-circle btn-ghost text-error">
+                 <ArrowLeft size={14} />
+               </button>
+            )}
+            <div className="flex flex-col">
+              <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-error flex items-center gap-2">
+                Step {step} of 3
+              </h3>
+              <p className="text-[11px] font-bold uppercase tracking-tight">
+                {step === 1 && "Identity Verification"}
+                {step === 2 && "Time Confirmation"}
+                {step === 3 && "Work Summary"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} disabled={isClocking} className="btn btn-xs btn-circle btn-ghost text-error/50">
+            <X size={16} />
           </button>
         </div>
 
         {/* BODY */}
-        <div className="flex-1 flex flex-col bg-base-200 relative overflow-hidden">
-          {/* =========================================
-              STEP 1: FULL SCREEN CAMERA (Flex-1)
-              ========================================= */}
+        <div className="flex flex-col bg-base-100 min-h-[320px]">
+          
+          {/* STEP 1: CAMERA */}
           {step === 1 && (
-            // FIX: Added min-h-[50vh] as a safety net, removed relative/absolute trickery
-            <div className="flex-1 w-full bg-black flex flex-col min-h-[50vh] relative">
+            <div className="relative aspect-square w-full overflow-hidden bg-neutral-900 animate-in fade-in zoom-in-95">
               <Webcam
                 audio={false}
                 mirrored={true}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
-                // FIX: Removed 'absolute inset-0'. Just let it naturally fill the space.
-                className="w-full h-full object-cover flex-1"
+                className="absolute inset-0 w-full h-full object-cover grayscale-[0.2]"
                 videoConstraints={{ facingMode: "user" }}
               />
-
-              {/* Floating Mobile Camera Hint */}
-              <div className="absolute bottom-8 left-0 right-0 flex justify-center sm:hidden z-10 pointer-events-none">
-                <div className="bg-black/60 text-white/90 text-xs px-5 py-2.5 rounded-full backdrop-blur-md shadow-2xl border border-white/10 font-medium tracking-wide">
-                  Ensure face is visible
-                </div>
+              <div className="absolute inset-0 border-[24px] border-black/20 pointer-events-none" />
+              <div className="absolute bottom-4 left-4 text-white drop-shadow-lg font-black text-lg tabular-nums">
+                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           )}
 
-          {/* =========================================
-              STEP 2: FORM & TEXTAREA (Scrollable)
-              ========================================= */}
+          {/* STEP 2: PHOTO REVIEW */}
           {step === 2 && (
-            <div className="flex-1 flex flex-col w-full h-full bg-base-100 overflow-y-auto custom-scrollbar">
-              {/* Photo Preview - Fixed smaller height so textarea is visible */}
-              <div className="relative w-full h-[28vh] sm:h-[250px] bg-black shrink-0">
-                <img
-                  src={photo}
-                  alt="Captured Preview"
-                  className="w-full h-full object-cover opacity-90"
-                />
-                <button
-                  onClick={retake}
-                  className="absolute bottom-3 right-3 btn btn-sm bg-black/60 text-white border-white/20 hover:bg-black/80 backdrop-blur-md shadow-lg"
+            <div className="flex flex-col animate-in slide-in-from-right-4 duration-300">
+              <div className="relative aspect-square w-full bg-black overflow-hidden border-b border-base-200">
+                <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <button 
+                  onClick={() => setStep(1)}
+                  className="absolute top-4 right-4 btn btn-xs h-8 bg-black/50 text-white border-white/10 rounded-lg backdrop-blur-md"
                 >
-                  <RefreshCw size={14} className="mr-1" /> Retake
+                  <RefreshCw size={12} className="mr-1" /> Retake
                 </button>
               </div>
+              <div className="p-6 text-center">
+                <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-1">Clock Out Time</p>
+                <h2 className="text-4xl font-black text-error tabular-nums tracking-tighter">
+                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </h2>
+                <p className="text-xs font-bold opacity-50 mt-1 uppercase tracking-widest">
+                  {currentTime.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+            </div>
+          )}
 
-              {/* Form Section */}
-              <div className="p-5 flex flex-col gap-5 shrink-0">
-                <div className="flex flex-col items-center">
-                  <h4 className="text-4xl font-black text-error tracking-tight leading-none tabular-nums">
-                    {new Date().toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </h4>
-                  <p className="text-[11px] opacity-50 uppercase tracking-[0.2em] font-bold mt-1.5">
-                    {new Date().toLocaleDateString(undefined, {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-
-                <div className="form-control w-full mt-2">
-                  <label className="label pt-0 pb-2 px-1">
-                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-70">
-                      Work Summary <span className="text-error ml-1">*</span>
-                    </span>
-                  </label>
-                  <textarea
-                    className="textarea textarea-bordered w-full h-32 text-base resize-none focus:border-error focus:ring-1 focus:ring-error/20 bg-base-200/50 shadow-inner"
-                    placeholder="Briefly describe the tasks you accomplished today..."
-                    value={workSummary}
-                    onChange={(e) => setWorkSummary(e.target.value)}
-                    required
-                  ></textarea>
-                </div>
+          {/* STEP 3: WORK SUMMARY */}
+          {step === 3 && (
+            <div className="p-5 space-y-4 animate-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center gap-3 p-3 bg-base-200/50 rounded-lg border border-base-300/50">
+                 <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-base-300">
+                    <img src={photo} className="w-full h-full object-cover" />
+                 </div>
+                 <div className="flex flex-col">
+                    <span className="text-[10px] font-black opacity-40 uppercase tracking-tighter">Session Verified</span>
+                    <span className="text-xs font-bold">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Log</span>
+                 </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-base-content/40 uppercase tracking-[0.15em] flex items-center gap-2">
+                  <FileText size={12} className="text-error" /> Final Accomplishments
+                </label>
+                <textarea
+                  autoFocus
+                  className="textarea textarea-bordered w-full h-40 text-sm focus:border-error focus:ring-1 focus:ring-error/20 bg-base-200/30 shadow-inner rounded-xl leading-relaxed p-4"
+                  placeholder="What did you achieve today?..."
+                  value={workSummary}
+                  onChange={(e) => setWorkSummary(e.target.value)}
+                />
               </div>
             </div>
           )}
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="p-4 border-t border-base-200 bg-base-100 shrink-0 z-20 pb-safe">
-          {step === 1 ? (
-            <button
-              onClick={capture}
-              className="btn btn-error text-white w-full gap-2 h-14 text-base font-bold shadow-lg shadow-error/20 rounded-xl"
-            >
-              <Camera size={22} /> Capture Photo
+        <div className="p-4 bg-base-100 border-t border-base-200">
+          {step === 1 && (
+            <button onClick={capture} className="btn btn-error w-full h-12 text-white font-black uppercase text-xs tracking-widest shadow-lg shadow-error/20 rounded-lg">
+              Capture Identity
             </button>
-          ) : (
+          )}
+          {step === 2 && (
+            <button onClick={() => setStep(3)} className="btn btn-error w-full h-12 text-white font-black uppercase text-xs tracking-widest shadow-lg shadow-error/20 rounded-lg gap-2">
+              Next: Summary <ChevronRight size={16} />
+            </button>
+          )}
+          {step === 3 && (
             <button
               onClick={handleConfirm}
-              className="btn btn-error text-white w-full gap-2 h-14 text-base font-bold shadow-lg shadow-error/20 rounded-xl disabled:bg-base-300 disabled:text-base-content/30 disabled:border-transparent"
               disabled={isClocking || !workSummary.trim()}
+              className="btn btn-error w-full h-12 text-white font-black uppercase text-xs tracking-widest shadow-lg shadow-error/20 rounded-lg"
             >
-              {isClocking ? (
-                <>
-                  <Loader className="animate-spin" size={20} />
-                  Saving Record...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={20} />
-                  Confirm Clock Out
-                </>
-              )}
+              {isClocking ? <Loader className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+              {isClocking ? 'Finalizing...' : 'Complete Clock Out'}
             </button>
           )}
         </div>

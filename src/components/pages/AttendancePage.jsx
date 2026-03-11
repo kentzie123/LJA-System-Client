@@ -16,8 +16,9 @@ import {
   Timer,
   AlertCircle,
   LogOut,
-  SlidersHorizontal,
   Download,
+  LayoutGrid,
+  Calendar,
 } from "lucide-react";
 
 // Views & Modals
@@ -188,71 +189,93 @@ const AttendancePage = () => {
     canExport && (!canVerify || selectedEmployees.length === 1);
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-[1600px] mx-auto pb-10 relative">
+    <div className="space-y-6 pb-10 relative">
       {/* 1. HEADER SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 sm:gap-6 border-b border-base-300 pb-5 sm:pb-6">
-        <div className="w-full md:w-auto">
-          <h1 className="text-[32px] sm:text-3xl font-bold text-base-content tracking-tight leading-[1.1] mb-2 sm:mb-1">
-            Attendance <br className="block sm:hidden" /> Management
-          </h1>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-base-300 pb-4 mb-6">
+        {/* LEFT: TITLE & VIEW SWITCHER */}
+        <div className="flex flex-col gap-3 w-full lg:w-auto">
+          <div>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-base-content tracking-tight leading-tight">
+              Attendance Management
+            </h1>
+            <p className="text-[10px] sm:text-[11px] font-medium opacity-50 uppercase tracking-wider mt-0.5">
+              Monitor employee logs
+            </p>
+          </div>
 
-          <div className="flex items-center p-1 sm:p-1.5 bg-base-200 sm:bg-base-300 rounded-xl sm:rounded-lg w-full md:w-fit mt-3 sm:mt-4 border border-base-300 sm:border-white/5 shadow-inner">
+          {/* COMPACT VIEW SWITCHER - Full width on mobile, auto on desktop */}
+          <div className="flex items-center p-1 bg-base-200 rounded-lg w-full sm:w-fit border border-base-300">
             <button
               onClick={() => setCurrentView("grid")}
-              className={`flex-1 md:flex-none px-2 sm:px-4 py-2.5 sm:py-1.5 text-[11px] sm:text-[10px] font-black uppercase tracking-widest rounded-lg sm:rounded-md transition-all ${
+              className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${
                 currentView === "grid"
-                  ? "bg-primary text-white shadow-md"
-                  : "text-base-content/50 hover:text-base-content/80"
+                  ? "bg-base-100 text-primary shadow-sm"
+                  : "text-base-content/50 hover:text-base-content"
               }`}
             >
-              Daily Grid
+              <LayoutGrid size={12} />
+              Grid
             </button>
             <button
               onClick={() => setCurrentView("calendar")}
-              className={`flex-1 md:flex-none px-2 sm:px-4 py-2.5 sm:py-1.5 text-[11px] sm:text-[10px] font-black uppercase tracking-widest rounded-lg sm:rounded-md transition-all ${
+              className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${
                 currentView === "calendar"
-                  ? "bg-primary text-white shadow-md"
-                  : "text-base-content/50 hover:text-base-content/80"
+                  ? "bg-base-100 text-primary shadow-sm"
+                  : "text-base-content/50 hover:text-base-content"
               }`}
             >
-              Monthly Calendar
+              <Calendar size={12} />
+              Calendar
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
-          {todayStatus.status === "idle" && (
-            <button
-              onClick={() => setIsClockInModalOpen(true)}
-              className="btn btn-primary flex-1 md:flex-none shadow-sm shadow-primary/20 font-bold uppercase tracking-widest text-xs h-[48px] sm:h-10"
-            >
-              <Clock size={18} className="mr-1.5 sm:mr-2" /> Clock In
-            </button>
-          )}
-          {todayStatus.status === "clocked_in" && (
-            <button
-              onClick={() => setIsClockOutModalOpen(true)}
-              className="btn btn-error text-white flex-1 md:flex-none shadow-sm shadow-error/20 font-bold uppercase tracking-widest text-xs h-[48px] sm:h-10"
-            >
-              <LogOut size={18} className="mr-1.5 sm:mr-2" /> Clock Out
-            </button>
-          )}
-          {todayStatus.status === "completed" && (
-            <button
-              disabled
-              className="btn btn-success btn-outline opacity-50 cursor-not-allowed flex-1 md:flex-none font-bold uppercase tracking-widest text-xs h-[48px] sm:h-10"
-            >
-              <CheckCircle size={18} className="mr-1.5 sm:mr-2" /> Completed
-            </button>
-          )}
+        {/* RIGHT: ACTION BUTTONS - 2x2 Grid on mobile, Flex row on desktop */}
+        <div
+          className={`grid gap-2 w-full lg:w-auto sm:flex sm:items-center ${canManualEntry ? "grid-cols-2" : "grid-cols-1"}`}
+        >
+          {/* PRIMARY ACTION: CLOCK IN/OUT */}
+          <div className="sm:contents">
+            {todayStatus.status === "idle" && (
+              <button
+                onClick={() => setIsClockInModalOpen(true)}
+                className="btn btn-primary btn-sm h-8 min-h-0 w-full sm:w-auto shadow-sm font-bold uppercase tracking-widest text-[10px] px-4"
+              >
+                <Clock size={14} className="shrink-0" />
+                <span>Clock In</span>
+              </button>
+            )}
+
+            {todayStatus.status === "clocked_in" && (
+              <button
+                onClick={() => setIsClockOutModalOpen(true)}
+                className="btn btn-error btn-sm h-8 min-h-0 text-white w-full sm:w-auto shadow-sm font-bold uppercase tracking-widest text-[10px] px-4"
+              >
+                <LogOut size={14} className="shrink-0" />
+                <span>Clock Out</span>
+              </button>
+            )}
+
+            {todayStatus.status === "completed" && (
+              <button
+                disabled
+                className="btn btn-success btn-outline btn-sm h-8 min-h-0 opacity-50 w-full sm:w-auto font-bold uppercase tracking-widest text-[10px] px-4"
+              >
+                <CheckCircle size={14} className="shrink-0" />
+                <span className="hidden xs:inline">Done</span>
+              </button>
+            )}
+          </div>
+
+          {/* SECONDARY ACTION: MANUAL ENTRY */}
           {canManualEntry && (
             <button
               onClick={() => setIsModalOpen(true)}
-              className="btn bg-base-200 hover:bg-base-300 border-base-300 hover:border-base-300 flex-1 md:flex-none text-base-content shadow-sm font-bold uppercase tracking-widest text-xs h-[48px] sm:h-10"
+              className="btn hover:bg-base-300 btn-sm h-8 min-h-0 w-full sm:w-auto text-base-content border border-base-300 font-bold uppercase tracking-widest text-[10px] px-3"
             >
-              <Plus size={18} className="mr-1 sm:mr-1.5 opacity-70" />
-              <span>
-                Manual<span className="hidden sm:inline"> Entry</span>
+              <Plus size={14} className="shrink-0" />
+              <span className="truncate">
+                Manual<span className="hidden md:inline"> Entry</span>
               </span>
             </button>
           )}
@@ -288,40 +311,36 @@ const AttendancePage = () => {
         </div>
       )}
 
-      {/* 3. COMMAND BAR (Date Range Filters) */}
+      {/* 3. COMPACT COMMAND BAR */}
       {currentView === "grid" && (
-        <div className="bg-base-200/50 border border-base-300 rounded-2xl p-4 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center shadow-sm animate-in fade-in duration-300">
-          {/* --- FILTERS SECTION --- */}
-          <div className="flex flex-col md:flex-row flex-wrap items-start md:items-end gap-3 w-full xl:w-auto flex-1">
-            {/* Filter Label (Hidden on mobile) */}
-            <div className="hidden md:flex items-center gap-2 text-base-content/50 pr-2 border-r border-base-300 pb-2 shrink-0">
-              <SlidersHorizontal size={16} />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                Filters
-              </span>
-            </div>
-
-            {/* Date Pickers (Grid on mobile, Row on tablet+) */}
-            <div className="grid grid-cols-2 sm:flex w-full sm:w-auto gap-2 sm:gap-3">
-              <div className="w-full sm:w-[140px] md:w-[150px]">
+        <div className="bg-base-200/40 border border-base-300 rounded-lg p-2 flex flex-col lg:flex-row gap-3 items-center justify-between shadow-sm animate-in fade-in duration-300">
+          {/* --- LEFT: FILTERS (TIGHT FLOW) --- */}
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            {/* Date Pickers - Using the new h-8 standard */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <div className="w-1/2 sm:w-[130px]">
                 <CustomDatePicker
-                  label="Start Date"
+                  label="From" // Shorter label
                   value={startDate}
                   onChange={setStartDate}
                 />
               </div>
-              <div className="w-full sm:w-[140px] md:w-[150px]">
+              <div className="w-1/2 sm:w-[130px]">
                 <CustomDatePicker
-                  label="End Date"
+                  label="To" // Shorter label
                   value={endDate}
                   onChange={setEndDate}
                 />
               </div>
             </div>
 
-            {/* Employee Dropdown (Full width mobile, auto on tablet+) */}
+            {/* Employee Multi-Select */}
             {canVerify && (
-              <div className="w-full sm:w-auto sm:min-w-[220px] md:w-[280px] flex-1 lg:flex-none">
+              <div className="w-full sm:w-[200px] md:w-[240px] flex flex-col">
+                {/* ADDED LABEL HERE */}
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-0.5 ml-1">
+                  Employee
+                </label>
                 <EmployeeFilterDropdown
                   users={users}
                   selectedEmployees={selectedEmployees}
@@ -330,32 +349,33 @@ const AttendancePage = () => {
               </div>
             )}
 
-            {/* Loading State */}
+            {/* Inline Loader */}
             {isFetchingAttendances && (
-              <div className="flex items-center gap-2 text-primary text-[10px] sm:text-xs font-bold uppercase tracking-widest py-1 md:py-0 md:pb-2 shrink-0">
-                <Loader className="animate-spin size-4" />
-                <span>Fetching...</span>
+              <div className="flex items-center gap-1.5 text-primary text-[9px] font-black uppercase tracking-widest pl-2">
+                <Loader className="animate-spin size-3" />
+                <span className="hidden md:inline">Syncing...</span>
               </div>
             )}
           </div>
 
-          {/* --- ACTIONS & RECORD COUNT SECTION --- */}
-          <div className="flex flex-row flex-wrap items-center justify-between sm:justify-end gap-4 w-full xl:w-auto pt-4 xl:pt-0 border-t xl:border-t-0 border-base-300 xl:border-l xl:pl-4 shrink-0">
+          {/* --- RIGHT: STATS & ACTIONS (SINGLE ROW) --- */}
+          <div className="flex items-center justify-between lg:justify-end gap-4 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-base-300 pt-2 lg:pt-0 lg:pl-4">
+            {/* Record Counter - Smaller font */}
+            <div className="text-[10px] font-bold text-base-content/40 uppercase tracking-[0.1em] whitespace-nowrap">
+              {filteredAttendances.length}{" "}
+              <span className="hidden sm:inline">Records Found</span>
+              <span className="sm:hidden">Results</span>
+            </div>
+
             {showExportButton && (
               <button
                 onClick={() => setIsDtrModalOpen(true)}
-                className="btn btn-sm btn-success text-success-content shadow-sm gap-2 flex-1 sm:flex-none font-bold uppercase tracking-widest text-[10px]"
+                className="btn btn-xs h-8 min-h-0 btn-success text-success-content px-3 font-bold uppercase tracking-widest text-[9px] rounded-md"
               >
-                <Download size={14} />
-                <span className="hidden sm:inline">Export DTR</span>
-                <span className="sm:hidden">Export</span>
+                <Download size={12} className="mr-1" />
+                Export
               </button>
             )}
-
-            <div className="text-xs font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap shrink-0 text-right">
-              {filteredAttendances.length} Record
-              {filteredAttendances.length !== 1 ? "s" : ""}
-            </div>
           </div>
         </div>
       )}
