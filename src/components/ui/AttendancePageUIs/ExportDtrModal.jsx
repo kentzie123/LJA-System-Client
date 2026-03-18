@@ -21,55 +21,75 @@ const ExportDtrModal = ({
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(1); 
-    return d.toLocaleDateString("en-CA");
+    return d.toLocaleDateString("en-CA"); // YYYY-MM-DD
   });
   const [endDate, setEndDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [isGeneratingDTR, setIsGeneratingDTR] = useState(false);
 
-  const handleGenerateDTR = async () => {
-    if (!startDate || !endDate) return;
-    setIsGeneratingDTR(true);
+const handleGenerateDTR = async () => {
+  if (!startDate || !endDate) return;
+  setIsGeneratingDTR(true);
 
-    try {
-      let targetEmployee = authUser; 
-      if (canVerify && selectedEmployees.length === 1) {
-        targetEmployee = users.find(u => String(u.id) === String(selectedEmployees[0])) || authUser;
-      }
-
-      // 1. SILENT FETCH: Call the dedicated export functions from the Zustand stores.
-      const [freshAttendances, freshLeaves, freshOvertime] = await Promise.all([
-        useAttendanceStore.getState().fetchAttendancesForExport({ startDate, endDate, userId: targetEmployee.id }),
-        useLeaveStore.getState().fetchLeavesForExport({ startDate, endDate, targetUserId: targetEmployee.id }),
-        useOvertimeStore.getState().fetchOvertimeForExport({ startDate, endDate, targetUserId: targetEmployee.id })
-      ]);
-
-      // 2. Filter local data (safety net)
-      const dtrAttendance = (freshAttendances || []).filter(record => {
-        const recordDate = new Date(record.date).toLocaleDateString("en-CA");
-        return recordDate >= startDate && recordDate <= endDate;
-      });
-
-      const dtrLeaves = (freshLeaves || []).filter(l => l.status === "Approved");
-      const dtrOvertime = (freshOvertime || []).filter(o => o.status === "Approved");
-
-      // 3. Call utility with all datasets
-      await downloadDTRExcel(targetEmployee, dtrAttendance, dtrLeaves, dtrOvertime, startDate, endDate);
-      
-      onClose();
-    } catch (error) {
-      console.error("Failed to generate DTR:", error);
-    } finally {
-      setIsGeneratingDTR(false);
+  try {
+    let targetEmployee = authUser; 
+    if (canVerify && selectedEmployees.length === 1) {
+      targetEmployee = users.find(u => String(u.id) === String(selectedEmployees[0])) || authUser;
     }
-  };
+
+    const apiEndDate = `${endDate} 23:59:59`;
+    
+    const [freshAttendances, freshLeaves, freshOvertime] = await Promise.all([
+      useAttendanceStore.getState().fetchAttendancesForExport({ 
+        startDate, 
+        endDate: apiEndDate, // Send the full day timestamp
+        userId: targetEmployee.id 
+      }),
+      useLeaveStore.getState().fetchLeavesForExport({ 
+        startDate, 
+        endDate: apiEndDate, 
+        targetUserId: targetEmployee.id 
+      }),
+      useOvertimeStore.getState().fetchOvertimeForExport({ 
+        startDate, 
+        endDate: apiEndDate, // Send the full day timestamp
+        targetUserId: targetEmployee.id 
+      })
+    ]);
+
+    // 2. Filter local data (Using en-CA to prevent timezone shifting bugs)
+    const dtrAttendance = (freshAttendances || []).filter(record => {
+      const recordDateStr = new Date(record.date).toLocaleDateString("en-CA"); 
+      return recordDateStr >= startDate && recordDateStr <= endDate;
+    });
+
+    const dtrLeaves = (freshLeaves || []).filter(l => l.status === "Approved");
+    
+    const dtrOvertime = (freshOvertime || []).filter(o => {
+      if (o.status !== "Approved") return false;
+      
+      const otDateSource = o.start_datetime;
+      if (!otDateSource) return false;
+      
+      const otDateStr = new Date(otDateSource).toLocaleDateString("en-CA");
+      return otDateStr >= startDate && otDateStr <= endDate;
+    });
+
+    // 3. Call utility
+    await downloadDTRExcel(targetEmployee, dtrAttendance, dtrLeaves, dtrOvertime, startDate, endDate);
+    
+    onClose();
+  } catch (error) {
+    console.error("Failed to generate DTR:", error);
+  } finally {
+    setIsGeneratingDTR(false);
+  }
+};
 
   return (
     <dialog className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
-      
-      {/* MODAL BOX: Must remain overflow-visible so CustomDatePicker popups can escape the box */}
       <div className="modal-box p-0 bg-base-100 overflow-visible w-11/12 max-w-[360px] border border-success/30 shadow-2xl rounded-xl flex flex-col antialiased-text">
         
-        {/* HEADER: Success Strip */}
+        {/* HEADER */}
         <div className="px-4 py-3 border-b border-success/20 bg-success/10 flex justify-between items-start shrink-0 rounded-t-xl">
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-success/20 rounded-md text-success shadow-sm">
@@ -151,7 +171,6 @@ const ExportDtrModal = ({
 
       </div>
 
-      {/* CLICKABLE BACKDROP */}
       <div className="modal-backdrop bg-black/60 backdrop-blur-sm" onClick={() => !isGeneratingDTR && onClose()}></div>
     </dialog>
   );

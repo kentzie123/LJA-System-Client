@@ -34,7 +34,7 @@ const EmployeeFilterDropdown = ({ users, selectedEmployees, setSelectedEmployees
   const hasSelection = selectedEmployees.length > 0;
 
   return (
-    <div className="relative w-full z-40" ref={dropdownRef}>
+    <div className="relative w-full" ref={dropdownRef}>
       {/* COMPACT TRIGGER (h-8) */}
       <button
         type="button"

@@ -30,7 +30,6 @@ const AttendanceCalendarView = ({
 }) => {
   const { fetchCalendarData, calendarData, isFetchingCalendar } = useAttendanceStore();
   
-  // Logic: Default to first staff (non-admin) alphabetically
   const activeUser = useMemo(() => {
     if (selectedEmployee) return selectedEmployee;
     const staffOnly = users?.filter(u => u.role?.toLowerCase() !== 'admin')
@@ -72,8 +71,8 @@ const AttendanceCalendarView = ({
       if (!timeString) return false;
       const [hours, minutes] = timeString.split(":").map(Number);
       const totalMinutes = hours * 60 + minutes;
-      if (type === "in") return totalMinutes > 495;
-      if (type === "out") return totalMinutes < 1020;
+      if (type === "in") return totalMinutes > 495; // Late after 8:15 AM
+      if (type === "out") return totalMinutes < 1020; // Half-day before 5:00 PM
       return false;
     };
 
@@ -98,19 +97,99 @@ const AttendanceCalendarView = ({
       const isPast = cellDateObj < new Date(new Date().setHours(0,0,0,0));
 
       let status = null;
+      let indicators = []; 
+
       const hasLeave = leaves.find(l => cellDateString >= getDateStr(l.start_date) && cellDateString <= getDateStr(l.end_date));
-      const hasOT = overtime.find(o => getDateStr(o.ot_date) === cellDateString);
       const record = attendances.find(a => getDateStr(a.date) === cellDateString);
 
-      if (hasLeave) status = 'Leave';
-      else if (record) {
-        if (hasOT) status = 'Overtime';
-        else if (checkTimeFlag(record.time_in, "in")) status = 'Late';
-        else if (checkTimeFlag(record.time_out, "out")) status = 'Half-day';
-        else status = 'Present';
-      } else if (!cell.isFaded && isPast && !isWeekend) status = 'Absent';
+      // --- OVERNIGHT OVERTIME SPLITTING LOGIC ---
+      let hasOT = null;
+      const matchingOT = overtime.find(o => {
+        const startStr = getDateStr(o.start_datetime);
+        const endStr = getDateStr(o.end_datetime);
+        // Match if the cell's date is anywhere between the start and end of the OT
+        return cellDateString >= startStr && cellDateString <= endStr;
+      });
 
-      return { ...cell, isToday, status, in: record ? formatTimeShort(record.time_in) : null, out: record ? formatTimeShort(record.time_out) : null, record, leave: hasLeave, dateObj: cellDateObj };
+      if (matchingOT) {
+        const startStr = getDateStr(matchingOT.start_datetime);
+        const endStr = getDateStr(matchingOT.end_datetime);
+
+        // If the OT starts and ends on the same day, pass it normally
+        if (startStr === endStr) {
+          hasOT = matchingOT;
+        } else {
+          // It crosses midnight! We need to clamp the time based on which day we are rendering
+          const actualStart = new Date(matchingOT.start_datetime);
+          const actualEnd = new Date(matchingOT.end_datetime);
+          
+          let clampedStart = new Date(actualStart);
+          let clampedEnd = new Date(actualEnd);
+
+          if (cellDateString === startStr) {
+            // Day 1: End at 11:59:59 PM
+            clampedEnd = new Date(actualStart.getFullYear(), actualStart.getMonth(), actualStart.getDate(), 23, 59, 59);
+          } else if (cellDateString === endStr) {
+            // Day 2: Start at 12:00:00 AM
+            clampedStart = new Date(actualEnd.getFullYear(), actualEnd.getMonth(), actualEnd.getDate(), 0, 0, 0);
+          } else {
+            // Middle day (Rare, but just in case OT spans 24+ hours)
+            clampedStart = new Date(cell.year, cell.month, cell.day, 0, 0, 0);
+            clampedEnd = new Date(cell.year, cell.month, cell.day, 23, 59, 59);
+          }
+
+          // Calculate hours for this specific clamped slice
+          const splitHours = (clampedEnd - clampedStart) / (1000 * 60 * 60);
+
+          hasOT = {
+            ...matchingOT,
+            start_datetime: clampedStart.toISOString(),
+            end_datetime: clampedEnd.toISOString(),
+            total_hours: splitHours.toFixed(2), // Overwrite original hours with clamped hours
+          };
+        }
+      }
+
+      // --- DETERMINE PRIMARY STATUS ---
+      if (hasLeave) {
+        status = 'Leave';
+      } else if (record) {
+        if (checkTimeFlag(record.time_in, "in")) {
+          status = 'Late';
+        } else {
+          status = 'Present';
+        }
+      } else if (!cell.isFaded && isPast && !isWeekend && !hasOT) {
+        status = 'Absent'; 
+      }
+
+      // --- COMPILE SECONDARY INDICATORS ---
+      if (hasOT) {
+        indicators.push('Overtime');
+      }
+      
+      if (record) {
+        if (checkTimeFlag(record.time_out, "out")) indicators.push('Half-day');
+      }
+
+      // Sunday OT Edge Case
+      if (!status && hasOT) {
+        status = 'Overtime'; 
+        indicators = indicators.filter(i => i !== 'Overtime'); 
+      }
+
+      return { 
+        ...cell, 
+        isToday, 
+        status, 
+        indicators, 
+        in: record ? formatTimeShort(record.time_in) : null, 
+        out: record ? formatTimeShort(record.time_out) : null, 
+        record, 
+        leave: hasLeave, 
+        hasOT,
+        dateObj: cellDateObj 
+      };
     });
   }, [currentDate, activeUser, calendarData]);
 
@@ -125,7 +204,6 @@ const AttendanceCalendarView = ({
           </div>
         )}
 
-        {/* Smaller Header */}
         <div className="px-5 py-3 flex flex-row items-center justify-between border-b border-base-200">
           <div className="flex items-center gap-2">
             <CalendarIcon className="text-primary size-5 shrink-0" strokeWidth={2.5} />
@@ -140,7 +218,6 @@ const AttendanceCalendarView = ({
           </div>
         </div>
 
-        {/* High Density Grid */}
         <div className="p-3 flex-1 flex flex-col">
           <div className="grid grid-cols-7 mb-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -159,8 +236,8 @@ const AttendanceCalendarView = ({
 };
 
 const CalendarCell = ({ data, onClick }) => {
-  const colors = getStatusColors(data.status);
-  const isClickable = data.record || data.leave;
+  const baseColors = getStatusColors(data.status);
+  const isClickable = data.record || data.leave || data.hasOT; 
 
   return (
     <div 
@@ -169,33 +246,56 @@ const CalendarCell = ({ data, onClick }) => {
         relative flex flex-col p-1.5 rounded-lg transition-all 
         h-[60px] sm:h-[75px] lg:h-[90px] 
         border border-transparent overflow-hidden
-        ${colors.bg} 
-        ${data.status ? colors.border : 'border-base-300 bg-base-200/20'}
+        ${baseColors.bg} 
+        ${data.status ? baseColors.border : 'border-base-300 bg-base-200/20'}
         ${data.isToday ? '!border-primary ring-1 ring-primary/40' : ''}
         ${data.isFaded ? 'opacity-30 grayscale-[50%]' : 'opacity-100'}
         ${isClickable ? 'cursor-pointer hover:shadow-sm active:scale-95' : ''}
       `}
     >
-      <div className={`text-xs font-bold ${data.isToday ? 'text-base-content' : (data.status ? colors.text : 'text-base-content/30')}`}>
+      <div className={`text-xs font-bold ${data.isToday ? 'text-base-content' : (data.status ? baseColors.text : 'text-base-content/30')}`}>
         {data.day}
       </div>
 
       {data.status && (
-        <div className={`hidden sm:block text-[9px] font-black ${colors.text} truncate leading-none mt-0.5 uppercase`}>
+        <div className={`hidden sm:block text-[9px] font-black ${baseColors.text} truncate leading-none mt-0.5 uppercase`}>
           {data.status}
         </div>
       )}
 
-      {data.in && (
-        <div className={`hidden sm:flex mt-auto flex-col gap-0 text-[8px] font-bold ${colors.text} opacity-70 leading-tight z-10`}>
-          <span className="truncate">In: {data.in}</span>
-          <span className="truncate">Out: {data.out || '--'}</span>
+      {data.indicators && data.indicators.length > 0 && (
+        <div className="flex flex-wrap gap-0.5 mt-1 hidden sm:flex">
+          {data.indicators.map((ind, idx) => {
+            const indColors = getStatusColors(ind);
+            const Icon = indColors.icon;
+            return (
+              <div key={idx} className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold ${indColors.bg} ${indColors.text}`}>
+                {Icon && <Icon size={8} />}
+                <span className="leading-none uppercase tracking-wider">{ind === 'Overtime' ? 'OT' : ind}</span>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {data.status && (
-        <div className="absolute bottom-1 right-1 sm:hidden">
-          <div className={`w-1.5 h-1.5 rounded-full ${colors.dotClass}`} />
+      {(data.in || data.hasOT) && (
+        <div className={`hidden sm:flex mt-auto flex-col gap-0 text-[8px] font-bold ${baseColors.text} opacity-70 leading-tight z-10`}>
+          {data.in && <span className="truncate">In: {data.in}</span>}
+          {data.out && <span className="truncate">Out: {data.out || '--'}</span>}
+          {data.hasOT && (
+            <span className="truncate text-indigo-500 font-black mt-0.5">
+              OT: {parseFloat(data.hasOT.total_hours).toFixed(2)} hrs
+            </span>
+          )}
+        </div>
+      )}
+
+      {(data.status || (data.indicators && data.indicators.length > 0)) && (
+        <div className="absolute bottom-1 right-1 flex gap-0.5 sm:hidden">
+          {data.status && <div className={`w-1.5 h-1.5 rounded-full ${baseColors.dotClass}`} />}
+          {data.indicators?.map((ind, idx) => (
+             <div key={idx} className={`w-1.5 h-1.5 rounded-full ${getStatusColors(ind).dotClass}`} />
+          ))}
         </div>
       )}
     </div>

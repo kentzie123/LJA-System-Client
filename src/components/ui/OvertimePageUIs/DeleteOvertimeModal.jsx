@@ -62,7 +62,8 @@ const DeleteOvertimeModal = ({ isOpen, onClose, request, userRole }) => {
           <div className="mt-3 flex flex-col gap-1 text-[11px]">
             <div className="flex justify-between border-b border-base-200 pb-1">
               <span className="text-base-content/50 uppercase font-bold tracking-tighter">Date</span>
-              <span className="font-black text-base-content uppercase">{formatDate(request?.ot_date)}</span>
+
+              <span className="font-black text-base-content uppercase">{formatDate(request?.start_datetime)}</span>
             </div>
             <div className="flex justify-between pt-1">
               <span className="text-base-content/50 uppercase font-bold tracking-tighter">Duration</span>

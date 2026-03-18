@@ -1,9 +1,8 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { X, Loader2, Clock } from "lucide-react";
 import { useOvertimeStore } from "@/stores/useOvertimeStore";
-
-// IMPORT CUSTOM DATE PICKER
-import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
 
 const NewOvertimeModal = ({ isOpen, onClose }) => {
   const {
@@ -15,232 +14,219 @@ const NewOvertimeModal = ({ isOpen, onClose }) => {
 
   const [formData, setFormData] = useState({
     otTypeId: "",
-    date: "",
-    startTime: "",
-    endTime: "",
+    startAt: "",
+    endAt: "",
     reason: "",
   });
 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetchOvertimeTypes();
-  }, [fetchOvertimeTypes]);
+    if (isOpen) fetchOvertimeTypes();
+  }, [isOpen, fetchOvertimeTypes]);
 
   useEffect(() => {
     if (isOpen) {
       setFormData({
         otTypeId: "",
-        date: "",
-        startTime: "",
-        endTime: "",
+        startAt: "",
+        endAt: "",
         reason: "",
       });
-      setErrors({}); 
+      setErrors({});
     }
   }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
 
     if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  // Custom handler for CustomDatePicker
-  const handleDateChange = (val) => {
-    setFormData((prev) => ({ ...prev, date: val }));
-    if (errors.date) {
-      setErrors((prev) => ({ ...prev, date: "" }));
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.otTypeId)
-      newErrors.otTypeId = "Please select an overtime type.";
-    if (!formData.date) newErrors.date = "Date is required.";
-    if (!formData.startTime) newErrors.startTime = "Start time is required.";
-    if (!formData.endTime) newErrors.endTime = "End time is required.";
-    if (!formData.reason.trim()) newErrors.reason = "Reason is required.";
+    if (!formData.otTypeId) newErrors.otTypeId = "Required";
+    if (!formData.startAt) newErrors.startAt = "Required";
+    if (!formData.endAt) newErrors.endAt = "Required";
+    if (!formData.reason.trim()) newErrors.reason = "Required";
 
-    if (formData.startTime && formData.endTime) {
-      if (formData.endTime <= formData.startTime) {
-        newErrors.endTime = "End time must be after start time.";
-      }
+    if (
+      formData.startAt &&
+      formData.endAt &&
+      new Date(formData.endAt) <= new Date(formData.startAt)
+    ) {
+      newErrors.endAt = "Must be after start";
     }
 
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
     if (!validateForm()) return;
 
     const success = await createOvertimeRequest(formData);
-    if (success) {
-      onClose();
-    }
+
+    if (success) onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-md rounded-2xl shadow-2xl border border-base-300 flex flex-col max-h-[90vh] overflow-hidden scale-in-95 duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between bg-base-200 py-4 px-6">
-          <div className="text-lg font-bold flex items-center gap-2">
-            <Clock className="size-5 text-primary" />
-            Apply for Overtime
+    <dialog className={`modal modal-middle ${isOpen ? "modal-open" : ""}`}>
+      <div className="modal-box p-0 bg-base-100 w-11/12 max-w-[380px] border border-base-300 shadow-2xl rounded-xl flex flex-col">
+
+        {/* HEADER */}
+        <div className="px-4 py-3 border-b border-base-200 bg-base-200/50 flex justify-between items-center">
+          <div className="flex items-center gap-2 text-sm font-bold">
+            <Clock size={16} className="text-primary" />
+            Apply Overtime
           </div>
+
           <button
             onClick={onClose}
             disabled={isCreating}
-            className="btn btn-ghost btn-sm btn-square text-base-content/50 hover:text-error"
+            className="btn btn-xs btn-circle btn-ghost text-base-content/50 hover:text-error"
           >
-            <X className="size-5" />
+            <X size={14} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="py-4 px-6 space-y-4 overflow-y-auto custom-scrollbar">
-          {/* Overtime Type Dropdown */}
-          <fieldset className="fieldset relative z-[30]">
-            <legend className="fieldset-legend text-xs font-semibold">
-              Overtime Type
-            </legend>
+        {/* BODY */}
+        <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar">
+
+          {/* OT TYPE */}
+          <div className="form-control">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-base-content/50 mb-1 flex justify-between">
+              OT Type
+              {errors.otTypeId && <span className="text-error">Required</span>}
+            </label>
+
             <select
               name="otTypeId"
               value={formData.otTypeId}
               onChange={handleChange}
-              className={`select select-bordered w-full text-xs h-10 ${
+              className={`select select-bordered select-sm h-8 min-h-0 w-full text-[11px] ${
                 errors.otTypeId ? "select-error" : ""
               }`}
             >
-              <option value="" disabled>
-                Select overtime type
-              </option>
+              <option value="">Select type...</option>
+
               {overtimeTypes.map((type) => (
                 <option key={type.id} value={type.id}>
                   {type.name}
                 </option>
               ))}
             </select>
-            {errors.otTypeId && (
-              <span className="text-error text-xs mt-1">{errors.otTypeId}</span>
-            )}
-          </fieldset>
-
-          {/* Date Picker - UPDATED TO USE CUSTOM DATE PICKER */}
-          <fieldset className="fieldset relative z-[20]">
-            <legend className="fieldset-legend text-xs font-semibold">
-              Overtime Date
-            </legend>
-            <CustomDatePicker 
-              value={formData.date}
-              onChange={handleDateChange}
-              className={`text-xs ${errors.date ? "border-error" : ""}`}
-            />
-            {errors.date && (
-              <span className="text-error text-xs mt-1">{errors.date}</span>
-            )}
-          </fieldset>
-
-          {/* Time Pickers (Start & End) */}
-          <div className="grid grid-cols-2 gap-4 relative z-0">
-            <fieldset className="fieldset">
-              <legend className="fieldset-legend text-xs font-semibold">
-                Start Time
-              </legend>
-              <div className="relative">
-                <input
-                  type="time"
-                  name="startTime"
-                  value={formData.startTime}
-                  onChange={handleChange}
-                  className={`input input-bordered text-xs w-full pl-9 h-10 ${
-                    errors.startTime ? "input-error" : ""
-                  }`}
-                />
-                <Clock className="absolute left-3 top-2.5 text-base-content/50 pointer-events-none" size={16} />
-              </div>
-              {errors.startTime && (
-                <span className="text-error text-xs mt-1">
-                  {errors.startTime}
-                </span>
-              )}
-            </fieldset>
-
-            <fieldset className="fieldset">
-              <legend className="fieldset-legend text-xs font-semibold">
-                End Time
-              </legend>
-              <div className="relative">
-                <input
-                  type="time"
-                  name="endTime"
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  className={`input input-bordered text-xs w-full pl-9 h-10 ${
-                    errors.endTime ? "input-error" : ""
-                  }`}
-                />
-                <Clock className="absolute left-3 top-2.5 text-base-content/50 pointer-events-none" size={16} />
-              </div>
-              {errors.endTime && (
-                <span className="text-error text-xs mt-1">
-                  {errors.endTime}
-                </span>
-              )}
-            </fieldset>
           </div>
 
-          {/* Reason Textarea */}
-          <fieldset className="fieldset relative z-0">
-            <legend className="fieldset-legend text-xs font-semibold">
+          {/* START */}
+          <div className="form-control">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-base-content/50 mb-1 flex justify-between">
+              Start
+              {errors.startAt && <span className="text-error">*</span>}
+            </label>
+
+            <div className="relative">
+              <input
+                type="datetime-local"
+                name="startAt"
+                value={formData.startAt}
+                onChange={handleChange}
+                className="input input-bordered input-sm h-8 min-h-0 w-full pl-6 text-[11px]"
+              />
+              <Clock
+                size={12}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-base-content/40"
+              />
+            </div>
+          </div>
+
+          {/* END */}
+          <div className="form-control">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-base-content/50 mb-1 flex justify-between">
+              End
+              {errors.endAt && <span className="text-error">*</span>}
+            </label>
+
+            <div className="relative">
+              <input
+                type="datetime-local"
+                name="endAt"
+                value={formData.endAt}
+                onChange={handleChange}
+                className="input input-bordered input-sm h-8 min-h-0 w-full pl-6 text-[11px]"
+              />
+              <Clock
+                size={12}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-base-content/40"
+              />
+            </div>
+          </div>
+
+          {/* REASON */}
+          <div className="form-control">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-base-content/50 mb-1 flex justify-between">
               Task / Reason
-            </legend>
+              {errors.reason && <span className="text-error">Required</span>}
+            </label>
+
             <textarea
               name="reason"
               value={formData.reason}
               onChange={handleChange}
-              className={`textarea textarea-bordered text-xs w-full h-24 resize-none ${
+              className={`textarea textarea-bordered text-[11px] w-full h-16 resize-none p-2 ${
                 errors.reason ? "textarea-error" : ""
               }`}
-              placeholder="Describe the task or reason for overtime..."
+              placeholder="Brief explanation..."
             ></textarea>
-            {errors.reason && (
-              <span className="text-error text-xs mt-1">{errors.reason}</span>
-            )}
-          </fieldset>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4 mt-4 pt-4 border-t border-base-300">
-            <button onClick={onClose} className="btn btn-ghost" disabled={isCreating}>
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isCreating}
-              className="btn btn-primary min-w-[140px]"
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="size-5 animate-spin mr-2" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Request"
-              )}
-            </button>
           </div>
+
         </div>
+
+        {/* FOOTER */}
+        <div className="px-4 py-3 border-t border-base-200 bg-base-200/30 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="btn btn-sm h-8 min-h-0 btn-ghost text-[10px] uppercase font-bold px-4"
+            disabled={isCreating}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            disabled={isCreating}
+            className="btn btn-sm h-8 min-h-0 btn-primary text-[10px] uppercase font-bold px-4"
+          >
+            {isCreating ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Submit"
+            )}
+          </button>
+        </div>
+
       </div>
-    </div>
+
+      {/* BACKDROP */}
+      <div
+        className="modal-backdrop bg-black/60 backdrop-blur-md"
+        onClick={() => !isCreating && onClose()}
+      />
+    </dialog>
   );
 };
 

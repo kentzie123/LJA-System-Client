@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
-import { useAuthStore } from "./useAuthStore"; // Import for socket access
+import { useAuthStore } from "./useAuthStore";
 
 export const useOvertimeStore = create((set, get) => ({
-  // --- STATE ---
+  // ==============================
+  // STATE
+  // ==============================
   overtimeRequests: [],
   overtimeTypes: [],
+
   stats: {
     pendingCount: 0,
     approvedHoursMonth: 0,
@@ -19,26 +22,32 @@ export const useOvertimeStore = create((set, get) => ({
   isCreating: false,
   isUpdating: false,
   isDeleting: false,
+
   selectedOvertime: null,
 
   setSelectedOvertime: (request) => set({ selectedOvertime: request }),
 
-  // 1. Fetch Types
+  // ==============================
+  // FETCH TYPES
+  // ==============================
   fetchOvertimeTypes: async () => {
     try {
-      const response = await api.get("/overtime/types");
-      set({ overtimeTypes: response.data });
+      const res = await api.get("/overtime/types");
+      set({ overtimeTypes: res.data });
     } catch (error) {
-      console.error("Failed to fetch types", error);
+      console.error("Failed to fetch OT types", error);
     }
   },
 
-  // 2. Fetch All Requests
+  // ==============================
+  // FETCH ALL OVERTIME
+  // ==============================
   fetchAllOvertime: async (filters = {}) => {
     set({ isFetching: true });
+
     try {
-      const response = await api.get("/overtime/all", { params: filters });
-      set({ overtimeRequests: response.data });
+      const res = await api.get("/overtime/all", { params: filters });
+      set({ overtimeRequests: res.data });
     } catch (error) {
       console.error(error);
       toast.error("Failed to fetch overtime records");
@@ -47,36 +56,46 @@ export const useOvertimeStore = create((set, get) => ({
     }
   },
 
+  // ==============================
+  // FETCH FOR EXPORT
+  // ==============================
   fetchOvertimeForExport: async (filters = {}) => {
     try {
-      const response = await api.get("/overtime/all", { params: filters });
-      return response.data;
+      const res = await api.get("/overtime/all", { params: filters });
+      return res.data;
     } catch (error) {
-      console.error("Failed to fetch overtime for export:", error);
+      console.error("Export fetch failed", error);
       return [];
     }
   },
 
-  // 3. Fetch Statistics
+  // ==============================
+  // FETCH STATS
+  // ==============================
   fetchOvertimeStats: async (filters = {}) => {
     try {
-      // Pass the filters (month, year) as query parameters
-      const response = await api.get("/overtime/stats", { params: filters });
-      set({ stats: response.data });
+      const res = await api.get("/overtime/stats", { params: filters });
+      set({ stats: res.data });
     } catch (error) {
-      console.error("Failed to fetch stats", error);
+      console.error("Failed to fetch overtime stats", error);
     }
   },
 
-  // 4. Create Request (Standard Employee)
+  // ==============================
+  // CREATE REQUEST (EMPLOYEE)
+  // ==============================
   createOvertimeRequest: async (formData) => {
     set({ isCreating: true });
+
     try {
       await api.post("/overtime/create", formData);
+
       toast.success("Overtime request submitted!");
-      // Fallback refresh (Socket handles real-time)
+
+      // fallback refresh
       get().fetchAllOvertime();
       get().fetchOvertimeStats();
+
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit request");
@@ -86,14 +105,20 @@ export const useOvertimeStore = create((set, get) => ({
     }
   },
 
-  // 5. Create Admin Request (Auto-Approved)
+  // ==============================
+  // CREATE ADMIN REQUEST
+  // ==============================
   createAdminOvertimeRequest: async (formData) => {
     set({ isCreating: true });
+
     try {
       await api.post("/overtime/create-admin", formData);
+
       toast.success("Overtime assigned successfully!");
+
       get().fetchAllOvertime();
       get().fetchOvertimeStats();
+
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to assign overtime");
@@ -103,47 +128,70 @@ export const useOvertimeStore = create((set, get) => ({
     }
   },
 
-  // 6. Update Status (Approve/Reject)
+  // ==============================
+  // UPDATE STATUS
+  // ==============================
   updateOvertimeStatus: async (id, status, rejectionReason = null) => {
     set({ isUpdating: true });
+
     try {
-      await api.put(`/overtime/${id}/status`, { status, rejectionReason });
-      toast.success(`Request ${status} successfully`);
+      await api.put(`/overtime/${id}/status`, {
+        status,
+        rejectionReason,
+      });
+
+      toast.success(`Request ${status}`);
+
       get().fetchAllOvertime();
       get().fetchOvertimeStats();
     } catch (error) {
-      toast.error("Failed to update status");
       console.error(error);
+      toast.error("Failed to update status");
     } finally {
       set({ isUpdating: false });
     }
   },
 
-  // 7. Update Details (Edit)
+  // ==============================
+  // UPDATE REQUEST
+  // ==============================
   updateOvertimeRequest: async (id, formData) => {
-    set({ isCreating: true });
+    set({ isUpdating: true });
+
     try {
       await api.put(`/overtime/${id}/update`, formData);
+
       toast.success("Request updated!");
+
       get().fetchAllOvertime();
       get().fetchOvertimeStats();
+
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update");
       return false;
     } finally {
-      set({ isCreating: false, selectedOvertime: null });
+      set({
+        isUpdating: false,
+        selectedOvertime: null,
+      });
     }
   },
 
-  // 8. Delete Request
+  // ==============================
+  // DELETE REQUEST
+  // ==============================
   deleteOvertimeRequest: async (id) => {
     set({ isDeleting: true });
+
     try {
       await api.delete(`/overtime/${id}`);
+
       toast.success("Request deleted successfully");
+
       get().fetchAllOvertime();
       get().fetchOvertimeStats();
+
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete");
@@ -153,9 +201,9 @@ export const useOvertimeStore = create((set, get) => ({
     }
   },
 
-  // =======================================================
-  // REAL-TIME OVERTIME SOCKET LISTENERS
-  // =======================================================
+  // ===================================================
+  // SOCKET REAL-TIME LISTENERS
+  // ===================================================
 
   subscribeToOvertimeUpdates: () => {
     const { socket, authUser } = useAuthStore.getState();
@@ -165,61 +213,76 @@ export const useOvertimeStore = create((set, get) => ({
 
     socket.on("overtime_update", (payload) => {
       const { type, data } = payload;
-      const { overtimeRequests } = get();
 
-      // 1. ADD NEW RECORD
-      if (type === "NEW_REQUEST") {
-        set({ overtimeRequests: [data, ...overtimeRequests] });
-        if (data.user_id !== authUser?.id) {
-          toast.success(`New OT Request: ${data.fullname}`, { icon: "🕒" });
-        }
-      }
-      // 2. UPDATE EXISTING RECORD
-      else if (
-        type === "STATUS_UPDATE" ||
-        type === "UPDATE" ||
-        type === "ADMIN_ASSIGNED"
-      ) {
-        const exists = overtimeRequests.some((r) => r.id === data.id);
+      set((state) => {
+        const requests = state.overtimeRequests;
 
-        if (exists) {
-          set({
-            overtimeRequests: overtimeRequests.map((item) =>
-              item.id === data.id ? data : item,
-            ),
-          });
-        } else {
-          // If admin assigned it to me, I might not have it in my list yet
-          set({ overtimeRequests: [data, ...overtimeRequests] });
-        }
-
-        // Refresh Stats to keep numbers accurate
-        get().fetchOvertimeStats();
-
-        // Notifications for the Employee
-        if (data.user_id === authUser?.id) {
-          if (type === "STATUS_UPDATE") {
-            const statusIcon = data.status === "Approved" ? "✅" : "❌";
-            toast(`Your OT request was ${data.status}`, { icon: statusIcon });
-          } else if (type === "ADMIN_ASSIGNED") {
-            toast.success("Admin assigned OT hours to you.", { icon: "💼" });
+        // NEW REQUEST
+        if (type === "NEW_REQUEST") {
+          if (!requests.some((r) => r.id === data.id)) {
+            if (data.user_id !== authUser?.id) {
+              toast.success(`New OT Request: ${data.fullname}`, { icon: "🕒" });
+            }
+            return { overtimeRequests: [data, ...requests] };
           }
         }
-      }
-      // 3. DELETE RECORD
-      else if (type === "DELETE") {
-        set({
-          overtimeRequests: overtimeRequests.filter(
-            (item) => item.id !== Number(data.id),
-          ),
-        });
-        get().fetchOvertimeStats();
-      }
+
+        // UPDATE / STATUS / ADMIN ASSIGN
+        if (
+          type === "STATUS_UPDATE" ||
+          type === "UPDATE" ||
+          type === "ADMIN_ASSIGNED"
+        ) {
+          const exists = requests.some((r) => r.id === data.id);
+
+          let updatedList;
+
+          if (exists) {
+            updatedList = requests.map((r) =>
+              r.id === data.id ? data : r
+            );
+          } else {
+            updatedList = [data, ...requests];
+          }
+
+          if (data.user_id === authUser?.id) {
+            if (type === "STATUS_UPDATE") {
+              const icon = data.status === "Approved" ? "✅" : "❌";
+              toast(`Your OT request was ${data.status}`, { icon });
+            }
+
+            if (type === "ADMIN_ASSIGNED") {
+              toast.success("Admin assigned OT hours to you.", {
+                icon: "💼",
+              });
+            }
+          }
+
+          get().fetchOvertimeStats();
+
+          return { overtimeRequests: updatedList };
+        }
+
+        // DELETE
+        if (type === "DELETE") {
+          get().fetchOvertimeStats();
+
+          return {
+            overtimeRequests: requests.filter(
+              (r) => r.id !== Number(data.id)
+            ),
+          };
+        }
+
+        return {};
+      });
     });
   },
 
   unsubscribeFromOvertimeUpdates: () => {
     const { socket } = useAuthStore.getState();
-    if (socket) socket.off("overtime_update");
+    if (!socket) return;
+
+    socket.off("overtime_update");
   },
 }));

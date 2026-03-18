@@ -15,6 +15,7 @@ import {
   Mail,
   MapPin,
   Loader2,
+  CalendarClock,
 } from "lucide-react";
 
 const EmployeeDetailsPage = ({ employeeId }) => {
@@ -58,6 +59,9 @@ const EmployeeDetailsPage = ({ employeeId }) => {
       </div>
     );
   }
+
+  // Helper for the schedule card
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
     <div className="space-y-4 pb-8 animate-in fade-in duration-300 antialiased-text">
@@ -147,11 +151,19 @@ const EmployeeDetailsPage = ({ employeeId }) => {
             label="Date Hired"
             value={formatDate(employee.date_hired)}
           />
+          {/* DYNAMIC: Pay Type & Rate display */}
+          <DetailRow 
+            label="Pay Structure" 
+            value={employee.pay_type === 'Monthly' ? 'Monthly (Fixed)' : 'Daily Rate'} 
+          />
           <DetailRow
-            label="Daily Rate"
-            value={formatCurrency(employee.daily_rate)}
+            label={employee.pay_type === 'Monthly' ? "Monthly Salary" : "Daily Rate"}
+            value={formatCurrency(employee.daily_rate || employee.payrate)}
             isHighlight
           />
+          {employee.pay_type === 'Monthly' && (
+            <DetailRow label="DOLE Factor" value={`${employee.working_days_factor || 261} Days`} />
+          )}
         </InfoCard>
 
         {/* Personal */}
@@ -214,6 +226,34 @@ const EmployeeDetailsPage = ({ employeeId }) => {
             isMono
           />
         </InfoCard>
+
+        {/* 4. DYNAMIC: WORK SCHEDULE (Only for Monthly Employees) */}
+        {employee.pay_type === 'Monthly' && employee.schedules && employee.schedules.length > 0 && (
+          <div className="col-span-1 lg:col-span-2">
+            <InfoCard
+              title="Fixed Work Schedule"
+              icon={<CalendarClock size={14} className="text-info" />}
+              className="border-info/20"
+            >
+              <div className="col-span-1 sm:col-span-2 flex flex-wrap gap-2">
+                {/* Sort the schedules from Sun to Sat just in case the DB returned them out of order */}
+                {[...employee.schedules].sort((a,b) => a.day_of_week - b.day_of_week).map((day) => (
+                  <div 
+                    key={day.day_of_week} 
+                    className={`flex-1 min-w-[50px] flex flex-col items-center justify-center p-2 rounded-lg border ${
+                      day.is_rest_day 
+                        ? 'bg-base-200/50 border-base-300 text-base-content/40' 
+                        : 'bg-primary/10 border-primary/20 text-primary'
+                    }`}
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-widest">{daysOfWeek[day.day_of_week]}</span>
+                    <span className="text-[9px] font-bold mt-1">{day.is_rest_day ? 'Rest' : 'Work'}</span>
+                  </div>
+                ))}
+              </div>
+            </InfoCard>
+          </div>
+        )}
       </div>
     </div>
   );

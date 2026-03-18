@@ -43,13 +43,13 @@ export const useAttendanceStore = create((set, get) => ({
     }
   },
 
-  // --- NEW: FETCH CALENDAR DATA ACTION ---
   fetchCalendarData: async (userId, year, month) => {
     set({ isFetchingCalendar: true });
     try {
       const response = await api.get("/attendances/calendar", {
         params: { userId, year, month },
       });
+      
       set({ calendarData: response.data });
     } catch (error) {
       console.error("Failed to fetch calendar data:", error);

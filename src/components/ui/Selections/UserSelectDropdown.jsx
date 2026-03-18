@@ -32,7 +32,7 @@ const UserSelectDropdown = ({ users = [], value, onChange, placeholder = "Select
   const selectedUser = users.find(u => u.id === (typeof value === "object" ? value?.id : Number(value)));
 
   return (
-    <div className="relative w-full z-50 text-left" ref={dropdownRef}>
+    <div className="relative w-full text-left z-10" ref={dropdownRef}>
       <button
         type="button"
         disabled={disabled}

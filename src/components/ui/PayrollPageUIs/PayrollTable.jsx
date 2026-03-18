@@ -39,84 +39,12 @@ const PayrollTable = ({ canManage = false, canViewAll = false, currentUserId }) 
   }, [activeRunDetails, searchTerm, canViewAll, currentUserId]);
 
   const handleViewPayslip = (record) => {
-    const details = record.details || {};
-    const attendance = details.attendance_summary || {};
-    const allowanceList = details.allowance_breakdown || [];
-    const deductionList = details.deduction_breakdown || [];
-    const otList = details.overtime_breakdown || [];
-
-    const hourlyRate = attendance.hourly_rate || 0;
-    const totalPaidHours = (attendance.total_worked_hours || 0) + (attendance.paid_leave_hours || 0);
-
-    const earnings = [];
-
-    if (parseFloat(record.basic_salary) > 0) {
-      earnings.push({
-        label: "Basic Salary",
-        amount: record.basic_salary,
-        units: `${totalPaidHours} hrs × ₱${hourlyRate.toFixed(2)}/hr`, 
-      });
-    }
-
-    if (otList.length > 0) {
-      otList.forEach(ot => {
-        const rateForThisOT = hourlyRate * (ot.multiplier || 1);
-        earnings.push({
-          label: `OT: ${ot.type}`,
-          amount: ot.amount,
-          units: `${ot.hours} hrs × ₱${rateForThisOT.toFixed(2)}/hr`, 
-        });
-      });
-    } else if (parseFloat(record.overtime_pay) > 0) {
-      earnings.push({
-        label: "Overtime",
-        amount: record.overtime_pay,
-        units: "Approved OT",
-      });
-    }
-
-    allowanceList.forEach(item => {
-      earnings.push({
-        label: item.name,
-        amount: item.amount,
-        units: "Fixed",
-      });
+    setSelectedPayslip({
+      ...record,
+      start_date: activeRunDetails?.meta?.start_date,
+      end_date: activeRunDetails?.meta?.end_date,
+      pay_date: activeRunDetails?.meta?.pay_date,
     });
-
-    const formattedData = {
-      payrollRun: {
-        startDate: activeRunDetails.meta.start_date,
-        endDate: activeRunDetails.meta.end_date,
-        paymentDate: activeRunDetails.meta.pay_date,
-      },
-      employee: {
-        id: `EMP-${record.user_id.toString().padStart(3, "0")}`,
-        name: record.fullname,
-        position: record.position || "Employee",
-        department: "LJA Power",
-        tin: record.tin_number || "-",
-        sss: record.sss_number || "-",
-        philhealth: record.philhealth_number || "-",
-        pagibig: record.pag_ibig_number || "-",
-      },
-      earnings: earnings,
-      deductions: deductionList.map((d) => ({
-        label: d.name,
-        amount: d.amount,
-      })),
-      loans: [],
-      totals: {
-        gross:
-          parseFloat(record.basic_salary) +
-          parseFloat(record.overtime_pay) +
-          parseFloat(record.allowances),
-        total_deductions: parseFloat(record.deductions),
-        net_pay: parseFloat(record.net_pay),
-      },
-      details: details, 
-    };
-
-    setSelectedPayslip(formattedData);
     setIsPayslipOpen(true);
   };
 

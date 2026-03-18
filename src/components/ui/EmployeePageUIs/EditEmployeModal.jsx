@@ -17,6 +17,8 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
     date_of_birth: "", place_of_birth: "", gender: "", civil_status: "", residential_address: "",
     sss_number: "", philhealth_number: "", pag_ibig_number: "", tin_number: "", bank_name: "", bank_account_number: "",
     emergency_contact_name: "", emergency_contact_number: "", emergency_relationship: "",
+    pay_type: "Daily",
+    schedules: []
   });
 
   const [errors, setErrors] = useState({});
@@ -26,7 +28,6 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
     if (isOpen) fetchRoles();
   }, [isOpen, fetchRoles]);
 
-  // Sync native dialog
   useEffect(() => {
     if (isOpen) {
       modalRef.current?.showModal();
@@ -42,17 +43,29 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
 
   useEffect(() => {
     if (employee) {
+      const defaultSchedules = [
+        { day_of_week: 0, is_rest_day: true }, { day_of_week: 1, is_rest_day: false },
+        { day_of_week: 2, is_rest_day: false }, { day_of_week: 3, is_rest_day: false },
+        { day_of_week: 4, is_rest_day: false }, { day_of_week: 5, is_rest_day: false },
+        { day_of_week: 6, is_rest_day: true }
+      ];
+
+      // Robust check for salary field across different DB states
+      const salaryValue = employee.pay_type === "Monthly" 
+        ? (employee.payrate || employee.daily_rate || "") 
+        : (employee.daily_rate || "");
+
       setFormData({
         fullname: employee.fullname || "",
         email: employee.email || "",
-        password: "", // Blank so backend ignores if unchanged
+        password: "", 
         contact_number: employee.contact_number || "",
         employee_id: employee.employee_id || "",
         date_hired: formatDateForInput(employee.date_hired),
         employment_type: employee.employment_type || "",
         role_id: employee.role_id || 3,
         position: employee.position || "",
-        daily_rate: employee.daily_rate || "",
+        daily_rate: salaryValue, 
         date_of_birth: formatDateForInput(employee.date_of_birth),
         place_of_birth: employee.place_of_birth || "",
         gender: employee.gender || "",
@@ -67,6 +80,8 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
         emergency_contact_name: employee.emergency_contact_name || "",
         emergency_contact_number: employee.emergency_contact_number || "",
         emergency_relationship: employee.emergency_relationship || "",
+        pay_type: employee.pay_type || "Daily",
+        schedules: employee.schedules?.length === 7 ? employee.schedules : defaultSchedules
       });
       setErrors({}); 
       setShowPassword(false);
@@ -78,6 +93,17 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
     const finalValue = name === "role_id" ? parseInt(value) : value;
     setFormData((prev) => ({ ...prev, [name]: finalValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleScheduleToggle = (dayIndex) => {
+    setFormData((prev) => ({
+      ...prev,
+      schedules: prev.schedules.map((day) =>
+        day.day_of_week === dayIndex
+          ? { ...day, is_rest_day: !day.is_rest_day }
+          : day
+      ),
+    }));
   };
 
   const validateForm = () => {
@@ -101,6 +127,8 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
     const success = await updateUser(employee.id, formData);
     if (success) onClose();
   };
+
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   return (
     <dialog ref={modalRef} className={`modal modal-middle ${isOpen ? "modal-open" : ""}`} onClose={onClose}>
@@ -191,9 +219,18 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
                   </label>
                   <input type="text" name="position" className={`input input-bordered h-8 text-[12px] px-2 w-full ${errors.position ? "border-error" : ""}`} value={formData.position} onChange={handleChange} />
                 </div>
+
+                <div className="form-control">
+                  <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1">Pay Type</label>
+                  <select name="pay_type" className="select select-bordered select-sm h-8 min-h-0 text-[11px] w-full" value={formData.pay_type} onChange={handleChange}>
+                    <option value="Daily">Daily Rate</option>
+                    <option value="Monthly">Monthly (Fixed Rate)</option>
+                  </select>
+                </div>
+
                 <div className="form-control relative">
                   <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-widest mb-1 flex justify-between">
-                    Daily Rate * {errors.daily_rate && <span className="text-error">{errors.daily_rate}</span>}
+                    {formData.pay_type === "Monthly" ? "Monthly Salary *" : "Daily Rate *"} {errors.daily_rate && <span className="text-error">{errors.daily_rate}</span>}
                   </label>
                   <span className="absolute left-2.5 top-[22px] text-[12px] opacity-50">₱</span>
                   <input type="number" name="daily_rate" className={`input input-bordered h-8 text-[12px] pl-6 pr-2 w-full tabular-nums ${errors.daily_rate ? "border-error" : ""}`} value={formData.daily_rate} onChange={handleChange} />
@@ -201,7 +238,33 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
               </div>
             </section>
 
-            {/* 3. PERSONAL INFORMATION */}
+            {/* 3. WORK SCHEDULE */}
+            {formData.pay_type === "Monthly" && (
+              <section className="animate-fade-in">
+                <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-3 border-b border-base-200 pb-1 flex justify-between items-center">
+                  <span>Fixed Work Schedule</span>
+                  <span className="text-[9px] text-base-content/40 lowercase normal-case font-normal">* Required for absence deductions</span>
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {daysOfWeek.map((dayName, index) => {
+                    const dayState = formData.schedules.find(s => s.day_of_week === index);
+                    return (
+                      <div key={index} className={`flex items-center justify-between p-2.5 border rounded-lg transition-colors ${!dayState?.is_rest_day ? 'bg-primary/5 border-primary/30' : 'bg-base-200/30 border-base-200'}`}>
+                        <span className={`text-[11px] font-bold ${!dayState?.is_rest_day ? 'text-primary' : 'text-base-content/50'}`}>{dayName}</span>
+                        <input 
+                          type="checkbox" 
+                          className="toggle toggle-sm toggle-primary" 
+                          checked={!dayState?.is_rest_day} 
+                          onChange={() => handleScheduleToggle(index)} 
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* 4. PERSONAL INFO */}
             <section>
               <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-3 border-b border-base-200 pb-1">Personal Info</h4>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-3">
@@ -239,7 +302,7 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
               </div>
             </section>
 
-            {/* 4. GOV & BANK */}
+            {/* 5. GOV & BANK */}
             <section>
               <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-3 border-b border-base-200 pb-1">Identifiers & Banking</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-3">
@@ -270,7 +333,7 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
               </div>
             </section>
 
-            {/* 5. EMERGENCY */}
+            {/* 6. EMERGENCY */}
             <section>
               <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-3 border-b border-base-200 pb-1">Emergency Contact</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-3">

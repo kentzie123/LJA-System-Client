@@ -1,28 +1,53 @@
 import React, { useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { formatCurrency, formatDate } from "@/utils/formatUtils";
-import { X, Printer, MapPin, Mail, ShieldCheck, Clock } from "lucide-react";
+import { X, Printer, MapPin, Mail, ShieldCheck } from "lucide-react";
 
 const PayslipTemplate = ({ isOpen, onClose, data }) => {
   const componentRef = useRef(null);
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: `Payslip_${data?.employee?.name?.replace(/\s+/g, '_') || 'Employee'}_${data?.payrollRun?.endDate || ''}`,
+    documentTitle: `Payslip_${data?.fullname?.replace(/\s+/g, '_') || 'Employee'}_${data?.end_date || ''}`,
   });
 
   if (!isOpen || !data) return null;
 
-  const { 
-    payrollRun = {}, 
-    employee = {}, 
-    earnings = [], 
-    totals = { gross: 0, total_deductions: 0, net_pay: 0 },
-    details = {} 
-  } = data;
-  
-  const allDeductions = [...(data.deductions || []), ...(data.loans || [])];
+  // --- 1. DATA EXTRACTION ---
+  const details = data.details || {};
+  const payType = details.pay_type || "Daily";
   const attendance = details.attendance_summary || {};
+
+  // --- 2. COMPILE EARNINGS ---
+  // Combine base earnings, overtime, and allowances into one array for the UI table
+  const allEarnings = [
+    ...(details.earnings_breakdown || []),
+    ...(details.overtime_breakdown || []).map(ot => ({
+      label: `${ot.type} OT`,
+      units: `${ot.hours} hrs × ${ot.multiplier}x`,
+      amount: ot.amount
+    })),
+    ...(details.allowance_breakdown || []).map(al => ({
+      label: al.name,
+      units: '', // Allowances typically don't have unit math
+      amount: al.amount
+    }))
+  ];
+
+  // --- 3. COMPILE DEDUCTIONS ---
+  // The backend now brilliantly supplies Lates, Absents, and Plans all here!
+  const allDeductions = (details.deduction_breakdown || []).map(d => ({
+    label: d.name || d.label, // Handle slight naming differences
+    units: d.units || '',
+    amount: d.amount
+  }));
+
+  // --- 4. COMPILE TOTALS ---
+  const totals = {
+    gross: parseFloat(data.basic_salary || 0) + parseFloat(data.overtime_pay || 0) + parseFloat(data.allowances || 0),
+    total_deductions: parseFloat(data.deductions || 0),
+    net_pay: parseFloat(data.net_pay || 0)
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/80 backdrop-blur-sm p-0 md:p-6 overflow-y-auto print:p-0 print:bg-transparent print:backdrop-blur-none">
@@ -77,7 +102,7 @@ const PayslipTemplate = ({ isOpen, onClose, data }) => {
               <div className="text-left md:text-right w-full md:w-auto mt-2 md:mt-0 bg-gray-50 p-4 rounded-lg border border-gray-200 print:border-none print:bg-transparent print:p-0 print:text-right">
                 <h2 className="text-2xl font-black uppercase tracking-widest text-gray-900 mb-1">PAYSLIP</h2>
                 <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
-                   {formatDate(payrollRun.startDate)} — {formatDate(payrollRun.endDate)}
+                   {formatDate(data.start_date)} — {formatDate(data.end_date)}
                 </p>
               </div>
             </div>
@@ -87,68 +112,75 @@ const PayslipTemplate = ({ isOpen, onClose, data }) => {
               <div className="flex flex-col border-r border-gray-300 print:border-black">
                 <div className="flex justify-between p-2 border-b border-gray-200 bg-gray-50 print:bg-transparent">
                   <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Employee Name</span>
-                  <span className="font-bold text-gray-900">{employee.name}</span>
+                  <span className="font-bold text-gray-900">{data.fullname}</span>
                 </div>
                 <div className="flex justify-between p-2 border-b border-gray-200 print:border-black">
                   <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Employee ID</span>
-                  <span className="font-medium text-gray-900">{employee.id}</span>
+                  <span className="font-medium text-gray-900">{data.employee_id || "N/A"}</span>
+                </div>
+                <div className="flex justify-between p-2 border-b border-gray-200 print:border-black">
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Position</span>
+                  <span className="font-medium text-gray-900">{data.position || "N/A"}</span>
                 </div>
                 <div className="flex justify-between p-2">
-                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Position</span>
-                  <span className="font-medium text-gray-900">{employee.position}</span>
+                  <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Pay Type</span>
+                  <span className="font-medium text-gray-900">{payType} Rate</span>
                 </div>
               </div>
               <div className="flex flex-col">
                 <div className="flex justify-between p-2 border-b border-gray-200 bg-gray-50 print:bg-transparent">
                   <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">Pay Date</span>
-                  <span className="font-bold text-gray-900">{formatDate(payrollRun.paymentDate)}</span>
+                  <span className="font-bold text-gray-900">{formatDate(data.pay_date)}</span>
                 </div>
                 <div className="flex justify-between p-2 border-b border-gray-200 print:border-black">
                   <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">TIN</span>
-                  <span className="font-medium text-gray-900 tabular-nums">{employee.tin || "N/A"}</span>
+                  <span className="font-medium text-gray-900 tabular-nums">{data.tin_number || "N/A"}</span>
                 </div>
                 <div className="flex justify-between p-2">
                   <span className="text-gray-500 uppercase font-bold text-[10px] tracking-wider">SSS / PHIC</span>
-                  <span className="font-medium text-gray-900 tabular-nums">{employee.sss || "N/A"}</span>
+                  <span className="font-medium text-gray-900 tabular-nums">
+                    {data.sss_number ? `${data.sss_number} / ${data.philhealth_number || 'N/A'}` : "N/A"}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* --- 2.5 ATTENDANCE & LATE SUMMARY --- */}
+            {/* --- 2.5 ATTENDANCE SUMMARY (Dynamic based on Pay Type) --- */}
             {Object.keys(attendance).length > 0 && (
               <div className="flex flex-wrap gap-4 justify-between items-center bg-gray-50 border border-gray-200 rounded-lg p-3 mb-8 relative z-10 print:border-black print:bg-transparent text-xs">
                 
-                <div className="flex gap-6">
+                <div className="flex gap-6 w-full">
+                  {payType !== "Daily" && (
+                    <div>
+                      <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Expected Days</span>
+                      <span className="font-bold text-gray-900">{attendance.expected_working_days} Days</span>
+                    </div>
+                  )}
+                  
                   <div>
                     <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Days Present</span>
                     <span className="font-bold text-gray-900">{attendance.days_present} Days</span>
                   </div>
-                  <div>
-                    <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Worked Hours</span>
-                    <span className="font-bold text-gray-900">{attendance.total_worked_hours} Hrs</span>
-                  </div>
-                  {attendance.paid_leave_hours > 0 && (
+
+                  {payType === "Daily" && (
                     <div>
-                      <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Paid Leave</span>
-                      <span className="font-bold text-gray-900">{attendance.paid_leave_hours} Hrs</span>
+                      <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Worked Hours</span>
+                      <span className="font-bold text-gray-900">{attendance.total_worked_hours} Hrs</span>
                     </div>
                   )}
-                </div>
 
-                {attendance.total_late_hours > 0 && (
-                  <div className="text-right border-l border-gray-300 pl-5 print:border-black">
-                    <span className="text-red-500 print:text-black uppercase font-bold text-[9px] tracking-wider flex items-center gap-1 justify-end mb-0.5">
-                      <Clock size={10} /> Late Penalty
-                    </span>
-                    <span className="font-bold text-red-600 print:text-black tabular-nums">
-                      -{formatCurrency(attendance.late_deduction_amount)}
-                    </span>
-                    {/* SHOW THE EXACT LATE MULTIPLIER MATH HERE */}
-                    <span className="block text-[8px] font-mono text-gray-500 mt-0.5 tracking-tighter">
-                      ({attendance.total_late_hours} hrs × ₱{parseFloat(attendance.hourly_rate || 0).toFixed(2)}/hr)
-                    </span>
+                  {attendance.paid_leave_days > 0 && (
+                    <div>
+                      <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Paid Leave</span>
+                      <span className="font-bold text-gray-900">{attendance.paid_leave_days} Days</span>
+                    </div>
+                  )}
+
+                  <div className="ml-auto text-right">
+                     <span className="text-gray-500 uppercase font-bold text-[9px] tracking-wider block mb-0.5">Daily Equiv. Rate</span>
+                     <span className="font-mono text-gray-900">₱{attendance.daily_rate_equiv?.toFixed(2)}/day</span>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -158,10 +190,10 @@ const PayslipTemplate = ({ isOpen, onClose, data }) => {
                 <h3 className="text-sm font-black uppercase text-gray-900 border-b-2 border-gray-800 pb-2 mb-3 tracking-wider">Earnings</h3>
                 <table className="w-full text-xs">
                   <tbody className="divide-y divide-gray-100 print:divide-gray-300">
-                    {earnings.map((item, idx) => (
-                      <tr key={idx}>
+                    {allEarnings.map((item, idx) => (
+                      <tr key={`earn-${idx}`}>
                         <td className="py-2 pr-2 text-gray-800 font-medium">{item.label}</td>
-                        {/* THIS IS WHERE THE MATH FROM PAYROLLTABLE SHOWS UP */}
+                        {/* THE CALCULATION UNITS */}
                         <td className="py-2 pr-2 text-right font-mono text-[9px] text-gray-500 tracking-tighter whitespace-nowrap">
                           {item.units}
                         </td>
@@ -180,12 +212,15 @@ const PayslipTemplate = ({ isOpen, onClose, data }) => {
                       <tr><td className="py-2 text-gray-400 italic text-xs">No deductions for this period.</td></tr>
                     ) : (
                       allDeductions.map((item, idx) => (
-                        <tr key={idx}>
+                        <tr key={`deduct-${idx}`}>
                           <td className="py-2 text-gray-800 font-medium">
                             {item.label}
                             {item.balance && <span className="text-[10px] text-gray-500 block mt-0.5">Bal: {formatCurrency(item.balance)}</span>}
                           </td>
-                          <td className="py-2 text-right text-[10px] text-gray-400">{item.units}</td>
+                          {/* THE DEDUCTION CALCULATION UNITS (Absents/Lates) */}
+                          <td className="py-2 pr-2 text-right font-mono text-[9px] text-gray-500 tracking-tighter whitespace-nowrap">
+                            {item.units}
+                          </td>
                           <td className="py-2 text-right font-semibold tabular-nums text-red-600 print:text-black">({formatCurrency(item.amount)})</td>
                         </tr>
                       ))
@@ -205,7 +240,7 @@ const PayslipTemplate = ({ isOpen, onClose, data }) => {
                   </div>
                   <div className="flex justify-between items-center text-gray-600">
                     <span className="font-bold uppercase tracking-wider text-[10px]">Total Deductions</span>
-                    <span className="font-semibold tabular-nums">({formatCurrency(totals.total_deductions)})</span>
+                    <span className="font-semibold tabular-nums text-red-600">({formatCurrency(totals.total_deductions)})</span>
                   </div>
                 </div>
               </div>

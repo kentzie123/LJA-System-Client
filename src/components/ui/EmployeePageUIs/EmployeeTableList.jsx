@@ -149,8 +149,9 @@ const EmployeeTableList = ({
               <th className="py-2.5 px-2 font-bold">Role</th>
               <th className="py-2.5 px-2 font-bold">Position</th>
               <th className="py-2.5 px-2 font-bold">Date Hired</th>
+              {/* UPDATED HEADER NAME TO BE MORE INCLUSIVE */}
               <th className="py-2.5 px-2 font-black text-primary text-right">
-                Daily Rate
+                Base Pay
               </th>
               {showActionColumn && (
                 <th className="py-2.5 pr-4 pl-2 text-right w-24">Action</th>
@@ -218,9 +219,13 @@ const EmployeeTableList = ({
                       {formatDate(employee.date_hired)}
                     </div>
                   </td>
-                  <td className="py-1.5 px-2 whitespace-nowrap text-right">
-                    <span className="font-mono font-bold text-primary text-[11px]">
-                      {formatCurrency(employee.daily_rate)}
+                  {/* UPDATED RATE COLUMN TO SHOW PAY TYPE */}
+                  <td className="py-1.5 px-2 whitespace-nowrap text-right flex flex-col justify-end items-end h-full">
+                    <span className="font-mono font-bold text-primary text-[11px] leading-tight">
+                      {formatCurrency(employee.daily_rate || employee.payrate)}
+                    </span>
+                    <span className="text-[8px] uppercase tracking-widest text-base-content/40 font-bold leading-tight">
+                      {employee.pay_type === 'Monthly' ? 'Monthly' : 'Daily'}
                     </span>
                   </td>
                   {showActionColumn && (
@@ -343,17 +348,19 @@ const EmployeeTableList = ({
                     {formatDate(employee.date_hired)}
                   </span>
                 </div>
+                
+                {/* UPDATED MOBILE RATE DISPLAY TO SHOW PAY TYPE */}
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[8px] font-black uppercase tracking-widest text-base-content/40 flex items-center gap-1">
-                    <Wallet size={8} /> Rate
+                    <Wallet size={8} /> Rate ({employee.pay_type === 'Monthly' ? 'Mo.' : 'Da.'})
                   </span>
                   <span className="font-mono text-[11px] font-black text-primary">
-                    {formatCurrency(employee.daily_rate)}
+                    {formatCurrency(employee.daily_rate || employee.payrate)}
                   </span>
                 </div>
               </div>
 
-              {/* Footer: Actions (Always visible on mobile since no hover exists) */}
+              {/* Footer: Actions */}
               {showActionColumn && (
                 <div className="flex items-center justify-end gap-2 pt-1">
                   <Link

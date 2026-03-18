@@ -29,7 +29,7 @@ const CalendarSidebar = ({
       
       {/* 1. Select Employee Dropdown */}
       {canManualEntry && (
-        <div className="relative z-50 animate-in fade-in">
+        <div className="relative animate-in fade-in">
           <label className="text-[9px] font-bold text-base-content/50 mb-1 block uppercase tracking-widest">
             Select Employee
           </label>
@@ -42,7 +42,7 @@ const CalendarSidebar = ({
       )}
 
       {/* 2. Compact Employee Profile Card */}
-      <div className="bg-base-100 border border-base-300 rounded-xl p-4 flex flex-col sm:flex-row xl:flex-col items-center sm:items-start xl:items-center text-center sm:text-left xl:text-center shadow-sm gap-3 relative z-10">
+      <div className="bg-base-100 border border-base-300 rounded-xl p-4 flex flex-col sm:flex-row xl:flex-col items-center sm:items-start xl:items-center text-center sm:text-left xl:text-center shadow-sm gap-3 relative">
         
         {/* Shrunk Avatar */}
         <div className="relative shrink-0">

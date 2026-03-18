@@ -66,8 +66,7 @@ export const useLeaveStore = create((set, get) => ({
     try {
       const response = await api.get("/leave/all-balances");
       set({ allBalances: response.data });
-      console.log(response.data);
-      
+
     } catch (error) {
       console.error("Failed to fetch all balances", error);
     } finally {

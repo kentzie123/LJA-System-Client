@@ -88,7 +88,7 @@ const ConfirmOvertimeActionModal = ({
               ? " you submitted for " 
               : <> submitted by <strong className="text-base-content font-black">{request?.fullname || "this employee"}</strong> for </>
             }
-            <strong className="text-base-content font-black"> {formatDate(request?.ot_date)}</strong>.
+            <strong className="text-base-content font-black"> {formatDate(request?.start_datetime)}</strong>.
           </p>
 
           <div className="mt-4 p-2.5 bg-base-200/50 border border-base-300 rounded-lg">

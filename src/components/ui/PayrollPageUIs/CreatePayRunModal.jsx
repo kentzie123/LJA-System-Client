@@ -5,75 +5,74 @@ import { X, Calendar, Loader2, AlertCircle } from "lucide-react";
 import { usePayrollStore } from "@/stores/usePayrollStore";
 import { toast } from "react-hot-toast";
 
-// --- IMPORT CUSTOM DATE PICKER ---
-import CustomDatePicker from "@/components/ui/Selections/CustomDatePicker";
-
 const CreatePayRunModal = ({ isOpen, onClose }) => {
   const { createPayRun, isCreating } = usePayrollStore();
 
+  // Initialize with the current month/year in YYYY-MM format
+  const getInitialMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  };
+
   const [formData, setFormData] = useState({
-    start_date: "",
-    end_date: "",
+    monthYear: getInitialMonth(),
+    half: 1,
+    pay_date: "",
   });
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setFormData({ start_date: "", end_date: "" });
+      setFormData({
+        monthYear: getInitialMonth(),
+        half: 1,
+        pay_date: "",
+      });
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Custom handler to ensure end_date doesn't slip before start_date
-  const handleDateChange = (name, value) => {
-    setFormData((prev) => {
-      const newData = { ...prev, [name]: value };
-      
-      if (name === "start_date" && prev.end_date && new Date(value) > new Date(prev.end_date)) {
-        newData.end_date = value;
-      }
-      
-      return newData;
-    });
-  };
-
   const handleSubmit = async () => {
-    // A. Validation
-    if (!formData.start_date || !formData.end_date) {
-      toast.error("Please select the cut-off range.");
+    if (!formData.monthYear || !formData.pay_date) {
+      toast.error("Please fill in all fields.");
       return;
     }
 
-    // B. Auto-Generate Name & Pay Date
-    const s = new Date(formData.start_date);
-    const e = new Date(formData.end_date);
-    const options = { month: "short", day: "numeric" };
+    // 1. Parse Year and Month
+    const [year, month] = formData.monthYear.split("-").map(Number);
+    
+    // 2. Logic to determine Start and End dates
+    let start_date, end_date;
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const run_name = `${monthNames[month - 1]} ${year} - ${formData.half === 1 ? '1st Half' : '2nd Half'}`;
 
-    // Format: "Payroll: Dec 26 - Jan 10"
-    const autoName = `Payroll: ${s.toLocaleDateString(
-      "en-US",
-      options
-    )} - ${e.toLocaleDateString("en-US", options)}`;
+    if (formData.half === 1) {
+      // 1st to 15th
+      start_date = `${year}-${month.toString().padStart(2, '0')}-01`;
+      end_date = `${year}-${month.toString().padStart(2, '0')}-15`;
+    } else {
+      // 16th to Last Day of Month
+      start_date = `${year}-${month.toString().padStart(2, '0')}-16`;
+      // Use JavaScript Date to find the last day of the month
+      const lastDay = new Date(year, month, 0).getDate();
+      end_date = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+    }
 
-    // C. Construct Payload
-    const payload = {
-      start_date: formData.start_date,
-      end_date: formData.end_date,
-      pay_date: formData.end_date,
-      run_name: autoName,
-    };
+    // 3. Send the exact fields the Backend expects
+    const success = await createPayRun({
+      run_name,
+      start_date,
+      end_date,
+      pay_date: formData.pay_date,
+    });
 
-    // D. Call Store Action
-    const success = await createPayRun(payload);
-
-    // E. Close Modal on Success
     if (success) onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-base-100 w-full max-w-sm rounded-xl shadow-2xl border border-white/10 flex flex-col scale-in-95 duration-200 overflow-visible">
+      <div className="bg-base-100 w-full max-w-sm rounded-xl shadow-2xl border border-white/10 flex flex-col scale-in-95 duration-200">
+        
         {/* --- HEADER --- */}
         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-base-200/30 rounded-t-xl">
           <div className="flex items-center gap-3">
@@ -82,13 +81,10 @@ const CreatePayRunModal = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="font-bold text-lg leading-tight">Run Payroll</h3>
-              <p className="text-xs opacity-60">New Calculation</p>
+              <p className="text-xs opacity-60">New Period Calculation</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="btn btn-sm btn-circle btn-ghost text-base-content/50 hover:text-error"
-          >
+          <button onClick={onClose} className="btn btn-sm btn-circle btn-ghost">
             <X size={18} />
           </button>
         </div>
@@ -96,59 +92,74 @@ const CreatePayRunModal = ({ isOpen, onClose }) => {
         {/* --- BODY --- */}
         <div className="p-6 space-y-5">
           {/* Info Box */}
-          <div className="alert bg-base-200 text-xs border border-base-content/10 flex items-start gap-3 rounded-lg">
-            <AlertCircle className="size-5 shrink-0 opacity-50" />
-            <span className="opacity-70">
-              System will auto-generate the Run Name and set the Pay Date to the
-              Cut-off End Date.
-            </span>
+          <div className="p-3 bg-primary/5 border border-primary/10 rounded-lg flex gap-3 items-start">
+            <AlertCircle className="size-5 text-primary shrink-0" />
+            <p className="text-[11px] leading-relaxed opacity-80">
+              Selecting a month and period will automatically calculate attendance from the 
+              <b> {formData.half === 1 ? '1st to the 15th' : '16th to the end of the month'}</b>.
+            </p>
           </div>
 
-          {/* Date Inputs */}
           <div className="space-y-4">
-            <div className="form-control relative z-[40]">
-              <label className="label text-xs font-bold uppercase text-base-content/60 pb-1">
-                Cut-off Start
-              </label>
-              <CustomDatePicker 
-                value={formData.start_date}
-                onChange={(val) => handleDateChange("start_date", val)}
+            {/* 1. Month and Year combined input */}
+            <div className="form-control">
+              <label className="label text-xs font-bold uppercase opacity-60">Target Month & Year</label>
+              <input 
+                type="month"
+                value={formData.monthYear}
+                onChange={(e) => setFormData(p => ({ ...p, monthYear: e.target.value }))}
+                className="input input-bordered input-md focus:outline-primary w-full"
               />
             </div>
-            <div className="form-control relative z-[30]">
-              <label className="label text-xs font-bold uppercase text-base-content/60 pb-1">
-                Cut-off End
-              </label>
-              <CustomDatePicker 
-                value={formData.end_date}
-                onChange={(val) => handleDateChange("end_date", val)}
+
+            {/* 2. Period Selection (Half) */}
+            <div className="form-control">
+              <label className="label text-xs font-bold uppercase opacity-60">Pay Period</label>
+              <div className="flex p-1 bg-base-200 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setFormData(p => ({ ...p, half: 1 }))}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.half === 1 ? 'bg-primary text-white shadow-md' : 'hover:bg-base-300 opacity-60'}`}
+                >
+                  1st Half (1-15)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(p => ({ ...p, half: 2 }))}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.half === 2 ? 'bg-primary text-white shadow-md' : 'hover:bg-base-300 opacity-60'}`}
+                >
+                  2nd Half (16-End)
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Pay Date Input */}
+            <div className="form-control">
+              <label className="label text-xs font-bold uppercase opacity-60">Release/Pay Date</label>
+              <input 
+                type="date"
+                value={formData.pay_date}
+                onChange={(e) => setFormData(p => ({ ...p, pay_date: e.target.value }))}
+                className="input input-bordered input-md focus:outline-primary w-full"
               />
             </div>
           </div>
         </div>
 
         {/* --- FOOTER --- */}
-        <div className="p-5 border-t border-white/10 flex gap-3 justify-end bg-base-100 rounded-b-xl relative z-0">
-          <button
-            onClick={onClose}
-            disabled={isCreating}
-            className="btn btn-ghost hover:bg-base-200"
-          >
+        <div className="p-5 border-t border-white/10 flex gap-3 justify-end bg-base-200/20 rounded-b-xl">
+          <button onClick={onClose} disabled={isCreating} className="btn btn-ghost">
             Cancel
           </button>
-
           <button
             onClick={handleSubmit}
             disabled={isCreating}
-            className="btn btn-primary px-6 shadow-lg shadow-primary/20"
+            className="btn btn-primary px-8 shadow-lg shadow-primary/30"
           >
             {isCreating ? (
-              <>
-                <Loader2 className="animate-spin size-4" />
-                Processing...
-              </>
+              <span className="loading loading-spinner loading-sm"></span>
             ) : (
-              "Run Calculation"
+              "Generate Draft"
             )}
           </button>
         </div>

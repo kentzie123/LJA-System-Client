@@ -36,18 +36,18 @@ const Layout = ({ children }) => {
           <input ref={drawerRef} id="my-drawer" type="checkbox" className="drawer-toggle" />
           
           <div className="drawer-content flex flex-col h-screen overflow-hidden relative">
-            <div className="shrink-0 z-20 shadow-sm relative">
+            <div className="shrink-0 shadow-sm relative z-10">
               <TopBar />
             </div>
             
-            <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative z-10">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative">
               <div className="mx-auto w-full max-w-[1800px] h-full flex flex-col">
                 {children}
               </div>
             </main>
           </div> 
           
-          <div className="drawer-side z-[100]">
+          <div className="drawer-side">
             <label htmlFor="my-drawer" aria-label="close sidebar" className="drawer-overlay bg-black/60 backdrop-blur-sm"></label> 
             
             <aside className="bg-base-100 h-screen w-[240px] border-r border-base-300 flex flex-col shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">

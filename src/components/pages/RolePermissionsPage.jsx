@@ -10,7 +10,8 @@ import {
   Loader,
   Shield,
   Wallet,
-  Coins, // New Icon for Allowances
+  Coins,
+  CalendarDays, // New icon for Events
 } from "lucide-react";
 import { useRoleStore } from "@/stores/useRoleStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -42,17 +43,11 @@ const RolePermissionsPage = () => {
   const [formData, setFormData] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
 
-  // --- PERMISSIONS ---
   const canViewRoles = authUser?.role?.perm_role_view === true;
   const canManageRoles = authUser?.role?.perm_role_manage === true;
-
-  // UX: If user cannot manage roles, set checkboxes to Read Only
   const isReadOnly = !canManageRoles;
-
-  // Check if Super Admin (ID 3)
   const isSuperAdmin = authUser?.role?.id === 3;
 
-  // --- SECURITY CHECK & FETCH ---
   useEffect(() => {
     if (!authUser) {
       router.push("/login");
@@ -65,7 +60,6 @@ const RolePermissionsPage = () => {
     }
   }, [authUser, router, fetchRoles, canViewRoles, isSuperAdmin]);
 
-  // --- DEFAULT SELECTION ---
   useEffect(() => {
     if (roles.length > 0) {
       const exists = roles.find((r) => r.id === Number(selectedRoleId));
@@ -75,60 +69,54 @@ const RolePermissionsPage = () => {
     }
   }, [roles, selectedRoleId]);
 
-  // --- SYNC FORM DATA ---
   useEffect(() => {
     const role = roles.find((r) => r.id === Number(selectedRoleId));
     if (role) {
       setFormData({
-        // Employee
         perm_employee_view: role.perm_employee_view || false,
         perm_employee_create: role.perm_employee_create || false,
         perm_employee_edit: role.perm_employee_edit || false,
         perm_employee_delete: role.perm_employee_delete || false,
 
-        // Attendance
         perm_attendance_view: role.perm_attendance_view || false,
         perm_attendance_verify: role.perm_attendance_verify || false,
         perm_attendance_manual: role.perm_attendance_manual || false,
         perm_attendance_export: role.perm_attendance_export || false,
 
-        // Leave
         perm_leave_view: role.perm_leave_view || false,
         perm_leave_view_all: role.perm_leave_view_all || false,
         perm_leave_approve: role.perm_leave_approve || false,
         perm_leave_create: role.perm_leave_create || false,
         perm_leave_manage: role.perm_leave_manage || false,
 
-        // Overtime
         perm_overtime_view: role.perm_overtime_view || false,
         perm_overtime_view_all: role.perm_overtime_view_all || false,
         perm_overtime_approve: role.perm_overtime_approve || false,
         perm_overtime_create: role.perm_overtime_create || false,
         perm_overtime_manage: role.perm_overtime_manage || false,
 
-        // Deduction
         perm_deduction_view: role.perm_deduction_view || false,
         perm_deduction_manage: role.perm_deduction_manage || false,
 
-        // Allowance (NEW)
         perm_allowance_view: role.perm_allowance_view || false,
         perm_allowance_manage: role.perm_allowance_manage || false,
 
-        // Payroll
         perm_payroll_view: role.perm_payroll_view || false,
         perm_payroll_view_all: role.perm_payroll_view_all || false,
         perm_payroll_manage: role.perm_payroll_manage || false,
         perm_payroll_approve: role.perm_payroll_approve || false,
 
-        // Role Management
         perm_role_view: role.perm_role_view || false,
         perm_role_manage: role.perm_role_manage || false,
+
+        // --- NEW: EVENTS PERMISSIONS ---
+        perm_event_view: role.perm_event_view || false,
+        perm_event_manage: role.perm_event_manage || false,
       });
       setHasChanges(false);
     }
   }, [selectedRoleId, roles]);
 
-  // --- HANDLERS ---
   const handleToggle = (key) => {
     if (isReadOnly) return;
     setFormData((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -183,7 +171,6 @@ const RolePermissionsPage = () => {
     }
   };
 
-  // --- RENDER ---
   if (!authUser || !canViewRoles) return null;
 
   if (isLoading) {
@@ -196,7 +183,6 @@ const RolePermissionsPage = () => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-24">
-      {/* 1. Header */}
       <RoleHeader
         roles={roles}
         selectedRoleId={selectedRoleId}
@@ -207,7 +193,6 @@ const RolePermissionsPage = () => {
         isDeleting={isDeleting}
       />
 
-      {/* 2. Permissions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* EMPLOYEE */}
         <PermissionCard title="Employee Management" icon={Users}>
@@ -333,6 +318,22 @@ const RolePermissionsPage = () => {
           />
         </PermissionCard>
 
+        {/* NEW: CALENDAR EVENTS */}
+        <PermissionCard title="Company Calendar" icon={CalendarDays}>
+          <PermissionCheckbox
+            disabled={isReadOnly}
+            label="View Calendar & Events"
+            checked={formData.perm_event_view}
+            onChange={() => handleToggle("perm_event_view")}
+          />
+          <PermissionCheckbox
+            disabled={isReadOnly}
+            label="Manage Events (Create/Edit/Delete)"
+            checked={formData.perm_event_manage}
+            onChange={() => handleToggle("perm_event_manage")}
+          />
+        </PermissionCard>
+
         {/* DEDUCTION */}
         <PermissionCard title="Deduction Management" icon={Wallet}>
           <PermissionCheckbox
@@ -349,7 +350,7 @@ const RolePermissionsPage = () => {
           />
         </PermissionCard>
 
-        {/* ALLOWANCE (NEW) */}
+        {/* ALLOWANCE */}
         <PermissionCard title="Allowance Management" icon={Coins}>
           <PermissionCheckbox
             disabled={isReadOnly}
@@ -410,7 +411,6 @@ const RolePermissionsPage = () => {
         </PermissionCard>
       </div>
 
-      {/* 3. Floating Save Bar */}
       {canManageRoles && (
         <SaveBar
           hasChanges={hasChanges}

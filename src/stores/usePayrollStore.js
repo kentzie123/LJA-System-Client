@@ -5,8 +5,8 @@ import toast from "react-hot-toast";
 export const usePayrollStore = create((set, get) => ({
   // --- STATE ---
   payrollPeriods: [],
-  activePayRun: null, // Basic info (selected from sidebar)
-  activeRunDetails: null, // FULL DETAILS (Meta + Records + Totals) for the main view
+  activePayRun: null, // Summary info for sidebar/header
+  activeRunDetails: null, // Full data (Meta + Records + Totals)
 
   isFetchingPeriods: false,
   isFetchingDetails: false,
@@ -16,25 +16,30 @@ export const usePayrollStore = create((set, get) => ({
 
   // --- ACTIONS ---
 
-  // 1. SELECT ACTIVE RUN (Client-side selection)
+  // 1. SELECT ACTIVE RUN
   setActiveRun: (data) => {
     set({ activePayRun: data });
     if (data?.id) {
       get().getPayRunDetails(data.id);
+    } else {
+      set({ activeRunDetails: null });
     }
   },
 
-  // 2. GET ALL RUNS (For the Sidebar List)
+  // 2. GET ALL PERIODS (Sidebar)
   getAllPayrollPeriod: async () => {
     set({ isFetchingPeriods: true });
     try {
       const res = await api.get("/payroll");
+      console.log(res.data);
       set({ payrollPeriods: res.data });
-
-      const { activePayRun, payrollPeriods } = get();
-      if (!activePayRun && res.data.length > 0) {
-        get().setActiveRun(res.data[0]);
-      }
+      const { activePayRun } = get();
+      if (res.data.length > 0) {
+        const stillExists = res.data.find((p) => p.id === activePayRun?.id);
+        if (!activePayRun || !stillExists) {
+          get().setActiveRun(res.data[0]);
+        }
+      }      
     } catch (error) {
       console.error("Fetch Payroll Error:", error);
       toast.error("Failed to load payroll history");
@@ -43,34 +48,41 @@ export const usePayrollStore = create((set, get) => ({
     }
   },
 
-  // 3. GET SINGLE RUN DETAILS (For the Main Table & Stats)
+  // 3. GET SINGLE RUN DETAILS (Main View)
   getPayRunDetails: async (id) => {
     set({ isFetchingDetails: true });
     try {
       const res = await api.get(`/payroll/${id}`);
       set({ activeRunDetails: res.data });
+      // Keep activePayRun meta info in sync with details meta
+      set({ activePayRun: res.data.meta });
+      
     } catch (error) {
       console.error("Fetch Details Error:", error);
-      toast.error("Failed to load payroll details");
+      // If unauthorized (trying to see a draft without permission), clear state
+      if (error.response?.status === 403) {
+        set({ activeRunDetails: null, activePayRun: null });
+      }
+      toast.error(error.response?.data?.message || "Failed to load details");
     } finally {
       set({ isFetchingDetails: false });
     }
   },
 
-  // 4. CREATE PAY RUN (Triggers Calculation as DRAFT)
+  // 4. CREATE PAY RUN (Calculation Trigger)
   createPayRun: async (formData) => {
     set({ isCreating: true });
     try {
       const res = await api.post("/payroll/create", formData);
       toast.success("Payroll drafted successfully!");
 
+      // Refresh sidebar list first
       await get().getAllPayrollPeriod();
 
-      // Automatically select and load the new run
+      // If backend returned the new record, select it
       if (res.data?.data?.id) {
-        const newRunId = res.data.data.id;
-        // Fetch periods is async, so we might need to find it directly
-        get().getPayRunDetails(newRunId);
+        const newId = res.data.data.id;
+        get().getPayRunDetails(newId);
       }
 
       return true;
@@ -83,25 +95,23 @@ export const usePayrollStore = create((set, get) => ({
     }
   },
 
-  // 5. APPROVE PAY RUN (Post to Ledger & Finalize)
+  // 5. APPROVE/FINALIZE PAY RUN
   approvePayRun: async (id) => {
     set({ isFinalizing: true });
     try {
       await api.put(`/payroll/${id}/approve`);
-      toast.success("Pay run approved!");
+      toast.success("Pay run approved and finalized!");
 
-      // Refresh details to show "Approved" status
+      // 1. Refresh the main details (to update UI buttons/labels to 'Approved')
       await get().getPayRunDetails(id);
-
-      // Refresh sidebar list
+      
+      // 2. Refresh the sidebar list (to update total costs/status badges)
       await get().getAllPayrollPeriod();
 
       return true;
     } catch (error) {
       console.error("Approve Error:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to approve pay run.",
-      );
+      toast.error(error.response?.data?.message || "Failed to approve pay run.");
       return false;
     } finally {
       set({ isFinalizing: false });
@@ -113,10 +123,10 @@ export const usePayrollStore = create((set, get) => ({
     set({ isDeleting: true });
     try {
       await api.delete(`/payroll/${id}`);
-      toast.success("Payroll period deleted successfully");
+      toast.success("Payroll period deleted");
 
-      const currentActive = get().activePayRun;
-      if (currentActive?.id === id) {
+      // Clear selection if we deleted the current one
+      if (get().activePayRun?.id === id) {
         set({ activePayRun: null, activeRunDetails: null });
       }
 
@@ -124,7 +134,7 @@ export const usePayrollStore = create((set, get) => ({
       return true;
     } catch (error) {
       console.error("Delete Payroll Error:", error);
-      toast.error("Failed to delete payroll period");
+      toast.error(error.response?.data?.message || "Failed to delete");
       return false;
     } finally {
       set({ isDeleting: false });
